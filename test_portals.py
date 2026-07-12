@@ -9,6 +9,7 @@ from bs4 import BeautifulSoup
 # ==========================================
 # 1. CONFIGURATION & TEST CREDENTIALS
 # ==========================================
+# Pre-production test environment credentials
 TELEGRAM_BOT_TOKEN = "8891294738:AAGOuTbxEhZe0Y0wBX0cOFFonFp5m_1bvdA"
 TELEGRAM_CHAT_ID = "-1004306469919"
 ZENROWS_API_KEY = "0a72b44b388084523647e4dce2f6787701a1fbd6"
@@ -31,6 +32,7 @@ CLUSTER_NAMES = {
     "KOVAN": "East / Northeast Cluster"
 }
 
+# 17 Existing Acer Academy Branches (Lat, Lon)
 EXISTING_BRANCHES = {
     "Junction 9 (North)": (1.4331, 103.8405),
     "Admiralty Place (North)": (1.4402, 103.8008),
@@ -53,9 +55,10 @@ EXISTING_BRANCHES = {
 }
 
 # ==========================================
-# 2. HELPER FUNCTIONS
+# 2. HELPER & GEOCODING FUNCTIONS
 # ==========================================
 def calculate_haversine_distance(lat1, lon1, lat2, lon2):
+    """Calculates distance in meters between two GPS coordinates."""
     R = 6371000  
     phi1, phi2 = math.radians(lat1), math.radians(lat2)
     delta_phi = math.radians(lat2 - lat1)
@@ -64,6 +67,7 @@ def calculate_haversine_distance(lat1, lon1, lat2, lon2):
     return R * (2 * math.atan2(math.sqrt(a), math.sqrt(1 - a)))
 
 def check_cannibalization(target_lat, target_lon):
+    """Finds nearest Acer Academy branch and distance in meters."""
     nearest_branch, min_dist = None, float('inf')
     for name, (lat, lon) in EXISTING_BRANCHES.items():
         dist = calculate_haversine_distance(target_lat, target_lon, lat, lon)
@@ -71,52 +75,48 @@ def check_cannibalization(target_lat, target_lon):
             min_dist, nearest_branch = dist, name
     return nearest_branch, min_dist
 
-for idx, unit in enumerate(unseen_units, 1):
-        psf = round(unit["price"] / unit["sqft"], 2) if unit["price"] > 0 and unit["sqft"] > 0 else 0.0
-        psf_display = f"${psf} PSF" if psf > 0 else "Ask for Price"
-        psf_flag = " ⚠️" if psf > MAX_PSF_THRESHOLD else ""
+def get_robust_gps(address_string, raw_card_text=""):
+    """
+    3-Stage Progressive Geocoding to ensure OneMap never fails on noisy portal data.
+    """
+    queries_to_try = []
 
-        # 1. Run the new 3-Stage Robust Geocoder
-        lat, lon = get_robust_gps(unit["address"], raw_card_text=str(unit))
-        
-        # 2. Clean up glued address text for display
-        display_address = re.sub(r'([a-z])([A-Z])', r'\1, \2', unit['address'])
-        display_address = re.sub(r'\s+@\s+', ', ', display_address)
+    # Stage 1: Hunt for a 6-digit Postal Code
+    postal_match = re.search(r'\b(?:S\(|S|Singapore\s*)?(\d{6})\b', raw_card_text, re.I)
+    if postal_match:
+        queries_to_try.append(postal_match.group(1))
 
-        # 3. Calculate metrics cleanly without fallback spam
-        if lat and lon:
-            nearest_branch, dist = check_cannibalization(lat, lon)
-            schools_count = count_nearby_primary_schools(lat, lon)
+    # Stage 2: Clean Block + Street Name (Strip unit numbers and marketing jargon)
+    clean_addr = re.sub(r'#\d+-[a-zA-Z0-9/]+', '', address_string)
+    clean_addr = re.sub(r'\b(Blk|Block|Retail|Shop|Shophouse|Mall|Unit|Floor|Lvl)\b', ' ', clean_addr, flags=re.I)
+    clean_addr = re.sub(r'([a-z])([A-Z])', r'\1 \2', clean_addr)
+    clean_addr = re.sub(r'\s+', ' ', clean_addr).strip()
+    
+    if len(clean_addr) > 5:
+        queries_to_try.append(clean_addr)
+
+    # Stage 3: Street-Only Fallback
+    street_match = re.search(r'\b([A-Za-z\s]+(?:Road|Rd|Avenue|Ave|Street|St|Drive|Dr|Crescent|Cres|Way|Link|Walk|Loop|Green|Central|Plaza))\b', clean_addr, re.I)
+    if street_match:
+        queries_to_try.append(street_match.group(1).strip())
+
+    # Execute search
+    for query in queries_to_try:
+        try:
+            url = f"https://www.onemap.gov.sg/api/common/elastic/search?searchVal={query}&returnGeom=Y&getAddrDetails=Y&pageNum=1"
+            res = requests.get(url, timeout=8).json()
+            if res.get("found", 0) > 0:
+                result = res["results"][0]
+                return float(result["LATITUDE"]), float(result["LONGITUDE"])
+        except Exception:
+            continue
             
-            # Format the school and buffer line cleanly
-            intel_line = f"🏫 **{schools_count} Schools** within 1.5km | **{round(dist/1000, 1)}km** to {nearest_branch}"
-            
-            # Set the cluster badge based on strategic value
-            if dist < 800:
-                cluster_badge = f"⚠️ **[{unit['cluster_key']} - CANNIBALIZATION]**"
-            elif dist > 2500 and schools_count >= 3:
-                cluster_badge = f"🌟 **[{unit['cluster_key']} - PRIME GAP]**"
-            else:
-                cluster_badge = f"📌 **[{unit['cluster_key']}]**"
-        else:
-            # Clean, quiet fallback just in case an address is 100% unreadable
-            intel_line = "🏫 Catchment & Buffer: *Manual verification needed*"
-            cluster_badge = f"📌 **[{unit['cluster_key']}]**"
-
-        # 4. Option 3 Ultra-Compact Markdown Layout
-        block = (
-            f"{cluster_badge} **{display_address}**\n"
-            f"📐 {int(unit['sqft']):,} sqft | 💰 ${unit['price']:,.0f}/mo ({psf_display}{psf_flag})\n"
-            f"{intel_line}\n"
-            f"🔗 [View on {unit['portal']}]({unit['link']})"
-        )
-        report_blocks.append(block)
-        report_blocks.append("---")
-        seen_listings.add(unit["id"])
+    return None, None
 
 def count_nearby_primary_schools(lat, lon):
+    """Counts primary schools within a 1.5km radius via OneMap."""
     try:
-        url = f"https://www.onemap.gov.sg/api/public/themesvc/retrieveTheme?queryName=primaryschool"
+        url = "https://www.onemap.gov.sg/api/public/themesvc/retrieveTheme?queryName=primaryschool"
         res = requests.get(url, timeout=10).json()
         count = 0
         if "SrchResults" in res:
@@ -149,16 +149,19 @@ def send_telegram_alert(markdown_message):
     requests.post(url, json=payload)
 
 def fetch_html_safe(url):
+    """Routes requests through ZenRows API to bypass Cloudflare/PerimeterX."""
     zenrows_endpoint = "https://api.zenrows.com/v1/"
     params = {"url": url, "apikey": ZENROWS_API_KEY, "js_render": "true", "premium_proxy": "true"}
     try:
+        print(f"[*] Requesting page via ZenRows API...")
         res = requests.get(zenrows_endpoint, params=params, timeout=60)
         return res.text if res.status_code == 200 else ""
-    except Exception:
+    except Exception as e:
+        print(f"[!] ZenRows fetch failed: {e}")
         return ""
 
 # ==========================================
-# 3. PORTAL SCRAPE & DOM ADDRESS PARSING
+# 3. PORTAL SCRAPE & LOCAL FILTER LOGIC
 # ==========================================
 def scrape_portal_feed(portal_name, root_url, base_domain):
     print(f"[*] Extracting properties from {portal_name}...")
@@ -169,12 +172,13 @@ def scrape_portal_feed(portal_name, root_url, base_domain):
     soup = BeautifulSoup(html, "html.parser")
     listings = []
     cards = soup.find_all(["div", "article", "li"], class_=re.compile(r"(card|listing|property|item)", re.I))
+    print(f"[*] Found {len(cards)} raw DOM cards on {portal_name}. Applying local filters...")
 
     for card in cards:
         try:
             text = card.get_text(separator=" ").strip()
             
-            # --- CLUSTER FILTER ---
+            # Local Filter 1: Cluster Match
             matched_key = None
             for cluster in CLUSTER_NAMES.keys():
                 if re.search(r"\b" + re.escape(cluster) + r"\b", text, re.I):
@@ -183,7 +187,7 @@ def scrape_portal_feed(portal_name, root_url, base_domain):
             if not matched_key:
                 continue
 
-            # --- SIZE FILTER (< 1,200 SQFT) ---
+            # Local Filter 2: Size Limit (< 1,200 sqft)
             sqft_match = re.search(r"([\d,]+)\s*sqft", text, re.I)
             if not sqft_match:
                 continue
@@ -191,26 +195,23 @@ def scrape_portal_feed(portal_name, root_url, base_domain):
             if sqft > MAX_SQFT_LIMIT or sqft < 100:
                 continue
 
-            # --- ADVANCED ADDRESS EXTRACTION ---
-            # Looks for dedicated location/address elements inside modern portal DOM card modules
+            # Advanced Address Extraction
             address = ""
             addr_elem = card.find(class_=re.compile(r"(address|location|subtitle|street|ellipsis)", re.I))
             if addr_elem:
                 address = re.sub(r"\s+", " ", addr_elem.get_text().strip())
             
-            # Fallback regex parsing if class elements are dynamically named
             if len(address) < 10:
                 addr_match = re.search(r"(?:at|along)\s+([^,.\n\$]{15,60}\b\d{1,3}\b[^,.\n\$]*)", text, re.I)
                 if addr_match:
                     address = addr_match.group(1).strip()
                 else:
-                    # Clean title line fallback
                     link_elem = card.find("a", href=True)
                     address = link_elem.get_text().strip() if link_elem else f"Commercial Unit, {matched_key}"
             
             # Format clean address presentation string
             address = re.sub(r'(For Rent|Rent|Tuition|Shophouse|Retail Shop|Shop|\n)', '', address, flags=re.I).strip()
-            address = address.split("sqft")[0].split("$")[0].strip() # Clean out trailing inline metadata
+            address = address.split("sqft")[0].split("$")[0].strip()
 
             # Link & Pricing
             link_elem = card.find("a", href=True)
@@ -229,19 +230,23 @@ def scrape_portal_feed(portal_name, root_url, base_domain):
                 "cluster_key": matched_key,
                 "address": address,
                 "sqft": sqft,
-                "sqm": round(sqft / 10.7639),
                 "price": price,
-                "link": link
+                "link": link,
+                "raw_text": text
             })
         except Exception:
             continue
 
+    print(f"[*] {portal_name}: Filtered down to {len(listings)} qualified targets.")
     return listings
 
 # ==========================================
-# 4. ORCHESTRATION & BEAUTIFIED DELIVERY
+# 4. ORCHESTRATION & TELEGRAM BROADCAST
 # ==========================================
 def main():
+    # Pre-production test ping
+    send_telegram_alert("🟢 **System Test:** Multi-Portal Expansion Scraper initialized online.")
+
     seen_listings = load_seen_listings()
     
     cg_units = scrape_portal_feed("CommercialGuru", "https://www.commercialguru.com.sg/retail-for-rent", "https://www.commercialguru.com.sg")
@@ -250,71 +255,69 @@ def main():
     all_units = cg_units + ep_units
     unseen_units = [u for u in all_units if u["id"] not in seen_listings]
     
+    print(f"[*] Total combined new qualified units: {len(unseen_units)}")
+    
     if not unseen_units:
-        print("[*] No new items discovered.")
+        send_telegram_alert("ℹ️ **Scan Complete:** 0 new units matched the <1,200 sqft cluster criteria today.")
+        print("[*] Pipeline finished cleanly.")
         return
 
-    # Clean executive main header
+    # Executive header
     report_blocks = [
-        "🏢 **ACER ACADEMY: LEADS DASHBOARD** 🏢",
-        f"*{len(unseen_units)} New Commercial Spaces Identified*",
+        "🏢 **ACER ACADEMY: MULTI-PORTAL INTEL** 🏢",
+        f"*{len(unseen_units)} Qualified Expansion Targets Found*",
         "---"
     ]
 
     for idx, unit in enumerate(unseen_units, 1):
         psf = round(unit["price"] / unit["sqft"], 2) if unit["price"] > 0 and unit["sqft"] > 0 else 0.0
         psf_display = f"${psf} PSF" if psf > 0 else "Ask for Price"
-        psf_flag = " ⚠️ *(High PSF)*" if psf > MAX_PSF_THRESHOLD else " *(Reasonable)*"
+        psf_flag = " ⚠️" if psf > MAX_PSF_THRESHOLD else ""
 
-        # Execute Clean OneMap String Geo-Calculations
-        lat, lon = get_onemap_data(unit["address"])
+        # 1. Execute Robust 3-Stage Geocoding
+        lat, lon = get_robust_gps(unit["address"], raw_card_text=unit.get("raw_text", ""))
         
+        # 2. Clean up glued address text for presentation
+        display_address = re.sub(r'([a-z])([A-Z])', r'\1, \2', unit['address'])
+        display_address = re.sub(r'\s+@\s+', ', ', display_address)
+
+        # 3. Calculate metrics cleanly without fallback noise
         if lat and lon:
             nearest_branch, dist = check_cannibalization(lat, lon)
             schools_count = count_nearby_primary_schools(lat, lon)
             
-            # Setup specific layout metrics matching visual card layout tags
+            intel_line = f"🏫 **{schools_count} Schools** within 1.5km | **{round(dist/1000, 1)}km** to {nearest_branch}"
+            
             if dist < 800:
-                tag = "⚠️ **[CANNIBALIZATION RISK]**"
-                buffer_verdict = f"{int(dist)}m to {nearest_branch}"
+                cluster_badge = f"⚠️ **[{unit['cluster_key']} - CANNIBALIZATION]**"
             elif dist > 2500 and schools_count >= 3:
-                tag = "🌟 **[PRIME EXPANSION GAP]**"
-                buffer_verdict = f"{round(dist/1000, 1)}km to {nearest_branch} *(Clear Territory)*"
+                cluster_badge = f"🌟 **[{unit['cluster_key']} - PRIME GAP]**"
             else:
-                tag = "📍 **[QUALIFIED TARGET]**"
-                buffer_verdict = f"{round(dist/1000, 1)}km to {nearest_branch}"
-                
-            schools_verdict = f"{schools_count} within 1.5km"
+                cluster_badge = f"📌 **[{unit['cluster_key']}]**"
         else:
-            # Clean human fallback when OneMap has structural address mismatch
-            tag = "📍 **[MANUAL OVERRIDE REQUIRED]**"
-            schools_verdict = "Pending location coordinate sync"
-            buffer_verdict = "Manual check required for nearest center"
+            intel_line = "🏫 Catchment & Buffer: *Manual verification needed*"
+            cluster_badge = f"📌 **[{unit['cluster_key']}]**"
 
-        # Beautified, Clean Table Format Layout 
+        # 4. Option 3 Ultra-Compact Markdown Layout
         block = (
-            f"{tag}\n"
-            f"**{idx}. {unit['address']}**\n"
-            f"• **Town / Cluster:** {unit['cluster_key'].title()} ({CLUSTER_NAMES[unit['cluster_key']]})\n"
-            f"• **Portal / Type:** {unit['portal']} | Retail Unit\n"
-            f"• **Size (sqft / sqm):** {int(unit['sqft'])} sqft ({unit['sqm']}m²)\n"
-            f"• **Monthly Rent:** ${unit['price']:,.0f}/mth\n"
-            f"• **PSF Rate:** {psf_display}{psf_flag}\n"
-            f"• **Schools Nearby:** {schools_verdict}\n"
-            f"• **Branch Buffer:** {buffer_verdict}\n"
-            f"🔗 [View Listing Layout]({unit['link']})"
+            f"{cluster_badge} **{display_address}**\n"
+            f"📐 {int(unit['sqft']):,} sqft | 💰 ${unit['price']:,.0f}/mo ({psf_display}{psf_flag})\n"
+            f"{intel_line}\n"
+            f"🔗 [View on {unit['portal']}]({unit['link']})"
         )
         report_blocks.append(block)
         report_blocks.append("---")
         seen_listings.add(unit["id"])
+        time.sleep(0.5)
 
-    # Push to Telegram Channel
+    # Broadcast to Telegram in chunks of 5 units to respect rate limits
     for i in range(0, len(report_blocks), 5):
         chunk = "\n\n".join(report_blocks[i:i+5])
         send_telegram_alert(chunk)
         time.sleep(1)
 
     save_seen_listings(seen_listings)
+    print("[+] State saved. All portal alerts dispatched successfully!")
 
 if __name__ == "__main__":
     main()
