@@ -1,0 +1,37 @@
+name: HDB Commercial Scraper & Telegram Notifier
+
+on:
+  schedule:
+    # Runs at 01:00 UTC (9:00 AM SGT) every Monday, Wednesday, and Friday
+    - cron: '0 1 * * 1,3,5'
+  workflow_dispatch: # Allows you to manually trigger a run from the GitHub UI for testing
+
+jobs:
+  run-scraper:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # Required to push seen_listings.json back to repo
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install Dependencies
+        run: |
+          pip install -r requirements.txt
+          playwright install chromium --with-deps
+
+      - name: Execute Scraper & Broadcast Intel
+        run: python main.py
+
+      - name: Commit State File (seen_listings.json)
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "chore: update seen HDB commercial listings [skip ci]"
+          file_pattern: seen_listings.json
