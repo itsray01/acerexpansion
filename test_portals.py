@@ -9,18 +9,16 @@ from bs4 import BeautifulSoup
 # ==========================================
 # 1. CONFIGURATION & TEST CREDENTIALS
 # ==========================================
-# Using the test token and channel ID as requested for pre-production
+# Pre-production test environment credentials
 TELEGRAM_BOT_TOKEN = "8891294738:AAGOuTbxEhZe0Y0wBX0cOFFonFp5m_1bvdA"
 TELEGRAM_CHAT_ID = "-1004306469919"
+ZENROWS_API_KEY = "0a72b44b388084523647e4dce2f6787701a1fbd6" # Hardcoded for test environment
 
-# Pulls from GitHub Secrets, or falls back to direct requests if running locally without proxy
-SCRAPER_API_KEY = os.environ.get("SCRAPER_API_KEY", "") 
 STATE_FILE = "seen_listings.json"
-
 MAX_SQFT_LIMIT = 1200.0
 MAX_PSF_THRESHOLD = 15.0
 
-# Target Expansion Clusters
+# Target Expansion Clusters for Acer Academy
 TARGET_CLUSTERS = [
     # West Cluster
     "JURONG", "CLEMENTI", "BUKIT BATOK", "CHOA CHU KANG", "BUKIT PANJANG", "BOON LAY",
@@ -107,21 +105,25 @@ def send_telegram_alert(markdown_message):
         print("[+] Telegram alert sent successfully.")
 
 def fetch_html_safe(url):
-    """Routes through ScraperAPI if key exists, otherwise attempts standard browser fetch."""
-    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"}
-    if SCRAPER_API_KEY:
-        proxy_url = f"http://api.scraperapi.com?api_key={SCRAPER_API_KEY}&url={url}"
-        try:
-            return requests.get(proxy_url, timeout=45).text
-        except Exception as e:
-            print(f"[!] ScraperAPI fetch failed for {url}: {e}")
+    """Routes requests through ZenRows Universal Scraper API to bypass anti-bot shields."""
+    zenrows_endpoint = "https://api.zenrows.com/v1/"
+    params = {
+        "url": url,
+        "apikey": ZENROWS_API_KEY,
+        "js_render": "true",       # Tells ZenRows to render JavaScript elements
+        "premium_proxy": "true"    # Uses high-trust residential IPs to bypass firewalls
+    }
+    try:
+        print(f"[*] Requesting page via ZenRows API...")
+        res = requests.get(zenrows_endpoint, params=params, timeout=60)
+        if res.status_code == 200:
+            return res.text
+        else:
+            print(f"[!] ZenRows API returned error {res.status_code}: {res.text[:150]}")
             return ""
-    else:
-        try:
-            return requests.get(url, headers=headers, timeout=15).text
-        except Exception as e:
-            print(f"[!] Direct fetch failed for {url}: {e}")
-            return ""
+    except Exception as e:
+        print(f"[!] ZenRows API connection failed: {e}")
+        return ""
 
 # ==========================================
 # 3. PORTAL SCRAPE & LOCAL FILTER LOGIC
@@ -136,7 +138,7 @@ def scrape_portal_feed(portal_name, root_url, base_domain):
     soup = BeautifulSoup(html, "html.parser")
     listings = []
     
-    # Generic card matcher that adapts to dynamic DOM class changes across real estate portals
+    # Generic card matcher adapting to dynamic DOM class names across real estate portals
     cards = soup.find_all(["div", "article", "li"], class_=re.compile(r"(card|listing|property|item)", re.I))
     print(f"[*] Found {len(cards)} raw DOM cards on {portal_name}. Beginning local filtering...")
 
@@ -151,7 +153,7 @@ def scrape_portal_feed(portal_name, root_url, base_domain):
                     matched_cluster = cluster.upper()
                     break
             if not matched_cluster:
-                continue # Discard out-of-target areas locally
+                continue # Discard out-of-target areas in memory
 
             # --- LOCAL FILTER 2: SIZE CHECK (< 1,200 SQFT) ---
             sqft_match = re.search(r"([\d,]+)\s*sqft", text, re.I)
@@ -162,27 +164,24 @@ def scrape_portal_feed(portal_name, root_url, base_domain):
                 continue # Discard oversized or invalid units
 
             # --- EXTRACT CORE METRICS ---
-            # Title & Link
             link_elem = card.find("a", href=True)
             title = link_elem.get_text().strip() if link_elem else f"Retail Unit ({matched_cluster})"
-            title = re.sub(r"\s+", " ", title) # Clean multiple spaces
+            title = re.sub(r"\s+", " ", title) 
             
             link = link_elem["href"] if link_elem else root_url
             if link.startswith("/"):
                 link = base_domain + link
 
-            # Asking Rent ($/month)
             price_match = re.search(r"\$\s*([\d,]+)", text)
             price = float(price_match.group(1).replace(",", "")) if price_match else 0.0
 
-            # Generate stable unique ID
             listing_id = f"{portal_name[:2].upper()}_{re.sub(r'[^a-zA-Z0-9]', '', title)[:25]}_{int(sqft)}"
 
             listings.append({
                 "id": listing_id,
                 "portal": portal_name,
                 "cluster": matched_cluster,
-                "title": title[:60], # Truncate clean title
+                "title": title[:60], 
                 "sqft": sqft,
                 "price": price,
                 "link": link
@@ -197,9 +196,9 @@ def scrape_portal_feed(portal_name, root_url, base_domain):
 # 4. ORCHESTRATION & TELEGRAM BROADCAST
 # ==========================================
 def main():
-    # --- TEMPORARY FORCE-PING FOR PRE-PRODUCTION TESTING ---
-    send_telegram_alert("🟢 **System Test:** Multi-Portal Expansion Scraper initialized using test token.")
-    # -------------------------------------------------------
+    # --- PRE-PRODUCTION DEBUG PING ---
+    send_telegram_alert("🟢 **ZenRows Integration Test:** Multi-Portal Scraper initialized online.")
+    # ---------------------------------
 
     seen_listings = load_seen_listings()
     
@@ -229,7 +228,7 @@ def main():
 
     report_blocks = [
         "🏢 **ACER ACADEMY: MULTI-PORTAL EXPANSION INTEL** 🏢",
-        f"*Scraped from CommercialGuru & EdgeProp • {len(unseen_units)} Qualified Units Found*",
+        f"*Scraped via ZenRows API • {len(unseen_units)} Qualified Units Found*",
         "---"
     ]
 
@@ -238,7 +237,6 @@ def main():
         psf_display = f"${psf} PSF" if psf > 0 else "Ask for Price"
         psf_flag = " ⚠️ *(High PSF)*" if psf > MAX_PSF_THRESHOLD else ""
 
-        # Geocode for Cannibalization Math
         lat, lon = get_onemap_data(unit["title"])
         if lat and lon:
             nearest_branch, dist = check_cannibalization(lat, lon)
@@ -267,9 +265,8 @@ def main():
         report_blocks.append(block)
         report_blocks.append("---")
         seen_listings.add(unit["id"])
-        time.sleep(0.5) # Polite API pacing
+        time.sleep(0.5)
 
-    # Broadcast to Telegram in chunks of 5 units to stay under the 4096 character message limit
     for i in range(0, len(report_blocks), 5):
         chunk = "\n\n".join(report_blocks[i:i+5])
         send_telegram_alert(chunk)
