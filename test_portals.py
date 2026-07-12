@@ -249,14 +249,19 @@ def main():
 
     seen_listings = load_seen_listings()
     
+    # 1. Scrape the portals
     cg_units = scrape_portal_feed("CommercialGuru", "https://www.commercialguru.com.sg/retail-for-rent", "https://www.commercialguru.com.sg")
     ep_units = scrape_portal_feed("EdgeProp", "https://www.edgeprop.sg/commercial-for-rent", "https://www.edgeprop.sg")
 
+    # 2. Combine all scraped results
     all_units = cg_units + ep_units
+    
+    # 3. DEFINE UNSEEN_UNITS HERE (Before any loops or checks!)
     unseen_units = [u for u in all_units if u["id"] not in seen_listings]
     
     print(f"[*] Total combined new qualified units: {len(unseen_units)}")
     
+    # 4. Exit cleanly if there are no new properties
     if not unseen_units:
         send_telegram_alert("ℹ️ **Scan Complete:** 0 new units matched the <1,200 sqft cluster criteria today.")
         print("[*] Pipeline finished cleanly.")
@@ -269,19 +274,20 @@ def main():
         "---"
     ]
 
+    # 5. Safe to loop over unseen_units now
     for idx, unit in enumerate(unseen_units, 1):
         psf = round(unit["price"] / unit["sqft"], 2) if unit["price"] > 0 and unit["sqft"] > 0 else 0.0
         psf_display = f"${psf} PSF" if psf > 0 else "Ask for Price"
         psf_flag = " ⚠️" if psf > MAX_PSF_THRESHOLD else ""
 
-        # 1. Execute Robust 3-Stage Geocoding
+        # Execute Robust 3-Stage Geocoding
         lat, lon = get_robust_gps(unit["address"], raw_card_text=unit.get("raw_text", ""))
         
-        # 2. Clean up glued address text for presentation
+        # Clean up glued address text for presentation
         display_address = re.sub(r'([a-z])([A-Z])', r'\1, \2', unit['address'])
         display_address = re.sub(r'\s+@\s+', ', ', display_address)
 
-        # 3. Calculate metrics cleanly without fallback noise
+        # Calculate metrics cleanly without fallback noise
         if lat and lon:
             nearest_branch, dist = check_cannibalization(lat, lon)
             schools_count = count_nearby_primary_schools(lat, lon)
@@ -298,7 +304,7 @@ def main():
             intel_line = "🏫 Catchment & Buffer: *Manual verification needed*"
             cluster_badge = f"📌 **[{unit['cluster_key']}]**"
 
-        # 4. Option 3 Ultra-Compact Markdown Layout
+        # Option 3 Ultra-Compact Markdown Layout
         block = (
             f"{cluster_badge} **{display_address}**\n"
             f"📐 {int(unit['sqft']):,} sqft | 💰 ${unit['price']:,.0f}/mo ({psf_display}{psf_flag})\n"
