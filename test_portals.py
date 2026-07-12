@@ -9,26 +9,28 @@ from bs4 import BeautifulSoup
 # ==========================================
 # 1. CONFIGURATION & TEST CREDENTIALS
 # ==========================================
-# Pre-production test environment credentials
 TELEGRAM_BOT_TOKEN = "8891294738:AAGOuTbxEhZe0Y0wBX0cOFFonFp5m_1bvdA"
 TELEGRAM_CHAT_ID = "-1004306469919"
-ZENROWS_API_KEY = "0a72b44b388084523647e4dce2f6787701a1fbd6" # Hardcoded for test environment
+ZENROWS_API_KEY = "0a72b44b388084523647e4dce2f6787701a1fbd6"
 
 STATE_FILE = "seen_listings.json"
 MAX_SQFT_LIMIT = 1200.0
 MAX_PSF_THRESHOLD = 15.0
 
-# Target Expansion Clusters for Acer Academy
-TARGET_CLUSTERS = [
-    # West Cluster
-    "JURONG", "CLEMENTI", "BUKIT BATOK", "CHOA CHU KANG", "BUKIT PANJANG", "BOON LAY",
-    # Central Cluster
-    "TOA PAYOH", "BISHAN", "KALLANG", "WHAMPOA", "QUEENSTOWN", "BUKIT MERAH", "CENTRAL AREA", "NOVENA",
-    # East & NE Cluster
-    "SERANGOON", "HOUGANG", "SENGKANG", "PUNGGOL", "TAMPINES", "BEDOK", "PASIR RIS", "GEYLANG", "KOVAN"
-]
+# Expansion Clusters Mapping
+CLUSTER_NAMES = {
+    "JURONG": "West Cluster", "CLEMENTI": "West Cluster", "BUKIT BATOK": "West Cluster", 
+    "CHOA CHU KANG": "West Cluster", "BUKIT PANJANG": "West Cluster", "BOON LAY": "West Cluster",
+    "TOA PAYOH": "Central Cluster", "BISHAN": "Central Cluster", "KALLANG": "Central Cluster", 
+    "WHAMPOA": "Central Cluster", "QUEENSTOWN": "Central Cluster", "BUKIT MERAH": "Central Cluster", 
+    "CENTRAL AREA": "Central Cluster", "NOVENA": "Central Cluster",
+    "SERANGOON": "East / Northeast Cluster", "HOUGANG": "East / Northeast Cluster", 
+    "SENGKANG": "East / Northeast Cluster", "PUNGGOL": "East / Northeast Cluster", 
+    "TAMPINES": "East / Northeast Cluster", "BEDOK": "East / Northeast Cluster", 
+    "PASIR RIS": "East / Northeast Cluster", "GEYLANG": "East / Northeast Cluster", 
+    "KOVAN": "East / Northeast Cluster"
+}
 
-# Existing 17 Branches for Cannibalization Math (Lat, Lon)
 EXISTING_BRANCHES = {
     "Junction 9 (North)": (1.4331, 103.8405),
     "Admiralty Place (North)": (1.4402, 103.8008),
@@ -54,7 +56,7 @@ EXISTING_BRANCHES = {
 # 2. HELPER FUNCTIONS
 # ==========================================
 def calculate_haversine_distance(lat1, lon1, lat2, lon2):
-    R = 6371000  # Earth's radius in meters
+    R = 6371000  
     phi1, phi2 = math.radians(lat1), math.radians(lat2)
     delta_phi = math.radians(lat2 - lat1)
     delta_lambda = math.radians(lon2 - lon1)
@@ -69,9 +71,12 @@ def check_cannibalization(target_lat, target_lon):
             min_dist, nearest_branch = dist, name
     return nearest_branch, min_dist
 
-def get_onemap_data(address):
+def get_onemap_data(address_string):
+    """Clean string lookup for OneMap API to ensure consistent coordinate match."""
     try:
-        url = f"https://www.onemap.gov.sg/api/common/elastic/search?searchVal={address}&returnGeom=Y&getAddrDetails=Y&pageNum=1"
+        # Strip out symbols that break typical Elasticsearch queries
+        clean_addr = re.sub(r'(#\d+-\d+|#\d+-\w+|\bRetail\b|\bShop\b)', '', address_string, flags=re.I).strip()
+        url = f"https://www.onemap.gov.sg/api/common/elastic/search?searchVal={clean_addr}&returnGeom=Y&getAddrDetails=Y&pageNum=1"
         res = requests.get(url, timeout=10).json()
         if res.get("found", 0) > 0:
             result = res["results"][0]
@@ -79,6 +84,20 @@ def get_onemap_data(address):
     except Exception:
         pass
     return None, None
+
+def count_nearby_primary_schools(lat, lon):
+    try:
+        url = f"https://www.onemap.gov.sg/api/public/themesvc/retrieveTheme?queryName=primaryschool"
+        res = requests.get(url, timeout=10).json()
+        count = 0
+        if "SrchResults" in res:
+            for school in res["SrchResults"][1:]:
+                s_lat, s_lon = float(school["LATITUDE"]), float(school["LONGITUDE"])
+                if calculate_haversine_distance(lat, lon, s_lat, s_lon) <= 1500:
+                    count += 1
+        return count
+    except Exception:
+        return 0
 
 def load_seen_listings():
     if os.path.exists(STATE_FILE):
@@ -98,76 +117,74 @@ def send_telegram_alert(markdown_message):
         "parse_mode": "Markdown",
         "disable_web_page_preview": True
     }
-    res = requests.post(url, json=payload)
-    if res.status_code != 200:
-        print(f"[!] Telegram send failed: {res.text}")
-    else:
-        print("[+] Telegram alert sent successfully.")
+    requests.post(url, json=payload)
 
 def fetch_html_safe(url):
-    """Routes requests through ZenRows Universal Scraper API to bypass anti-bot shields."""
     zenrows_endpoint = "https://api.zenrows.com/v1/"
-    params = {
-        "url": url,
-        "apikey": ZENROWS_API_KEY,
-        "js_render": "true",       # Tells ZenRows to render JavaScript elements
-        "premium_proxy": "true"    # Uses high-trust residential IPs to bypass firewalls
-    }
+    params = {"url": url, "apikey": ZENROWS_API_KEY, "js_render": "true", "premium_proxy": "true"}
     try:
-        print(f"[*] Requesting page via ZenRows API...")
         res = requests.get(zenrows_endpoint, params=params, timeout=60)
-        if res.status_code == 200:
-            return res.text
-        else:
-            print(f"[!] ZenRows API returned error {res.status_code}: {res.text[:150]}")
-            return ""
-    except Exception as e:
-        print(f"[!] ZenRows API connection failed: {e}")
+        return res.text if res.status_code == 200 else ""
+    except Exception:
         return ""
 
 # ==========================================
-# 3. PORTAL SCRAPE & LOCAL FILTER LOGIC
+# 3. PORTAL SCRAPE & DOM ADDRESS PARSING
 # ==========================================
 def scrape_portal_feed(portal_name, root_url, base_domain):
-    print(f"[*] Fetching root stream from {portal_name}: {root_url}...")
+    print(f"[*] Extracting properties from {portal_name}...")
     html = fetch_html_safe(root_url)
     if not html:
-        print(f"[!] No HTML returned from {portal_name}.")
         return []
 
     soup = BeautifulSoup(html, "html.parser")
     listings = []
-    
-    # Generic card matcher adapting to dynamic DOM class names across real estate portals
     cards = soup.find_all(["div", "article", "li"], class_=re.compile(r"(card|listing|property|item)", re.I))
-    print(f"[*] Found {len(cards)} raw DOM cards on {portal_name}. Beginning local filtering...")
 
     for card in cards:
         try:
             text = card.get_text(separator=" ").strip()
             
-            # --- LOCAL FILTER 1: CLUSTER CHECK ---
-            matched_cluster = None
-            for cluster in TARGET_CLUSTERS:
+            # --- CLUSTER FILTER ---
+            matched_key = None
+            for cluster in CLUSTER_NAMES.keys():
                 if re.search(r"\b" + re.escape(cluster) + r"\b", text, re.I):
-                    matched_cluster = cluster.upper()
+                    matched_key = cluster
                     break
-            if not matched_cluster:
-                continue # Discard out-of-target areas in memory
+            if not matched_key:
+                continue
 
-            # --- LOCAL FILTER 2: SIZE CHECK (< 1,200 SQFT) ---
+            # --- SIZE FILTER (< 1,200 SQFT) ---
             sqft_match = re.search(r"([\d,]+)\s*sqft", text, re.I)
             if not sqft_match:
                 continue
             sqft = float(sqft_match.group(1).replace(",", ""))
             if sqft > MAX_SQFT_LIMIT or sqft < 100:
-                continue # Discard oversized or invalid units
+                continue
 
-            # --- EXTRACT CORE METRICS ---
-            link_elem = card.find("a", href=True)
-            title = link_elem.get_text().strip() if link_elem else f"Retail Unit ({matched_cluster})"
-            title = re.sub(r"\s+", " ", title) 
+            # --- ADVANCED ADDRESS EXTRACTION ---
+            # Looks for dedicated location/address elements inside modern portal DOM card modules
+            address = ""
+            addr_elem = card.find(class_=re.compile(r"(address|location|subtitle|street|ellipsis)", re.I))
+            if addr_elem:
+                address = re.sub(r"\s+", " ", addr_elem.get_text().strip())
             
+            # Fallback regex parsing if class elements are dynamically named
+            if len(address) < 10:
+                addr_match = re.search(r"(?:at|along)\s+([^,.\n\$]{15,60}\b\d{1,3}\b[^,.\n\$]*)", text, re.I)
+                if addr_match:
+                    address = addr_match.group(1).strip()
+                else:
+                    # Clean title line fallback
+                    link_elem = card.find("a", href=True)
+                    address = link_elem.get_text().strip() if link_elem else f"Commercial Unit, {matched_key}"
+            
+            # Format clean address presentation string
+            address = re.sub(r'(For Rent|Rent|Tuition|Shophouse|Retail Shop|Shop|\n)', '', address, flags=re.I).strip()
+            address = address.split("sqft")[0].split("$")[0].strip() # Clean out trailing inline metadata
+
+            # Link & Pricing
+            link_elem = card.find("a", href=True)
             link = link_elem["href"] if link_elem else root_url
             if link.startswith("/"):
                 link = base_domain + link
@@ -175,105 +192,100 @@ def scrape_portal_feed(portal_name, root_url, base_domain):
             price_match = re.search(r"\$\s*([\d,]+)", text)
             price = float(price_match.group(1).replace(",", "")) if price_match else 0.0
 
-            listing_id = f"{portal_name[:2].upper()}_{re.sub(r'[^a-zA-Z0-9]', '', title)[:25]}_{int(sqft)}"
+            listing_id = f"{portal_name[:2].upper()}_{re.sub(r'[^a-zA-Z0-9]', '', address)[:25]}_{int(sqft)}"
 
             listings.append({
                 "id": listing_id,
                 "portal": portal_name,
-                "cluster": matched_cluster,
-                "title": title[:60], 
+                "cluster_key": matched_key,
+                "address": address,
                 "sqft": sqft,
+                "sqm": round(sqft / 10.7639),
                 "price": price,
                 "link": link
             })
         except Exception:
             continue
 
-    print(f"[*] {portal_name}: Filtered down to {len(listings)} qualified expansion targets.")
     return listings
 
 # ==========================================
-# 4. ORCHESTRATION & TELEGRAM BROADCAST
+# 4. ORCHESTRATION & BEAUTIFIED DELIVERY
 # ==========================================
 def main():
-    # --- PRE-PRODUCTION DEBUG PING ---
-    send_telegram_alert("🟢 **ZenRows Integration Test:** Multi-Portal Scraper initialized online.")
-    # ---------------------------------
-
     seen_listings = load_seen_listings()
     
-    # 1. Scrape CommercialGuru Root Retail Stream
-    cg_units = scrape_portal_feed(
-        portal_name="CommercialGuru",
-        root_url="https://www.commercialguru.com.sg/retail-for-rent",
-        base_domain="https://www.commercialguru.com.sg"
-    )
-    
-    # 2. Scrape EdgeProp Root Commercial Stream
-    ep_units = scrape_portal_feed(
-        portal_name="EdgeProp",
-        root_url="https://www.edgeprop.sg/commercial-for-rent",
-        base_domain="https://www.edgeprop.sg"
-    )
+    cg_units = scrape_portal_feed("CommercialGuru", "https://www.commercialguru.com.sg/retail-for-rent", "https://www.commercialguru.com.sg")
+    ep_units = scrape_portal_feed("EdgeProp", "https://www.edgeprop.sg/commercial-for-rent", "https://www.edgeprop.sg")
 
     all_units = cg_units + ep_units
     unseen_units = [u for u in all_units if u["id"] not in seen_listings]
     
-    print(f"[*] Total combined new qualified units: {len(unseen_units)}")
-    
     if not unseen_units:
-        send_telegram_alert("ℹ️ **Scan Complete:** 0 new units matched the <1,200 sqft cluster criteria today.")
-        print("[*] Pipeline finished cleanly.")
+        print("[*] No new items discovered.")
         return
 
+    # Clean executive main header
     report_blocks = [
-        "🏢 **ACER ACADEMY: MULTI-PORTAL EXPANSION INTEL** 🏢",
-        f"*Scraped via ZenRows API • {len(unseen_units)} Qualified Units Found*",
+        "🏢 **ACER ACADEMY: LEADS DASHBOARD** 🏢",
+        f"*{len(unseen_units)} New Commercial Spaces Identified*",
         "---"
     ]
 
     for idx, unit in enumerate(unseen_units, 1):
         psf = round(unit["price"] / unit["sqft"], 2) if unit["price"] > 0 and unit["sqft"] > 0 else 0.0
         psf_display = f"${psf} PSF" if psf > 0 else "Ask for Price"
-        psf_flag = " ⚠️ *(High PSF)*" if psf > MAX_PSF_THRESHOLD else ""
+        psf_flag = " ⚠️ *(High PSF)*" if psf > MAX_PSF_THRESHOLD else " *(Reasonable)*"
 
-        lat, lon = get_onemap_data(unit["title"])
+        # Execute Clean OneMap String Geo-Calculations
+        lat, lon = get_onemap_data(unit["address"])
+        
         if lat and lon:
             nearest_branch, dist = check_cannibalization(lat, lon)
+            schools_count = count_nearby_primary_schools(lat, lon)
+            
+            # Setup specific layout metrics matching visual card layout tags
             if dist < 800:
-                tag = "⚠️ **[HIGH CANNIBALIZATION RISK]**"
-                verdict = f"Only **{int(dist)}m** from {nearest_branch} branch! Avoid unless relocating."
-            elif dist > 2500:
+                tag = "⚠️ **[CANNIBALIZATION RISK]**"
+                buffer_verdict = f"{int(dist)}m to {nearest_branch}"
+            elif dist > 2500 and schools_count >= 3:
                 tag = "🌟 **[PRIME EXPANSION GAP]**"
-                verdict = f"**{round(dist/1000, 1)}km** from nearest center ({nearest_branch}). Great territory coverage!"
+                buffer_verdict = f"{round(dist/1000, 1)}km to {nearest_branch} *(Clear Territory)*"
             else:
-                tag = "📍 **[VIABLE TARGET]**"
-                verdict = f"Nearest branch: {nearest_branch} ({round(dist/1000, 1)}km away)."
+                tag = "📍 **[QUALIFIED TARGET]**"
+                buffer_verdict = f"{round(dist/1000, 1)}km to {nearest_branch}"
+                
+            schools_verdict = f"{schools_count} within 1.5km"
         else:
-            tag = "📍 **[NEW LISTING]**"
-            verdict = "GPS lookup unavailable; verify distance to existing centers manually."
+            # Clean human fallback when OneMap has structural address mismatch
+            tag = "📍 **[MANUAL OVERRIDE REQUIRED]**"
+            schools_verdict = "Pending location coordinate sync"
+            buffer_verdict = "Manual check required for nearest center"
 
+        # Beautified, Clean Table Format Layout 
         block = (
             f"{tag}\n"
-            f"**{idx}. {unit['title']}**\n"
-            f"• **Portal:** {unit['portal']} | **Cluster:** {unit['cluster']}\n"
-            f"• **Size:** {int(unit['sqft'])} sqft\n"
-            f"• **Asking Rent:** ${unit['price']:,.2f}/mth | **{psf_display}**{psf_flag}\n"
-            f"• **Strategic Verdict:** {verdict}\n"
-            f"🔗 [View Listing on {unit['portal']}]({unit['link']})"
+            f"**{idx}. {unit['address']}**\n"
+            f"• **Town / Cluster:** {unit['cluster_key'].title()} ({CLUSTER_NAMES[unit['cluster_key']]})\n"
+            f"• **Portal / Type:** {unit['portal']} | Retail Unit\n"
+            f"• **Size (sqft / sqm):** {int(unit['sqft'])} sqft ({unit['sqm']}m²)\n"
+            f"• **Monthly Rent:** ${unit['price']:,.0f}/mth\n"
+            f"• **PSF Rate:** {psf_display}{psf_flag}\n"
+            f"• **Schools Nearby:** {schools_verdict}\n"
+            f"• **Branch Buffer:** {buffer_verdict}\n"
+            f"🔗 [View Listing Layout]({unit['link']})"
         )
         report_blocks.append(block)
         report_blocks.append("---")
         seen_listings.add(unit["id"])
-        time.sleep(0.5)
 
+    # Push to Telegram Channel
     for i in range(0, len(report_blocks), 5):
         chunk = "\n\n".join(report_blocks[i:i+5])
         send_telegram_alert(chunk)
         time.sleep(1)
 
     save_seen_listings(seen_listings)
-    print("[+] State saved. All portal alerts dispatched successfully!")
 
 if __name__ == "__main__":
     main()
