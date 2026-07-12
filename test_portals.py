@@ -53,12 +53,31 @@ EXISTING_BRANCHES = {
     "Hong Kah (West)": (1.3520, 103.7250)
 }
 
-# Global Cache for MOE Primary Schools (Prevents OneMap Rate-Limiting)
 CACHED_PRIMARY_SCHOOLS = []
 
 # ==========================================
-# 2. GEOCODING & SCHOOL CATCHMENT ENGINE
+# 2. HELPER, FORMATTING & GEOCODING FUNCTIONS
 # ==========================================
+def format_display_address(raw_address):
+    """
+    Intelligently formats glued addresses into a clean 2-line layout with a location pin.
+    Example: 'JK Building50 Jalan Jurong Kechil' -> 'JK Building\n📍 50 Jalan Jurong Kechil'
+    """
+    addr = raw_address.strip()
+    
+    # 1. Split where a lowercase/uppercase letter is immediately followed by a number (e.g., Building50 -> Building, 50)
+    addr = re.sub(r'([a-zA-Z])(\d+[\sA-Za-z])', r'\1, \2', addr)
+    addr = re.sub(r'\s+@\s+', ', ', addr)
+    
+    # 2. If we have a comma, split the building name from the street address
+    if ',' in addr:
+        parts = [p.strip() for p in addr.split(',', 1)]
+        if len(parts[0]) > 2 and len(parts[1]) > 2:
+            return f"**{parts[0]}**\n📍 {parts[1]}"
+            
+    # 3. Fallback if no comma: just make it bold and prepend pin if needed
+    return f"📍 **{addr}**"
+
 def calculate_haversine_distance(lat1, lon1, lat2, lon2):
     R = 6371000  
     phi1, phi2 = math.radians(lat1), math.radians(lat2)
@@ -77,47 +96,49 @@ def check_cannibalization(target_lat, target_lon):
 
 def load_primary_schools_once():
     """
-    Downloads all MOE Primary Schools from OneMap ONCE and caches them in memory.
-    Bypasses rate-limiting and speeds up distance calculations by 100x.
+    Downloads all MOE Primary Schools from OneMap ONCE via ZenRows to bypass cloud IP blocks!
     """
     global CACHED_PRIMARY_SCHOOLS
     if CACHED_PRIMARY_SCHOOLS:
         return CACHED_PRIMARY_SCHOOLS
         
-    print("[*] Downloading MOE Primary School dataset from OneMap into local memory...")
+    print("[*] Downloading MOE Primary School dataset via ZenRows to bypass firewall...")
     url = "https://www.onemap.gov.sg/api/public/themesvc/retrieveTheme?queryName=primaryschool"
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
-    }
+    
+    # Route through ZenRows residential proxies so OneMap doesn't block GitHub Actions
+    zenrows_endpoint = "https://api.zenrows.com/v1/"
+    params = {"url": url, "apikey": ZENROWS_API_KEY, "premium_proxy": "true"}
     
     try:
-        res = requests.get(url, headers=headers, timeout=15).json()
-        if "SrchResults" in res:
-            for item in res["SrchResults"][1:]: # Index 0 is OneMap metadata
-                lat = item.get("LATITUDE") or item.get("lat") or item.get("Y")
-                lon = item.get("LONGITUDE") or item.get("lng") or item.get("lon") or item.get("X")
-                name = item.get("NAME") or item.get("Name") or "Primary School"
-                
-                if lat and lon:
-                    try:
-                        CACHED_PRIMARY_SCHOOLS.append({
-                            "name": str(name).strip(),
-                            "lat": float(lat),
-                            "lon": float(lon)
-                        })
-                    except ValueError:
-                        continue
-        print(f"[+] Successfully cached {len(CACHED_PRIMARY_SCHOOLS)} MOE Primary Schools in memory!")
+        res = requests.get(zenrows_endpoint, params=params, timeout=30)
+        if res.status_code == 200:
+            data = res.json()
+            if "SrchResults" in data:
+                for item in data["SrchResults"][1:]:
+                    lat = item.get("LATITUDE") or item.get("lat") or item.get("Y")
+                    lon = item.get("LONGITUDE") or item.get("lng") or item.get("lon") or item.get("X")
+                    name = item.get("NAME") or item.get("Name") or "Primary School"
+                    if lat and lon:
+                        try:
+                            CACHED_PRIMARY_SCHOOLS.append({
+                                "name": str(name).strip(),
+                                "lat": float(lat),
+                                "lon": float(lon)
+                            })
+                        except ValueError:
+                            continue
+            print(f"[+] Successfully cached {len(CACHED_PRIMARY_SCHOOLS)} MOE Primary Schools in memory!")
+        else:
+            print(f"[!] ZenRows school fetch failed with status {res.status_code}")
     except Exception as e:
         print(f"[!] Warning: OneMap theme download failed ({e}).")
         
     return CACHED_PRIMARY_SCHOOLS
 
 def count_nearby_primary_schools(target_lat, target_lon, radius_meters=1500):
-    """Calculates primary schools within radius using the ultra-fast local memory cache."""
     schools = load_primary_schools_once()
     if not schools:
-        return -1 # Returns -1 so we can distinguish an API network failure from a true 0 count
+        return -1
         
     count = 0
     for school in schools:
@@ -128,15 +149,12 @@ def count_nearby_primary_schools(target_lat, target_lon, radius_meters=1500):
     return count
 
 def get_robust_gps(address_string, raw_card_text="", cluster_key=""):
-    """4-Stage Aggressive Geocoding: Scrapes out amenity noise and falls back to Town Center."""
     queries_to_try = []
 
-    # Stage 1: Hunt for a 6-digit Postal Code
     postal_match = re.search(r'\b(?:S\(|S|Singapore\s*)?(\d{6})\b', raw_card_text, re.I)
     if postal_match:
         queries_to_try.append(postal_match.group(1))
 
-    # Stage 2: Extract explicit Singapore road names
     road_regex = r'\b([A-Za-z0-9\s]{3,25}(?:Road|Rd|Avenue|Ave|Street|St|Drive|Dr|Crescent|Cres|Way|Link|Walk|Loop|Green|Central|Plaza|Place|Terrace|View|Mall|Square))\b'
     road_matches = re.findall(road_regex, raw_card_text, re.I)
     for road in road_matches:
@@ -144,7 +162,6 @@ def get_robust_gps(address_string, raw_card_text="", cluster_key=""):
         if len(clean_road) > 4 and clean_road not in queries_to_try:
             queries_to_try.append(clean_road)
 
-    # Stage 3: Scrub amenity chips ("4 Bus Stops nearby", "2 Parks") from address string
     clean_addr = re.sub(r'\d+\s*(?:Bus Stops|Parks|MRT|min|trains?|schools?).*$', '', address_string, flags=re.I)
     clean_addr = re.sub(r'#\S+', '', clean_addr)
     clean_addr = re.sub(r'\b(Blk|Block|Retail|Shop|Shophouse|Mall|Unit|Floor|Lvl)\b', ' ', clean_addr, flags=re.I)
@@ -154,7 +171,6 @@ def get_robust_gps(address_string, raw_card_text="", cluster_key=""):
     if len(clean_addr) > 4 and clean_addr not in queries_to_try:
         queries_to_try.append(clean_addr)
 
-    # Stage 4: Town Center Fallback (Guarantees coordinates even if street name is missing)
     if cluster_key and cluster_key not in queries_to_try:
         queries_to_try.append(f"{cluster_key} Singapore")
 
@@ -292,7 +308,7 @@ def scrape_portal_feed(portal_name, root_url, base_domain):
 def main():
     send_telegram_alert("🟢 **System Test:** Multi-Portal Expansion Scraper initialized online.")
 
-    # 1. Warm up the memory cache BEFORE scraping so distance loops run instantly
+    # 1. Warm up the memory cache BEFORE scraping (Now safely routed through ZenRows!)
     load_primary_schools_once()
 
     seen_listings = load_seen_listings()
@@ -303,7 +319,6 @@ def main():
     all_units = cg_units + ep_units
     unseen_units = [u for u in all_units if u["id"] not in seen_listings]
     
-    # Global URL deduplication safety net across both portals combined
     unique_unseen = []
     seen_links_global = set()
     for u in unseen_units:
@@ -326,21 +341,19 @@ def main():
     ]
 
     for idx, unit in enumerate(unseen_units, 1):
-        # Handle agent placeholder price anomalies (e.g., typing "$10" instead of "$10,000/mth")
         if 0 < unit["price"] < 500:
             psf_display = f"${unit['price']:.2f} PSF (Estimated Ask)"
-            unit["price"] = unit["price"] * unit["sqft"] # Extrapolate total monthly rent from PSF ask
+            unit["price"] = unit["price"] * unit["sqft"]
             psf_flag = ""
         else:
             psf = round(unit["price"] / unit["sqft"], 2) if unit["price"] > 0 and unit["sqft"] > 0 else 0.0
             psf_display = f"${psf:.2f} PSF" if psf > 0 else "Ask for Price"
             psf_flag = " ⚠️ *(Above Market)*" if psf > MAX_PSF_THRESHOLD else ""
 
-        # Execute 4-Stage Aggressive Geocoding
         lat, lon = get_robust_gps(unit["address"], raw_card_text=unit.get("raw_text", ""), cluster_key=unit["cluster_key"])
         
-        display_address = re.sub(r'([a-z])([A-Z])', r'\1, \2', unit['address'])
-        display_address = re.sub(r'\s+@\s+', ', ', display_address)
+        # Apply intelligent 2-line address formatting
+        display_address = format_display_address(unit['address'])
 
         if lat and lon:
             nearest_branch, dist = check_cannibalization(lat, lon)
@@ -359,9 +372,9 @@ def main():
             schools_line = "*GPS sync pending* (Manual check needed)"
             buffer_line = "*GPS sync pending*"
 
-        # Option 1 Executive Card Layout
+        # Formatted cleanly with separated building/street lines
         block = (
-            f"🏢 **{display_address}**\n"
+            f"🏢 {display_address}\n"
             f"🏷️ {unit['portal']} • Retail Unit ({unit['cluster_key'].title()} / {CLUSTER_NAMES[unit['cluster_key']]})\n\n"
             f"📐 **{int(unit['sqft']):,} sqft** ({unit['sqm']} m²)\n"
             f"💰 **${unit['price']:,.0f} / mth** |  **{psf_display}**{psf_flag}\n\n"
@@ -375,7 +388,6 @@ def main():
         seen_listings.add(unit["id"])
         time.sleep(0.1)
 
-    # Broadcast to Telegram in chunks of 3 cards to keep message boxes tidy and readable
     for i in range(0, len(report_blocks), 3):
         chunk = "\n\n".join(report_blocks[i:i+3])
         send_telegram_alert(chunk)
