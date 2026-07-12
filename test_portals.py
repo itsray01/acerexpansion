@@ -72,7 +72,10 @@ def check_cannibalization(target_lat, target_lon):
             min_dist, nearest_branch = dist, name
     return nearest_branch, min_dist
 
-def get_robust_gps(address_string, raw_card_text=""):
+def get_robust_gps(address_string, raw_card_text="", cluster_key=""):
+    """
+    4-Stage Aggressive Geocoding: Scrapes out amenity noise and falls back to Town Center if needed.
+    """
     queries_to_try = []
 
     # Stage 1: Hunt for a 6-digit Postal Code
@@ -80,20 +83,29 @@ def get_robust_gps(address_string, raw_card_text=""):
     if postal_match:
         queries_to_try.append(postal_match.group(1))
 
-    # Stage 2: Clean Block + Street Name (Strip unit numbers and marketing jargon)
-    clean_addr = re.sub(r'#\d+-[a-zA-Z0-9/]+', '', address_string)
+    # Stage 2: Extract explicit Singapore road names (Road, Ave, St, Walk, Mall, etc.)
+    road_regex = r'\b([A-Za-z0-9\s]{3,25}(?:Road|Rd|Avenue|Ave|Street|St|Drive|Dr|Crescent|Cres|Way|Link|Walk|Loop|Green|Central|Plaza|Place|Terrace|View|Mall|Square))\b'
+    road_matches = re.findall(road_regex, raw_card_text, re.I)
+    for road in road_matches:
+        clean_road = re.sub(r'\b(Blk|Block|Shop|Retail|Unit|#\S+)\b', '', road, flags=re.I).strip()
+        if len(clean_road) > 4 and clean_road not in queries_to_try:
+            queries_to_try.append(clean_road)
+
+    # Stage 3: Scrub amenity chips ("4 Bus Stops nearby", "2 Parks", "min walk") from address
+    clean_addr = re.sub(r'\d+\s*(?:Bus Stops|Parks|MRT|min|trains?|schools?).*$', '', address_string, flags=re.I)
+    clean_addr = re.sub(r'#\S+', '', clean_addr) # Remove unit numbers
     clean_addr = re.sub(r'\b(Blk|Block|Retail|Shop|Shophouse|Mall|Unit|Floor|Lvl)\b', ' ', clean_addr, flags=re.I)
-    clean_addr = re.sub(r'([a-z])([A-Z])', r'\1 \2', clean_addr)
+    clean_addr = re.sub(r'([a-z])([A-Z])', r'\1 \2', clean_addr) # Fix glued words
     clean_addr = re.sub(r'\s+', ' ', clean_addr).strip()
     
-    if len(clean_addr) > 5:
+    if len(clean_addr) > 4 and clean_addr not in queries_to_try:
         queries_to_try.append(clean_addr)
 
-    # Stage 3: Street-Only Fallback
-    street_match = re.search(r'\b([A-Za-z\s]+(?:Road|Rd|Avenue|Ave|Street|St|Drive|Dr|Crescent|Cres|Way|Link|Walk|Loop|Green|Central|Plaza))\b', clean_addr, re.I)
-    if street_match:
-        queries_to_try.append(street_match.group(1).strip())
+    # Stage 4: Town Center Fallback (Guarantees we get coordinates even if street name is missing)
+    if cluster_key and cluster_key not in queries_to_try:
+        queries_to_try.append(f"{cluster_key} Singapore")
 
+    # Execute OneMap search
     for query in queries_to_try:
         try:
             url = f"https://www.onemap.gov.sg/api/common/elastic/search?searchVal={query}&returnGeom=Y&getAddrDetails=Y&pageNum=1"
@@ -152,7 +164,7 @@ def fetch_html_safe(url):
         return ""
 
 # ==========================================
-# 3. PORTAL SCRAPE & LOCAL FILTER LOGIC
+# 3. PORTAL SCRAPE & DEDUPLICATION LOGIC
 # ==========================================
 def scrape_portal_feed(portal_name, root_url, base_domain):
     print(f"[*] Extracting properties from {portal_name}...")
@@ -162,13 +174,16 @@ def scrape_portal_feed(portal_name, root_url, base_domain):
 
     soup = BeautifulSoup(html, "html.parser")
     listings = []
+    seen_urls_in_batch = set() # Anti-Duplicate Shield for current page
+    
     cards = soup.find_all(["div", "article", "li"], class_=re.compile(r"(card|listing|property|item)", re.I))
-    print(f"[*] Found {len(cards)} raw DOM cards on {portal_name}. Applying local filters...")
+    print(f"[*] Found {len(cards)} raw DOM cards on {portal_name}. Applying filters...")
 
     for card in cards:
         try:
             text = card.get_text(separator=" ").strip()
             
+            # Local Filter 1: Cluster Match
             matched_key = None
             for cluster in CLUSTER_NAMES.keys():
                 if re.search(r"\b" + re.escape(cluster) + r"\b", text, re.I):
@@ -177,6 +192,7 @@ def scrape_portal_feed(portal_name, root_url, base_domain):
             if not matched_key:
                 continue
 
+            # Local Filter 2: Size Limit (< 1,200 sqft)
             sqft_match = re.search(r"([\d,]+)\s*sqft", text, re.I)
             if not sqft_match:
                 continue
@@ -184,6 +200,18 @@ def scrape_portal_feed(portal_name, root_url, base_domain):
             if sqft > MAX_SQFT_LIMIT or sqft < 100:
                 continue
 
+            # Link Extraction & Deduplication Check
+            link_elem = card.find("a", href=True)
+            link = link_elem["href"] if link_elem else root_url
+            if link.startswith("/"):
+                link = base_domain + link
+                
+            clean_url = link.split("?")[0] # Strip tracking params to ensure clean URL comparison
+            if clean_url in seen_urls_in_batch:
+                continue # Skip if we already scraped this exact URL on this page!
+            seen_urls_in_batch.add(clean_url)
+
+            # Advanced Address Scrubbing (Removes "4 Bus Stops nearby" poisoning)
             address = ""
             addr_elem = card.find(class_=re.compile(r"(address|location|subtitle|street|ellipsis)", re.I))
             if addr_elem:
@@ -194,21 +222,20 @@ def scrape_portal_feed(portal_name, root_url, base_domain):
                 if addr_match:
                     address = addr_match.group(1).strip()
                 else:
-                    link_elem = card.find("a", href=True)
-                    address = link_elem.get_text().strip() if link_elem else f"Commercial Unit, {matched_key}"
+                    address = link_elem.get_text().strip() if link_elem else f"Retail Unit, {matched_key}"
             
+            # Scrub out amenity chips and trailing metadata from address string
+            address = re.sub(r'(\d+\s*(?:Bus Stops|Parks|MRT|min|trains?|schools?).*)$', '', address, flags=re.I).strip()
             address = re.sub(r'(For Rent|Rent|Tuition|Shophouse|Retail Shop|Shop|\n)', '', address, flags=re.I).strip()
             address = address.split("sqft")[0].split("$")[0].strip()
-
-            link_elem = card.find("a", href=True)
-            link = link_elem["href"] if link_elem else root_url
-            if link.startswith("/"):
-                link = base_domain + link
+            if not address or len(address) < 3:
+                address = f"Commercial Space ({matched_key.title()})"
 
             price_match = re.search(r"\$\s*([\d,]+)", text)
             price = float(price_match.group(1).replace(",", "")) if price_match else 0.0
 
-            listing_id = f"{portal_name[:2].upper()}_{re.sub(r'[^a-zA-Z0-9]', '', address)[:25]}_{int(sqft)}"
+            # Stable unique ID based on URL hash and portal
+            listing_id = f"{portal_name[:2].upper()}_{abs(hash(clean_url))}_{int(sqft)}"
 
             listings.append({
                 "id": listing_id,
@@ -216,14 +243,15 @@ def scrape_portal_feed(portal_name, root_url, base_domain):
                 "cluster_key": matched_key,
                 "address": address,
                 "sqft": sqft,
+                "sqm": round(sqft / 10.7639),
                 "price": price,
-                "link": link,
+                "link": clean_url,
                 "raw_text": text
             })
         except Exception:
             continue
 
-    print(f"[*] {portal_name}: Filtered down to {len(listings)} qualified targets.")
+    print(f"[*] {portal_name}: Filtered down to {len(listings)} unique qualified targets.")
     return listings
 
 # ==========================================
@@ -234,37 +262,45 @@ def main():
 
     seen_listings = load_seen_listings()
     
-    # 1. Scrape the real estate portals
+    # 1. Scrape portals (Using wider root streams)
     cg_units = scrape_portal_feed("CommercialGuru", "https://www.commercialguru.com.sg/retail-for-rent", "https://www.commercialguru.com.sg")
     ep_units = scrape_portal_feed("EdgeProp", "https://www.edgeprop.sg/commercial-for-rent", "https://www.edgeprop.sg")
 
-    # 2. Combine all scraped results
+    # 2. Combine and deduplicate against historical database
     all_units = cg_units + ep_units
-    
-    # 3. Define unseen_units safely inside the function scope BEFORE looping
     unseen_units = [u for u in all_units if u["id"] not in seen_listings]
     
-    print(f"[*] Total combined new qualified units: {len(unseen_units)}")
+    # Extra URL deduplication safety net across both portals combined
+    unique_unseen = []
+    seen_links_global = set()
+    for u in unseen_units:
+        if u["link"] not in seen_links_global:
+            seen_links_global.add(u["link"])
+            unique_unseen.append(u)
+    unseen_units = unique_unseen
+
+    print(f"[*] Total combined new unique qualified units: {len(unseen_units)}")
     
     if not unseen_units:
-        send_telegram_alert("ℹ️ **Scan Complete:** 0 new units matched the <1,200 sqft cluster criteria today.")
+        send_telegram_alert("ℹ️ **Scan Complete:** 0 new unique units matched the <1,200 sqft cluster criteria today.")
         print("[*] Pipeline finished cleanly.")
         return
 
     report_blocks = [
-        "🏢 **ACER ACADEMY: MULTI-PORTAL INTEL** 🏢",
-        f"*{len(unseen_units)} Qualified Expansion Targets Found*",
+        "🏢 **ACER ACADEMY: EXPANSION INTEL** 🏢",
+        f"*{len(unseen_units)} New Commercial Spaces Identified*",
         "---"
     ]
 
-    # 4. Safe to loop over unseen_units now
     for idx, unit in enumerate(unseen_units, 1):
         psf = round(unit["price"] / unit["sqft"], 2) if unit["price"] > 0 and unit["sqft"] > 0 else 0.0
-        psf_display = f"${psf} PSF" if psf > 0 else "Ask for Price"
-        psf_flag = " ⚠️" if psf > MAX_PSF_THRESHOLD else ""
+        psf_display = f"${psf:.2f} PSF" if psf > 0 else "Ask for Price"
+        psf_flag = " ⚠️ *(Above Market)*" if psf > MAX_PSF_THRESHOLD else ""
 
-        lat, lon = get_robust_gps(unit["address"], raw_card_text=unit.get("raw_text", ""))
+        # Execute 4-Stage Aggressive Geocoding
+        lat, lon = get_robust_gps(unit["address"], raw_card_text=unit.get("raw_text", ""), cluster_key=unit["cluster_key"])
         
+        # Format clean display address
         display_address = re.sub(r'([a-z])([A-Z])', r'\1, \2', unit['address'])
         display_address = re.sub(r'\s+@\s+', ', ', display_address)
 
@@ -272,31 +308,34 @@ def main():
             nearest_branch, dist = check_cannibalization(lat, lon)
             schools_count = count_nearby_primary_schools(lat, lon)
             
-            intel_line = f"🏫 **{schools_count} Schools** within 1.5km | **{round(dist/1000, 1)}km** to {nearest_branch}"
+            schools_line = f"**{schools_count} Primary Schools** within 1.5km"
+            buffer_line = f"**{round(dist/1000, 1)} km** to {nearest_branch}"
             
             if dist < 800:
-                cluster_badge = f"⚠️ **[{unit['cluster_key']} - CANNIBALIZATION]**"
-            elif dist > 2500 and schools_count >= 3:
-                cluster_badge = f"🌟 **[{unit['cluster_key']} - PRIME GAP]**"
-            else:
-                cluster_badge = f"📌 **[{unit['cluster_key']}]**"
+                schools_line += " ⚠️ *(High Cannibalization)*"
         else:
-            intel_line = "🏫 Catchment & Buffer: *Manual verification needed*"
-            cluster_badge = f"📌 **[{unit['cluster_key']}]**"
+            schools_line = "*GPS sync pending* (Manual check needed)"
+            buffer_line = "*GPS sync pending*"
 
+        # Option 1 Executive Card Layout (Exactly matching your requested template)
         block = (
-            f"{cluster_badge} **{display_address}**\n"
-            f"📐 {int(unit['sqft']):,} sqft | 💰 ${unit['price']:,.0f}/mo ({psf_display}{psf_flag})\n"
-            f"{intel_line}\n"
-            f"🔗 [View on {unit['portal']}]({unit['link']})"
+            f"🏢 **{display_address}**\n"
+            f"🏷️ {unit['portal']} • Retail Unit ({unit['cluster_key'].title()} / {CLUSTER_NAMES[unit['cluster_key']]})\n\n"
+            f"📐 **{int(unit['sqft']):,} sqft** ({unit['sqm']} m²)\n"
+            f"💰 **${unit['price']:,.0f} / mth** |  **{psf_display}**{psf_flag}\n\n"
+            f"📍 **Location & Catchment:**\n"
+            f"• **Schools:** {schools_line}\n"
+            f"• **Branch Buffer:** {buffer_line}\n\n"
+            f"🔗 [Open Listing on {unit['portal']}]({unit['link']})"
         )
         report_blocks.append(block)
         report_blocks.append("---")
         seen_listings.add(unit["id"])
         time.sleep(0.5)
 
-    for i in range(0, len(report_blocks), 5):
-        chunk = "\n\n".join(report_blocks[i:i+5])
+    # Broadcast to Telegram in chunks of 3 cards to keep message boxes tidy and readable
+    for i in range(0, len(report_blocks), 3):
+        chunk = "\n\n".join(report_blocks[i:i+3])
         send_telegram_alert(chunk)
         time.sleep(1)
 
