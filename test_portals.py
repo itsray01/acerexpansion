@@ -53,8 +53,11 @@ EXISTING_BRANCHES = {
     "Hong Kah (West)": (1.3520, 103.7250)
 }
 
+# Global Cache for MOE Primary Schools (Prevents OneMap Rate-Limiting)
+CACHED_PRIMARY_SCHOOLS = []
+
 # ==========================================
-# 2. HELPER & GEOCODING FUNCTIONS
+# 2. GEOCODING & SCHOOL CATCHMENT ENGINE
 # ==========================================
 def calculate_haversine_distance(lat1, lon1, lat2, lon2):
     R = 6371000  
@@ -72,10 +75,60 @@ def check_cannibalization(target_lat, target_lon):
             min_dist, nearest_branch = dist, name
     return nearest_branch, min_dist
 
+def load_primary_schools_once():
+    """
+    Downloads all MOE Primary Schools from OneMap ONCE and caches them in memory.
+    Bypasses rate-limiting and speeds up distance calculations by 100x.
+    """
+    global CACHED_PRIMARY_SCHOOLS
+    if CACHED_PRIMARY_SCHOOLS:
+        return CACHED_PRIMARY_SCHOOLS
+        
+    print("[*] Downloading MOE Primary School dataset from OneMap into local memory...")
+    url = "https://www.onemap.gov.sg/api/public/themesvc/retrieveTheme?queryName=primaryschool"
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
+    }
+    
+    try:
+        res = requests.get(url, headers=headers, timeout=15).json()
+        if "SrchResults" in res:
+            for item in res["SrchResults"][1:]: # Index 0 is OneMap metadata
+                lat = item.get("LATITUDE") or item.get("lat") or item.get("Y")
+                lon = item.get("LONGITUDE") or item.get("lng") or item.get("lon") or item.get("X")
+                name = item.get("NAME") or item.get("Name") or "Primary School"
+                
+                if lat and lon:
+                    try:
+                        CACHED_PRIMARY_SCHOOLS.append({
+                            "name": str(name).strip(),
+                            "lat": float(lat),
+                            "lon": float(lon)
+                        })
+                    except ValueError:
+                        continue
+        print(f"[+] Successfully cached {len(CACHED_PRIMARY_SCHOOLS)} MOE Primary Schools in memory!")
+    except Exception as e:
+        print(f"[!] Warning: OneMap theme download failed ({e}).")
+        
+    return CACHED_PRIMARY_SCHOOLS
+
+def count_nearby_primary_schools(target_lat, target_lon, radius_meters=1500):
+    """Calculates primary schools within radius using the ultra-fast local memory cache."""
+    schools = load_primary_schools_once()
+    if not schools:
+        return -1 # Returns -1 so we can distinguish an API network failure from a true 0 count
+        
+    count = 0
+    for school in schools:
+        dist = calculate_haversine_distance(target_lat, target_lon, school["lat"], school["lon"])
+        if dist <= radius_meters:
+            count += 1
+            
+    return count
+
 def get_robust_gps(address_string, raw_card_text="", cluster_key=""):
-    """
-    4-Stage Aggressive Geocoding: Scrapes out amenity noise and falls back to Town Center if needed.
-    """
+    """4-Stage Aggressive Geocoding: Scrapes out amenity noise and falls back to Town Center."""
     queries_to_try = []
 
     # Stage 1: Hunt for a 6-digit Postal Code
@@ -83,7 +136,7 @@ def get_robust_gps(address_string, raw_card_text="", cluster_key=""):
     if postal_match:
         queries_to_try.append(postal_match.group(1))
 
-    # Stage 2: Extract explicit Singapore road names (Road, Ave, St, Walk, Mall, etc.)
+    # Stage 2: Extract explicit Singapore road names
     road_regex = r'\b([A-Za-z0-9\s]{3,25}(?:Road|Rd|Avenue|Ave|Street|St|Drive|Dr|Crescent|Cres|Way|Link|Walk|Loop|Green|Central|Plaza|Place|Terrace|View|Mall|Square))\b'
     road_matches = re.findall(road_regex, raw_card_text, re.I)
     for road in road_matches:
@@ -91,21 +144,20 @@ def get_robust_gps(address_string, raw_card_text="", cluster_key=""):
         if len(clean_road) > 4 and clean_road not in queries_to_try:
             queries_to_try.append(clean_road)
 
-    # Stage 3: Scrub amenity chips ("4 Bus Stops nearby", "2 Parks", "min walk") from address
+    # Stage 3: Scrub amenity chips ("4 Bus Stops nearby", "2 Parks") from address string
     clean_addr = re.sub(r'\d+\s*(?:Bus Stops|Parks|MRT|min|trains?|schools?).*$', '', address_string, flags=re.I)
-    clean_addr = re.sub(r'#\S+', '', clean_addr) # Remove unit numbers
+    clean_addr = re.sub(r'#\S+', '', clean_addr)
     clean_addr = re.sub(r'\b(Blk|Block|Retail|Shop|Shophouse|Mall|Unit|Floor|Lvl)\b', ' ', clean_addr, flags=re.I)
-    clean_addr = re.sub(r'([a-z])([A-Z])', r'\1 \2', clean_addr) # Fix glued words
+    clean_addr = re.sub(r'([a-z])([A-Z])', r'\1 \2', clean_addr)
     clean_addr = re.sub(r'\s+', ' ', clean_addr).strip()
     
     if len(clean_addr) > 4 and clean_addr not in queries_to_try:
         queries_to_try.append(clean_addr)
 
-    # Stage 4: Town Center Fallback (Guarantees we get coordinates even if street name is missing)
+    # Stage 4: Town Center Fallback (Guarantees coordinates even if street name is missing)
     if cluster_key and cluster_key not in queries_to_try:
         queries_to_try.append(f"{cluster_key} Singapore")
 
-    # Execute OneMap search
     for query in queries_to_try:
         try:
             url = f"https://www.onemap.gov.sg/api/common/elastic/search?searchVal={query}&returnGeom=Y&getAddrDetails=Y&pageNum=1"
@@ -117,20 +169,6 @@ def get_robust_gps(address_string, raw_card_text="", cluster_key=""):
             continue
             
     return None, None
-
-def count_nearby_primary_schools(lat, lon):
-    try:
-        url = "https://www.onemap.gov.sg/api/public/themesvc/retrieveTheme?queryName=primaryschool"
-        res = requests.get(url, timeout=10).json()
-        count = 0
-        if "SrchResults" in res:
-            for school in res["SrchResults"][1:]:
-                s_lat, s_lon = float(school["LATITUDE"]), float(school["LONGITUDE"])
-                if calculate_haversine_distance(lat, lon, s_lat, s_lon) <= 1500:
-                    count += 1
-        return count
-    except Exception:
-        return 0
 
 def load_seen_listings():
     if os.path.exists(STATE_FILE):
@@ -174,7 +212,7 @@ def scrape_portal_feed(portal_name, root_url, base_domain):
 
     soup = BeautifulSoup(html, "html.parser")
     listings = []
-    seen_urls_in_batch = set() # Anti-Duplicate Shield for current page
+    seen_urls_in_batch = set()
     
     cards = soup.find_all(["div", "article", "li"], class_=re.compile(r"(card|listing|property|item)", re.I))
     print(f"[*] Found {len(cards)} raw DOM cards on {portal_name}. Applying filters...")
@@ -183,7 +221,6 @@ def scrape_portal_feed(portal_name, root_url, base_domain):
         try:
             text = card.get_text(separator=" ").strip()
             
-            # Local Filter 1: Cluster Match
             matched_key = None
             for cluster in CLUSTER_NAMES.keys():
                 if re.search(r"\b" + re.escape(cluster) + r"\b", text, re.I):
@@ -192,7 +229,6 @@ def scrape_portal_feed(portal_name, root_url, base_domain):
             if not matched_key:
                 continue
 
-            # Local Filter 2: Size Limit (< 1,200 sqft)
             sqft_match = re.search(r"([\d,]+)\s*sqft", text, re.I)
             if not sqft_match:
                 continue
@@ -200,18 +236,16 @@ def scrape_portal_feed(portal_name, root_url, base_domain):
             if sqft > MAX_SQFT_LIMIT or sqft < 100:
                 continue
 
-            # Link Extraction & Deduplication Check
             link_elem = card.find("a", href=True)
             link = link_elem["href"] if link_elem else root_url
             if link.startswith("/"):
                 link = base_domain + link
                 
-            clean_url = link.split("?")[0] # Strip tracking params to ensure clean URL comparison
+            clean_url = link.split("?")[0]
             if clean_url in seen_urls_in_batch:
-                continue # Skip if we already scraped this exact URL on this page!
+                continue
             seen_urls_in_batch.add(clean_url)
 
-            # Advanced Address Scrubbing (Removes "4 Bus Stops nearby" poisoning)
             address = ""
             addr_elem = card.find(class_=re.compile(r"(address|location|subtitle|street|ellipsis)", re.I))
             if addr_elem:
@@ -224,7 +258,6 @@ def scrape_portal_feed(portal_name, root_url, base_domain):
                 else:
                     address = link_elem.get_text().strip() if link_elem else f"Retail Unit, {matched_key}"
             
-            # Scrub out amenity chips and trailing metadata from address string
             address = re.sub(r'(\d+\s*(?:Bus Stops|Parks|MRT|min|trains?|schools?).*)$', '', address, flags=re.I).strip()
             address = re.sub(r'(For Rent|Rent|Tuition|Shophouse|Retail Shop|Shop|\n)', '', address, flags=re.I).strip()
             address = address.split("sqft")[0].split("$")[0].strip()
@@ -234,7 +267,6 @@ def scrape_portal_feed(portal_name, root_url, base_domain):
             price_match = re.search(r"\$\s*([\d,]+)", text)
             price = float(price_match.group(1).replace(",", "")) if price_match else 0.0
 
-            # Stable unique ID based on URL hash and portal
             listing_id = f"{portal_name[:2].upper()}_{abs(hash(clean_url))}_{int(sqft)}"
 
             listings.append({
@@ -260,17 +292,18 @@ def scrape_portal_feed(portal_name, root_url, base_domain):
 def main():
     send_telegram_alert("🟢 **System Test:** Multi-Portal Expansion Scraper initialized online.")
 
+    # 1. Warm up the memory cache BEFORE scraping so distance loops run instantly
+    load_primary_schools_once()
+
     seen_listings = load_seen_listings()
     
-    # 1. Scrape portals (Using wider root streams)
     cg_units = scrape_portal_feed("CommercialGuru", "https://www.commercialguru.com.sg/retail-for-rent", "https://www.commercialguru.com.sg")
     ep_units = scrape_portal_feed("EdgeProp", "https://www.edgeprop.sg/commercial-for-rent", "https://www.edgeprop.sg")
 
-    # 2. Combine and deduplicate against historical database
     all_units = cg_units + ep_units
     unseen_units = [u for u in all_units if u["id"] not in seen_listings]
     
-    # Extra URL deduplication safety net across both portals combined
+    # Global URL deduplication safety net across both portals combined
     unique_unseen = []
     seen_links_global = set()
     for u in unseen_units:
@@ -293,14 +326,19 @@ def main():
     ]
 
     for idx, unit in enumerate(unseen_units, 1):
-        psf = round(unit["price"] / unit["sqft"], 2) if unit["price"] > 0 and unit["sqft"] > 0 else 0.0
-        psf_display = f"${psf:.2f} PSF" if psf > 0 else "Ask for Price"
-        psf_flag = " ⚠️ *(Above Market)*" if psf > MAX_PSF_THRESHOLD else ""
+        # Handle agent placeholder price anomalies (e.g., typing "$10" instead of "$10,000/mth")
+        if 0 < unit["price"] < 500:
+            psf_display = f"${unit['price']:.2f} PSF (Estimated Ask)"
+            unit["price"] = unit["price"] * unit["sqft"] # Extrapolate total monthly rent from PSF ask
+            psf_flag = ""
+        else:
+            psf = round(unit["price"] / unit["sqft"], 2) if unit["price"] > 0 and unit["sqft"] > 0 else 0.0
+            psf_display = f"${psf:.2f} PSF" if psf > 0 else "Ask for Price"
+            psf_flag = " ⚠️ *(Above Market)*" if psf > MAX_PSF_THRESHOLD else ""
 
         # Execute 4-Stage Aggressive Geocoding
         lat, lon = get_robust_gps(unit["address"], raw_card_text=unit.get("raw_text", ""), cluster_key=unit["cluster_key"])
         
-        # Format clean display address
         display_address = re.sub(r'([a-z])([A-Z])', r'\1, \2', unit['address'])
         display_address = re.sub(r'\s+@\s+', ', ', display_address)
 
@@ -308,7 +346,11 @@ def main():
             nearest_branch, dist = check_cannibalization(lat, lon)
             schools_count = count_nearby_primary_schools(lat, lon)
             
-            schools_line = f"**{schools_count} Primary Schools** within 1.5km"
+            if schools_count == -1:
+                schools_line = "*OneMap sync error* (Manual check needed)"
+            else:
+                schools_line = f"**{schools_count} Primary Schools** within 1.5km"
+                
             buffer_line = f"**{round(dist/1000, 1)} km** to {nearest_branch}"
             
             if dist < 800:
@@ -317,7 +359,7 @@ def main():
             schools_line = "*GPS sync pending* (Manual check needed)"
             buffer_line = "*GPS sync pending*"
 
-        # Option 1 Executive Card Layout (Exactly matching your requested template)
+        # Option 1 Executive Card Layout
         block = (
             f"🏢 **{display_address}**\n"
             f"🏷️ {unit['portal']} • Retail Unit ({unit['cluster_key'].title()} / {CLUSTER_NAMES[unit['cluster_key']]})\n\n"
@@ -331,7 +373,7 @@ def main():
         report_blocks.append(block)
         report_blocks.append("---")
         seen_listings.add(unit["id"])
-        time.sleep(0.5)
+        time.sleep(0.1)
 
     # Broadcast to Telegram in chunks of 3 cards to keep message boxes tidy and readable
     for i in range(0, len(report_blocks), 3):
