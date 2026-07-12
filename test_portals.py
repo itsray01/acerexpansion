@@ -71,19 +71,48 @@ def check_cannibalization(target_lat, target_lon):
             min_dist, nearest_branch = dist, name
     return nearest_branch, min_dist
 
-def get_onemap_data(address_string):
-    """Clean string lookup for OneMap API to ensure consistent coordinate match."""
-    try:
-        # Strip out symbols that break typical Elasticsearch queries
-        clean_addr = re.sub(r'(#\d+-\d+|#\d+-\w+|\bRetail\b|\bShop\b)', '', address_string, flags=re.I).strip()
-        url = f"https://www.onemap.gov.sg/api/common/elastic/search?searchVal={clean_addr}&returnGeom=Y&getAddrDetails=Y&pageNum=1"
-        res = requests.get(url, timeout=10).json()
-        if res.get("found", 0) > 0:
-            result = res["results"][0]
-            return float(result["LATITUDE"]), float(result["LONGITUDE"])
-    except Exception:
-        pass
-    return None, None
+for idx, unit in enumerate(unseen_units, 1):
+        psf = round(unit["price"] / unit["sqft"], 2) if unit["price"] > 0 and unit["sqft"] > 0 else 0.0
+        psf_display = f"${psf} PSF" if psf > 0 else "Ask for Price"
+        psf_flag = " ⚠️" if psf > MAX_PSF_THRESHOLD else ""
+
+        # 1. Run the new 3-Stage Robust Geocoder
+        lat, lon = get_robust_gps(unit["address"], raw_card_text=str(unit))
+        
+        # 2. Clean up glued address text for display
+        display_address = re.sub(r'([a-z])([A-Z])', r'\1, \2', unit['address'])
+        display_address = re.sub(r'\s+@\s+', ', ', display_address)
+
+        # 3. Calculate metrics cleanly without fallback spam
+        if lat and lon:
+            nearest_branch, dist = check_cannibalization(lat, lon)
+            schools_count = count_nearby_primary_schools(lat, lon)
+            
+            # Format the school and buffer line cleanly
+            intel_line = f"🏫 **{schools_count} Schools** within 1.5km | **{round(dist/1000, 1)}km** to {nearest_branch}"
+            
+            # Set the cluster badge based on strategic value
+            if dist < 800:
+                cluster_badge = f"⚠️ **[{unit['cluster_key']} - CANNIBALIZATION]**"
+            elif dist > 2500 and schools_count >= 3:
+                cluster_badge = f"🌟 **[{unit['cluster_key']} - PRIME GAP]**"
+            else:
+                cluster_badge = f"📌 **[{unit['cluster_key']}]**"
+        else:
+            # Clean, quiet fallback just in case an address is 100% unreadable
+            intel_line = "🏫 Catchment & Buffer: *Manual verification needed*"
+            cluster_badge = f"📌 **[{unit['cluster_key']}]**"
+
+        # 4. Option 3 Ultra-Compact Markdown Layout
+        block = (
+            f"{cluster_badge} **{display_address}**\n"
+            f"📐 {int(unit['sqft']):,} sqft | 💰 ${unit['price']:,.0f}/mo ({psf_display}{psf_flag})\n"
+            f"{intel_line}\n"
+            f"🔗 [View on {unit['portal']}]({unit['link']})"
+        )
+        report_blocks.append(block)
+        report_blocks.append("---")
+        seen_listings.add(unit["id"])
 
 def count_nearby_primary_schools(lat, lon):
     try:
