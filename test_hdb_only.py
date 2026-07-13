@@ -65,6 +65,20 @@ def debug_log(msg):
     print(msg)
     DEBUG_LOGS.append(msg)
 
+def send_telegram_alert(markdown_message):
+    """Sends formatted alert messages to the configured Telegram chat."""
+    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
+    payload = {
+        "chat_id": TELEGRAM_CHAT_ID, 
+        "text": markdown_message, 
+        "parse_mode": "Markdown", 
+        "disable_web_page_preview": True
+    }
+    try:
+        requests.post(url, json=payload, timeout=10)
+    except Exception as e:
+        debug_log(f"[!] Failed to send Telegram alert: {e}")
+
 # ==========================================
 # 2. LOCAL MEMORY DATABASE LOADER
 # ==========================================
