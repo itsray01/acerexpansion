@@ -16,12 +16,12 @@ STATE_FILE = "seen_hdb_listings.json"
 MAX_SQFT_LIMIT = 1200.0
 MAX_PSF_THRESHOLD = 15.0
 
-# Target Clusters for Acer Academy
+# Expanded Clusters (Catches abbreviations like 'Bt Merah')
 CLUSTER_NAMES = {
-    "JURONG": "West Cluster", "CLEMENTI": "West Cluster", "BUKIT BATOK": "West Cluster", 
+    "JURONG": "West Cluster", "CLEMENTI": "West Cluster", "BUKIT BATOK": "West Cluster", "BT BATOK": "West Cluster",
     "CHOA CHU KANG": "West Cluster", "BUKIT PANJANG": "West Cluster", "BOON LAY": "West Cluster",
     "TOA PAYOH": "Central Cluster", "BISHAN": "Central Cluster", "KALLANG": "Central Cluster", 
-    "WHAMPOA": "Central Cluster", "QUEENSTOWN": "Central Cluster", "BUKIT MERAH": "Central Cluster", 
+    "WHAMPOA": "Central Cluster", "QUEENSTOWN": "Central Cluster", "BUKIT MERAH": "Central Cluster", "BT MERAH": "Central Cluster",
     "CENTRAL AREA": "Central Cluster", "NOVENA": "Central Cluster",
     "SERANGOON": "East / Northeast Cluster", "HOUGANG": "East / Northeast Cluster", 
     "SENGKANG": "East / Northeast Cluster", "PUNGGOL": "East / Northeast Cluster", 
@@ -30,52 +30,36 @@ CLUSTER_NAMES = {
     "KOVAN": "East / Northeast Cluster"
 }
 
-# Existing Acer Academy Branches
+# Existing Branches
 EXISTING_BRANCHES = {
-    "Junction 9 (North)": (1.4331, 103.8405),
-    "Admiralty Place (North)": (1.4402, 103.8008),
-    "The Woodgrove (North)": (1.4310, 103.7845),
-    "Vista Point (North)": (1.4300, 103.7920),
-    "Canberra Plaza (North)": (1.4430, 103.8300),
-    "Tampines West (East)": (1.3503, 103.9358),
-    "Buangkok Square (East)": (1.3838, 103.8820),
-    "Aljunied Maths/Science (East)": (1.3193, 103.8831),
-    "Aljunied Languages (East)": (1.3195, 103.8833),
-    "Elias Mall (East)": (1.3780, 103.9430),
-    "Dawson (Central)": (1.2950, 103.8110),
-    "Depot Heights (Central)": (1.2806, 103.8080),
-    "Tiong Bahru (Central)": (1.2865, 103.8260),
-    "Cantonment (Central)": (1.2755, 103.8400),
-    "Commonwealth (Central)": (1.3030, 103.7990),
-    "Senja Heights (West)": (1.3850, 103.7610),
-    "Greenridge (West)": (1.3860, 103.7710),
-    "Hong Kah (West)": (1.3520, 103.7250)
+    "Junction 9 (North)": (1.4331, 103.8405), "Admiralty Place (North)": (1.4402, 103.8008),
+    "The Woodgrove (North)": (1.4310, 103.7845), "Vista Point (North)": (1.4300, 103.7920),
+    "Canberra Plaza (North)": (1.4430, 103.8300), "Tampines West (East)": (1.3503, 103.9358),
+    "Buangkok Square (East)": (1.3838, 103.8820), "Aljunied Maths/Science (East)": (1.3193, 103.8831),
+    "Aljunied Languages (East)": (1.3195, 103.8833), "Elias Mall (East)": (1.3780, 103.9430),
+    "Dawson (Central)": (1.2950, 103.8110), "Depot Heights (Central)": (1.2806, 103.8080),
+    "Tiong Bahru (Central)": (1.2865, 103.8260), "Cantonment (Central)": (1.2755, 103.8400),
+    "Commonwealth (Central)": (1.3030, 103.7990), "Senja Heights (West)": (1.3850, 103.7610),
+    "Greenridge (West)": (1.3860, 103.7710), "Hong Kah (West)": (1.3520, 103.7250)
 }
 
 CACHED_PRIMARY_SCHOOLS = []
 
 # ==========================================
-# 2. SAFE API & GEOCODING ENGINE
+# 2. CORE UTILITIES
 # ==========================================
 def fetch_json_safe(url, use_sg_proxy=False):
-    """Routes OneMap and HDB API endpoints securely through ZenRows."""
     zenrows_endpoint = "https://api.zenrows.com/v1/"
     params = {"url": url, "apikey": ZENROWS_API_KEY, "premium_proxy": "true"}
-    if use_sg_proxy:
-        params["proxy_country"] = "sg"
-        
+    if use_sg_proxy: params["proxy_country"] = "sg"
     try:
         res = requests.get(zenrows_endpoint, params=params, timeout=30)
-        if res.status_code == 200:
-            return json.loads(res.text)
-        else:
-            print(f"[!] Target URL returned unexpected status code: {res.status_code}")
+        if res.status_code == 200: return json.loads(res.text)
     except Exception as e:
-        print(f"[!] Proxy connection failed for {url}: {e}")
+        print(f"[!] Proxy fetch failed: {e}")
     return {}
 
 def format_display_address(raw_address):
-    """Separates building names and street numbers cleanly without icon stacking."""
     addr = raw_address.strip()
     addr = re.sub(r'([a-zA-Z])(\d+[\sA-Za-z])', r'\1, \2', addr)
     if ',' in addr:
@@ -102,101 +86,71 @@ def check_cannibalization(target_lat, target_lon):
 
 def load_primary_schools_once():
     global CACHED_PRIMARY_SCHOOLS
-    if CACHED_PRIMARY_SCHOOLS:
-        return CACHED_PRIMARY_SCHOOLS
-        
-    print("[*] Retrieving primary school catchments via OneMap proxy...")
+    if CACHED_PRIMARY_SCHOOLS: return CACHED_PRIMARY_SCHOOLS
     url = "https://www.onemap.gov.sg/api/public/themesvc/retrieveTheme?queryName=primaryschool"
     res = fetch_json_safe(url)
-    
     if "SrchResults" in res:
         for item in res["SrchResults"][1:]:
             lat = item.get("LATITUDE") or item.get("lat") or item.get("Y")
             lon = item.get("LONGITUDE") or item.get("lng") or item.get("lon") or item.get("X")
             name = item.get("NAME") or item.get("Name") or "Primary School"
             if lat and lon:
-                try:
-                    CACHED_PRIMARY_SCHOOLS.append({
-                        "name": str(name).strip(),
-                        "lat": float(lat),
-                        "lon": float(lon)
-                    })
-                except ValueError:
-                    continue
-        print(f"[+] Synced {len(CACHED_PRIMARY_SCHOOLS)} school records.")
+                try: CACHED_PRIMARY_SCHOOLS.append({"name": str(name).strip(), "lat": float(lat), "lon": float(lon)})
+                except ValueError: continue
     return CACHED_PRIMARY_SCHOOLS
 
 def count_nearby_primary_schools(target_lat, target_lon, radius_meters=1500):
     schools = load_primary_schools_once()
-    if not schools:
-        return -1
-    count = 0
-    for school in schools:
-        dist = calculate_haversine_distance(target_lat, target_lon, school["lat"], school["lon"])
-        if dist <= radius_meters:
-            count += 1
+    if not schools: return -1
+    count = sum(1 for s in schools if calculate_haversine_distance(target_lat, target_lon, s["lat"], s["lon"]) <= radius_meters)
     return count
 
 def get_robust_gps(address_string, cluster_key=""):
     queries_to_try = []
     postal_match = re.search(r'\b(\d{6})\b', address_string)
-    if postal_match:
-        queries_to_try.append(postal_match.group(1))
+    if postal_match: queries_to_try.append(postal_match.group(1))
 
     clean_addr = re.sub(r'#\d+-[a-zA-Z0-9/]+', '', address_string)
     clean_addr = re.sub(r'\b(Shop|Retail|Unit|#\S+)\b', ' ', clean_addr, flags=re.I).strip()
-    if len(clean_addr) > 5:
-        queries_to_try.append(clean_addr)
+    if len(clean_addr) > 5: queries_to_try.append(clean_addr)
+    if cluster_key and cluster_key not in queries_to_try: queries_to_try.append(f"{cluster_key} Singapore")
 
     for query in queries_to_try:
-        url = f"https://www.onemap.gov.sg/api/common/elastic/search?searchVal={query}&returnGeom=Y&getAddrDetails=Y&pageNum=1"
-        res = fetch_json_safe(url)
+        res = fetch_json_safe(f"https://www.onemap.gov.sg/api/common/elastic/search?searchVal={query}&returnGeom=Y&getAddrDetails=Y&pageNum=1")
         if res.get("found", 0) > 0:
-            result = res["results"][0]
-            return float(result["LATITUDE"]), float(result["LONGITUDE"])
-            
+            return float(res["results"][0]["LATITUDE"]), float(res["results"][0]["LONGITUDE"])
     return None, None
 
 def load_price_ledger():
     if os.path.exists(STATE_FILE):
         try:
-            with open(STATE_FILE, "r") as f:
-                return json.load(f)
-        except Exception:
-            return {}
+            with open(STATE_FILE, "r") as f: return json.load(f)
+        except Exception: pass
     return {}
 
 def save_price_ledger(ledger_dict):
-    with open(STATE_FILE, "w") as f:
-        json.dump(ledger_dict, f, indent=2)
+    with open(STATE_FILE, "w") as f: json.dump(ledger_dict, f, indent=2)
 
 def send_telegram_alert(markdown_message):
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
-    payload = {
-        "chat_id": TELEGRAM_CHAT_ID,
-        "text": markdown_message,
-        "parse_mode": "Markdown",
-        "disable_web_page_preview": True
-    }
+    payload = {"chat_id": TELEGRAM_CHAT_ID, "text": markdown_message, "parse_mode": "Markdown", "disable_web_page_preview": True}
     requests.post(url, json=payload)
 
 # ==========================================
-# 3. DIRECT HDB API INTERCEPTION ENGINE
+# 3. DIRECT HDB API INTERCEPTION
 # ==========================================
 def scrape_hdb_place2lease():
-    """Hits the extracted public search API directly using ZenRows Singapore proxy."""
     print("[*] Intercepting internal HDB JSON feed...")
-    api_url = "https://place2lease.hdb.gov.sg/webservice-public/api/v1/tender-units/public/search-tender-units?page=1&pageSize=40&order=asc&orderProperty=lastPost.currentBidClosingDate&startIndex=0"
+    # Increased pageSize to 100 to ensure we capture all listings
+    api_url = "https://place2lease.hdb.gov.sg/webservice-public/api/v1/tender-units/public/search-tender-units?page=1&pageSize=100&order=asc&orderProperty=lastPost.currentBidClosingDate&startIndex=0"
     
     payload = fetch_json_safe(api_url, use_sg_proxy=True)
     
     raw_units = []
-    if isinstance(payload, list):
-        raw_units = payload
-    elif isinstance(payload, dict):
-        raw_units = payload.get("content") or payload.get("results") or payload.get("tenderUnits") or []
+    if isinstance(payload, list): raw_units = payload
+    elif isinstance(payload, dict): raw_units = payload.get("content") or payload.get("results") or payload.get("tenderUnits") or []
         
-    print(f"[+] Intercepted {len(raw_units)} live properties from data payload.")
+    print(f"[+] Intercepted {len(raw_units)} raw properties from API. Applying filters...")
     listings = []
 
     for item in raw_units:
@@ -207,34 +161,40 @@ def scrape_hdb_place2lease():
             unit_no = str(item.get("unitNo", "")).strip()
             
             full_address = f"Blk {block} {street}"
-            if unit_no and unit_no != "None":
-                full_address += f" #{unit_no}"
-            if postal and postal != "None":
-                full_address += f" S({postal})"
+            if unit_no and unit_no != "None": full_address += f" #{unit_no}"
+            if postal and postal != "None": full_address += f" S({postal})"
                 
-            combined_text_blob = f"{full_address} {item.get('townDescription', '')} {item.get('locationDescription', '')}"
+            # 1. Cluster Verification
+            combined_text = f"{full_address} {item.get('townDescription', '')} {item.get('locationDescription', '')}"
             matched_key = None
             for cluster in CLUSTER_NAMES.keys():
-                if re.search(r"\b" + re.escape(cluster) + r"\b", combined_text_blob, re.I):
+                if re.search(r"\b" + re.escape(cluster) + r"\b", combined_text, re.I):
                     matched_key = cluster
                     break
             if not matched_key:
+                print(f"[debug] Dropped {full_address}: Not in target clusters.")
                 continue
 
-            allocated_area = item.get("allocatedArea") or item.get("area") or 0.0
-            sqm = float(allocated_area)
+            # 2. Size Verification (Robust Key Search)
+            sqm_val = item.get("floorArea") or item.get("areaSqm") or item.get("allocatedArea") or item.get("area") or 0.0
+            sqm = float(sqm_val)
             if sqm <= 0:
+                print(f"[debug] Dropped {full_address}: JSON sizing data missing/zero.")
                 continue
             sqft = sqm * 10.7639
             
             if sqft > MAX_SQFT_LIMIT or sqft < 100:
+                print(f"[debug] Dropped {full_address}: Size {int(sqft)} sqft out of bounds.")
                 continue
 
-            trade_desc = str(item.get("tradeDescription", "") or item.get("allowableTrade", "")).lower()
-            valid_trade = re.search(r"(open trade|education|tuition|enrichment|school|retail|commercial|office)", trade_desc)
+            # 3. Trade Verification (Expanded to include "shop" and "specific trade")
+            trade_desc = str(item.get("tradeDescription", "") or item.get("allowableTrade", "") or item.get("trade", "")).lower()
+            valid_trade = re.search(r"(open trade|specific trade|shop|education|tuition|enrichment|school|retail|commercial|office)", trade_desc)
             if not valid_trade and trade_desc != "":
+                print(f"[debug] Dropped {full_address}: Trade '{trade_desc}' restricted.")
                 continue
 
+            # 4. Pricing Logic
             current_bid = item.get("currentBid") or item.get("highestBid") or item.get("tenderPrice") or 0.0
             price = float(current_bid)
             
@@ -253,17 +213,15 @@ def scrape_hdb_place2lease():
                 "sqm": round(sqm),
                 "price": price,
                 "is_sealed": is_sealed,
-                "link": "https://place2lease.hdb.gov.sg/public/",
-                "raw_payload": item
+                "link": "https://place2lease.hdb.gov.sg/public/"
             })
         except Exception as e:
-            print(f"[!] Processing error on item tracking block: {e}")
-            continue
+            print(f"[!] Processing error on item: {e}")
 
     return listings
 
 # ==========================================
-# 4. ORCHESTRATION ENGINE (ALWAYS LISTS UNITS)
+# 4. ORCHESTRATION ENGINE
 # ==========================================
 def main():
     send_telegram_alert("🟢 **System Test:** Direct HDB API Pipeline live. Fetching active inventory...")
@@ -274,7 +232,7 @@ def main():
     print(f"[*] Found {len(all_units)} qualified active HDB properties today.")
     
     if not all_units:
-        send_telegram_alert("ℹ️ **HDB Feed Diagnostic:** Checked active HDB Place2Lease inventory. 0 properties currently match your cluster and size criteria (<1,200 sqft).")
+        send_telegram_alert("ℹ️ **HDB Feed Diagnostic:** 0 properties currently match your cluster and size criteria (<1,200 sqft). Check GitHub Actions logs to see [debug] reasons for dropped units.")
         return
 
     report_blocks = [
@@ -287,19 +245,15 @@ def main():
         lid = unit["id"]
         current_price = unit["price"]
         
-        # Determine status badge while preserving price tracking!
         if lid not in price_ledger:
             header_badge = "📍 **NEW HDB LEASE**"
         elif current_price > price_ledger.get(lid, 0.0) and current_price > 0 and not unit["is_sealed"]:
-            old_p = price_ledger[lid]
-            header_badge = f"📈 **LIVE BID INCREASE** *(Was ${old_p:,.0f}/mth)*"
+            header_badge = f"📈 **LIVE BID INCREASE** *(Was ${price_ledger[lid]:,.0f}/mth)*"
         else:
             header_badge = "📌 **ACTIVE HDB LEASE**"
             
-        # Update ledger with current price
         price_ledger[lid] = current_price
 
-        # Format Pricing
         if unit["is_sealed"] or unit["price"] == 0:
             price_display = "💰 **🔒 Sealed Tender** | *Price determined on submission*"
         else:
@@ -316,8 +270,7 @@ def main():
             
             schools_line = f"**{schools_count} Primary Schools** within 1.5km" if schools_count != -1 else "*Catchment lookup down*"
             buffer_line = f"**{round(dist/1000, 1)} km** to {nearest_branch}"
-            if dist < 800:
-                schools_line += " ⚠️ *(High Cannibalization)*"
+            if dist < 800: schools_line += " ⚠️ *(High Cannibalization)*"
         else:
             schools_line = "*GPS Resolution Missing* (Manual check required)"
             buffer_line = "*GPS Sync Pending*"
@@ -336,7 +289,6 @@ def main():
         report_blocks.append(block)
         report_blocks.append("---")
 
-    # Send in batches of 3 cards
     for i in range(0, len(report_blocks), 3):
         chunk = "\n\n".join(report_blocks[i:i+3])
         send_telegram_alert(chunk)
