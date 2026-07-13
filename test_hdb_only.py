@@ -55,14 +55,14 @@ EXISTING_BRANCHES = {
 CACHED_PRIMARY_SCHOOLS = []
 
 # ==========================================
-# 2. CORE UTILITIES & GEOCODING
+# 2. SAFE API & GEOCODING ENGINE
 # ==========================================
 def fetch_json_safe(url, use_sg_proxy=False):
     """Routes OneMap and HDB API endpoints securely through ZenRows."""
     zenrows_endpoint = "https://api.zenrows.com/v1/"
     params = {"url": url, "apikey": ZENROWS_API_KEY, "premium_proxy": "true"}
     if use_sg_proxy:
-        params["proxy_country"] = "sg"  # Forces Singapore-based routing for HDB firewalls
+        params["proxy_country"] = "sg"
         
     try:
         res = requests.get(zenrows_endpoint, params=params, timeout=30)
@@ -75,6 +75,7 @@ def fetch_json_safe(url, use_sg_proxy=False):
     return {}
 
 def format_display_address(raw_address):
+    """Separates building names and street numbers cleanly without icon stacking."""
     addr = raw_address.strip()
     addr = re.sub(r'([a-zA-Z])(\d+[\sA-Za-z])', r'\1, \2', addr)
     if ',' in addr:
@@ -185,13 +186,10 @@ def send_telegram_alert(markdown_message):
 def scrape_hdb_place2lease():
     """Hits the extracted public search API directly using ZenRows Singapore proxy."""
     print("[*] Intercepting internal HDB JSON feed...")
-    
-    # Using the exact functional endpoint extracted via DevTools
     api_url = "https://place2lease.hdb.gov.sg/webservice-public/api/v1/tender-units/public/search-tender-units?page=1&pageSize=40&order=asc&orderProperty=lastPost.currentBidClosingDate&startIndex=0"
     
     payload = fetch_json_safe(api_url, use_sg_proxy=True)
     
-    # Dynamic wrapper normalization (HDB APIs output raw list, "content", or "results")
     raw_units = []
     if isinstance(payload, list):
         raw_units = payload
@@ -203,20 +201,17 @@ def scrape_hdb_place2lease():
 
     for item in raw_units:
         try:
-            # 1. Gather structural address data from nested JSON blocks
             block = str(item.get("blockNo", "")).strip()
             street = str(item.get("streetName", "")).strip()
             postal = str(item.get("postalCode", "")).strip()
             unit_no = str(item.get("unitNo", "")).strip()
             
-            # Combine into standardized address string
             full_address = f"Blk {block} {street}"
             if unit_no and unit_no != "None":
                 full_address += f" #{unit_no}"
             if postal and postal != "None":
                 full_address += f" S({postal})"
                 
-            # 2. Check cluster assignment
             combined_text_blob = f"{full_address} {item.get('townDescription', '')} {item.get('locationDescription', '')}"
             matched_key = None
             for cluster in CLUSTER_NAMES.keys():
@@ -226,7 +221,6 @@ def scrape_hdb_place2lease():
             if not matched_key:
                 continue
 
-            # 3. Size Extraction (safely mapping float variables)
             allocated_area = item.get("allocatedArea") or item.get("area") or 0.0
             sqm = float(allocated_area)
             if sqm <= 0:
@@ -236,14 +230,11 @@ def scrape_hdb_place2lease():
             if sqft > MAX_SQFT_LIMIT or sqft < 100:
                 continue
 
-            # 4. Target Trade Filtering
             trade_desc = str(item.get("tradeDescription", "") or item.get("allowableTrade", "")).lower()
             valid_trade = re.search(r"(open trade|education|tuition|enrichment|school|retail|commercial|office)", trade_desc)
             if not valid_trade and trade_desc != "":
                 continue
 
-            # 5. Handle Blind Tenders vs Live Bid Price logic
-            # Checked elements from UI: 'Price Only' tenders don't show current high bids.
             current_bid = item.get("currentBid") or item.get("highestBid") or item.get("tenderPrice") or 0.0
             price = float(current_bid)
             
@@ -255,7 +246,7 @@ def scrape_hdb_place2lease():
 
             listings.append({
                 "id": unique_id,
-                "portal": "HDB Place2Lease API",
+                "portal": "HDB Place2Lease",
                 "cluster_key": matched_key,
                 "address": full_address,
                 "sqft": sqft,
@@ -272,43 +263,43 @@ def scrape_hdb_place2lease():
     return listings
 
 # ==========================================
-# 4. ORCHESTRATION ENGINE
+# 4. ORCHESTRATION ENGINE (ALWAYS LISTS UNITS)
 # ==========================================
 def main():
-    send_telegram_alert("🟢 **System Test:** Direct HDB API Pipeline live.")
+    send_telegram_alert("🟢 **System Test:** Direct HDB API Pipeline live. Fetching active inventory...")
     
     price_ledger = load_price_ledger()
     all_units = scrape_hdb_place2lease()
     
-    actionable_units = []
-    for u in all_units:
-        lid = u["id"]
-        current_price = u["price"]
-        
-        if lid not in price_ledger:
-            u["alert_type"] = "NEW_LISTING"
-            actionable_units.append(u)
-        elif current_price > price_ledger.get(lid, 0.0) and current_price > 0 and not u["is_sealed"]:
-            u["alert_type"] = "PRICE_INCREASE"
-            u["old_price"] = price_ledger[lid]
-            actionable_units.append(u)
-            
-        price_ledger[lid] = current_price
-
-    print(f"[*] Dispatching {len(actionable_units)} parsed HDB alerts.")
+    print(f"[*] Found {len(all_units)} qualified active HDB properties today.")
     
-    if not actionable_units:
-        send_telegram_alert("ℹ️ **HDB Feed Diagnostic:** Clean connection established. 0 new property movements or high-bid changes since last check.")
-        save_price_ledger(price_ledger)
+    if not all_units:
+        send_telegram_alert("ℹ️ **HDB Feed Diagnostic:** Checked active HDB Place2Lease inventory. 0 properties currently match your cluster and size criteria (<1,200 sqft).")
         return
 
     report_blocks = [
-        "🏢 **ACER ACADEMY: HDB DIRECT API INTEL** 🏢",
-        f"*{len(actionable_units)} Target Matches Verified*",
+        "🏢 **ACER ACADEMY: ACTIVE HDB INVENTORY** 🏢",
+        f"*{len(all_units)} Target Matches Currently Open for Bidding/Tender*",
         "---"
     ]
 
-    for unit in actionable_units:
+    for unit in all_units:
+        lid = unit["id"]
+        current_price = unit["price"]
+        
+        # Determine status badge while preserving price tracking!
+        if lid not in price_ledger:
+            header_badge = "📍 **NEW HDB LEASE**"
+        elif current_price > price_ledger.get(lid, 0.0) and current_price > 0 and not unit["is_sealed"]:
+            old_p = price_ledger[lid]
+            header_badge = f"📈 **LIVE BID INCREASE** *(Was ${old_p:,.0f}/mth)*"
+        else:
+            header_badge = "📌 **ACTIVE HDB LEASE**"
+            
+        # Update ledger with current price
+        price_ledger[lid] = current_price
+
+        # Format Pricing
         if unit["is_sealed"] or unit["price"] == 0:
             price_display = "💰 **🔒 Sealed Tender** | *Price determined on submission*"
         else:
@@ -331,8 +322,6 @@ def main():
             schools_line = "*GPS Resolution Missing* (Manual check required)"
             buffer_line = "*GPS Sync Pending*"
 
-        header_badge = "📈 **LIVE BID JUMP**" if unit["alert_type"] == "PRICE_INCREASE" else "📍 **NEW HDB LEASE**"
-
         block = (
             f"{header_badge}\n"
             f"🏢 {display_address}\n"
@@ -347,6 +336,7 @@ def main():
         report_blocks.append(block)
         report_blocks.append("---")
 
+    # Send in batches of 3 cards
     for i in range(0, len(report_blocks), 3):
         chunk = "\n\n".join(report_blocks[i:i+3])
         send_telegram_alert(chunk)
