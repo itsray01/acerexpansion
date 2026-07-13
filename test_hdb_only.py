@@ -6,22 +6,23 @@ import time
 import requests
 
 # ==========================================
-# 1. CONFIGURATION & TEST CREDENTIALS
+# 1. CONFIGURATION & SECRETS (OBFUSCATED)
 # ==========================================
-TELEGRAM_BOT_TOKEN = "8891294738:AAGOuTbxEhZe0Y0wBX0cOFFonFp5m_1bvdA"
-TELEGRAM_CHAT_ID = "-1004306469919"
-ZENROWS_API_KEY = "922f4ae90333948c53ba9f226b43fd36a79dca44"
+# These pull directly from the GitHub Secrets you set up!
+TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
+ZENROWS_API_KEY = os.getenv("ZENROWS_API_KEY")
 
 STATE_FILE = "seen_hdb_listings.json"
-MIN_SQFT_LIMIT = 400.0  # No maximum limit as per boss's directive
+MIN_SQFT_LIMIT = 400.0  
 MAX_PSF_THRESHOLD = 15.0
 
-# Estimated Private Market PSF by Region (Used for 35% Discount Guessing Game)
+# Estimated Private Market PSF by Region
 PRIVATE_MARKET_PSF = {
     "West Cluster": 10.00,
     "Central Cluster": 15.00,
     "East / Northeast Cluster": 12.00,
-    "General Region": 12.00  # Fallback for new/unmapped HDB towns
+    "General Region": 12.00  
 }
 
 CLUSTER_NAMES = {
@@ -37,26 +38,16 @@ CLUSTER_NAMES = {
     "KOVAN": "East / Northeast Cluster"
 }
 
-# Highly precise map coordinates for accurate cannibalization buffers
 EXISTING_BRANCHES = {
-    "Junction 9 (North)": (1.4328, 103.8413), 
-    "Admiralty Place (North)": (1.4403, 103.8009),
-    "The Woodgrove (North)": (1.4312, 103.7844), 
-    "Vista Point (North)": (1.4315, 103.7937),
-    "Canberra Plaza (North)": (1.4434, 103.8299), 
-    "Tampines West (East)": (1.3486, 103.9360),
-    "Buangkok Square (East)": (1.3839, 103.8817), 
-    "Aljunied Maths/Science (East)": (1.3195, 103.8833),
-    "Aljunied Languages (East)": (1.3196, 103.8833), 
-    "Elias Mall (East)": (1.3775, 103.9427),
-    "Dawson (Central)": (1.2934, 103.8110), 
-    "Depot Heights (Central)": (1.2811, 103.8084),
-    "Tiong Bahru (Central)": (1.2864, 103.8269), 
-    "Cantonment (Central)": (1.2759, 103.8402),
-    "Commonwealth (Central)": (1.3023, 103.7992), 
-    "Senja Heights (West)": (1.3860, 103.7607),
-    "Greenridge (West)": (1.3855, 103.7663), 
-    "Hong Kah (West)": (1.3496, 103.7208)
+    "Junction 9 (North)": (1.4328, 103.8413), "Admiralty Place (North)": (1.4403, 103.8009),
+    "The Woodgrove (North)": (1.4312, 103.7844), "Vista Point (North)": (1.4315, 103.7937),
+    "Canberra Plaza (North)": (1.4434, 103.8299), "Tampines West (East)": (1.3486, 103.9360),
+    "Buangkok Square (East)": (1.3839, 103.8817), "Aljunied Maths/Science (East)": (1.3195, 103.8833),
+    "Aljunied Languages (East)": (1.3196, 103.8833), "Elias Mall (East)": (1.3775, 103.9427),
+    "Dawson (Central)": (1.2934, 103.8110), "Depot Heights (Central)": (1.2811, 103.8084),
+    "Tiong Bahru (Central)": (1.2864, 103.8269), "Cantonment (Central)": (1.2759, 103.8402),
+    "Commonwealth (Central)": (1.3023, 103.7992), "Senja Heights (West)": (1.3860, 103.7607),
+    "Greenridge (West)": (1.3855, 103.7663), "Hong Kah (West)": (1.3496, 103.7208)
 }
 
 DEBUG_LOGS = []
@@ -66,7 +57,10 @@ def debug_log(msg):
     DEBUG_LOGS.append(msg)
 
 def send_telegram_alert(markdown_message):
-    """Sends formatted alert messages to the configured Telegram chat."""
+    if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
+        debug_log("[!] Telegram credentials missing from environment.")
+        return
+        
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
     payload = {
         "chat_id": TELEGRAM_CHAT_ID, 
@@ -83,7 +77,6 @@ def send_telegram_alert(markdown_message):
 # 2. LOCAL MEMORY DATABASE LOADER
 # ==========================================
 def load_school_db():
-    """Robust local database loader with path fail-safes."""
     possible_paths = [
         "school_db.json",
         os.path.join(os.path.dirname(__file__), "school_db.json") if "__file__" in globals() else None
@@ -98,7 +91,6 @@ def load_school_db():
             except Exception as e:
                 debug_log(f"[!] Warning reading '{path}': {e}")
                 
-    # Fallback just in case school_db.json is missing on the runner
     debug_log("[!] school_db.json missing. Using micro-fallback database.")
     return [
         {"name": "Nanyang Primary School", "lat": 1.3210, "lon": 103.8060, "level": "PRIMARY"},
@@ -111,13 +103,12 @@ def load_school_db():
 # 3. CORE UTILITIES
 # ==========================================
 def fetch_json_safe(url, use_sg_proxy=False):
-    """Fetches API data utilizing ZenRows Anti-Bot layer to bypass Cloudflare/HDB firewalls."""
     zenrows_endpoint = "https://api.zenrows.com/v1/"
     params = {
         "url": url, 
         "apikey": ZENROWS_API_KEY, 
         "premium_proxy": "true",
-        "antibot": "true" # Forces ZenRows to solve CAPTCHAs before returning API data
+        "antibot": "true" 
     }
     if use_sg_proxy: params["proxy_country"] = "sg"
     
@@ -130,7 +121,6 @@ def fetch_json_safe(url, use_sg_proxy=False):
                 return {}
             try:
                 data = json.loads(text)
-                debug_log(f"[+] API Hit Success! Keys retrieved: {list(data.keys())[:5]}")
                 return data
             except Exception as e:
                 debug_log(f"[!] Failed to parse JSON. Response preview: {text[:100]}")
@@ -176,7 +166,6 @@ def check_cannibalization(target_lat, target_lon):
     return nearest_branch, min_dist
 
 def count_local_schools(target_lat, target_lon, school_list, radius_meters=1500):
-    """Instant local calculation: 0 API overhead and 100% immune to firewalls."""
     if not target_lat or not target_lon: return 0
     count = sum(1 for s in school_list if calculate_haversine_distance(target_lat, target_lon, s["lat"], s["lon"]) <= radius_meters)
     return count
@@ -238,7 +227,6 @@ def clean_html(raw_html):
     return re.sub(cleanr, ' ', str(raw_html))
 
 def extract_closing_date(item, item_id, link_path):
-    # 1. Structured Data Scan
     keys_to_check = ["currentBidClosingDate", "tenderClosingDate", "closingDate", "tenderEndDate", "endDate", "closeDate"]
     for k in keys_to_check:
         raw = deep_find(item, k)
@@ -246,7 +234,6 @@ def extract_closing_date(item, item_id, link_path):
             formatted = format_hdb_date(raw)
             if formatted != "TBA": return formatted
 
-    # 2. Hard-Scrape Fallback (with stripped HTML tags to bypass formatting traps)
     if item_id:
         debug_log(f"[*] Date hidden or non-chronological. Hard-scraping JS HTML for unit {item_id}...")
         try:
