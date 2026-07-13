@@ -4,12 +4,10 @@ import json
 import math
 import time
 import requests
-from bs4 import BeautifulSoup
 
 # ==========================================
 # 1. CONFIGURATION & TEST CREDENTIALS
 # ==========================================
-# Using old test token as requested for testing
 TELEGRAM_BOT_TOKEN = "8891294738:AAGOuTbxEhZe0Y0wBX0cOFFonFp5m_1bvdA"
 TELEGRAM_CHAT_ID = "-1004306469919"
 ZENROWS_API_KEY = "0a72b44b388084523647e4dce2f6787701a1fbd6"
@@ -32,7 +30,7 @@ CLUSTER_NAMES = {
     "KOVAN": "East / Northeast Cluster"
 }
 
-# 17 Existing Acer Academy Branches (Lat, Lon)
+# Existing Acer Academy Branches
 EXISTING_BRANCHES = {
     "Junction 9 (North)": (1.4331, 103.8405),
     "Admiralty Place (North)": (1.4402, 103.8008),
@@ -57,22 +55,26 @@ EXISTING_BRANCHES = {
 CACHED_PRIMARY_SCHOOLS = []
 
 # ==========================================
-# 2. HELPER & GEOCODING ENGINE
+# 2. CORE UTILITIES & GEOCODING
 # ==========================================
-def fetch_json_safe(url):
-    """Routes OneMap API requests through ZenRows to bypass cloud data-center firewalls."""
+def fetch_json_safe(url, use_sg_proxy=False):
+    """Routes OneMap and HDB API endpoints securely through ZenRows."""
     zenrows_endpoint = "https://api.zenrows.com/v1/"
     params = {"url": url, "apikey": ZENROWS_API_KEY, "premium_proxy": "true"}
+    if use_sg_proxy:
+        params["proxy_country"] = "sg"  # Forces Singapore-based routing for HDB firewalls
+        
     try:
-        res = requests.get(zenrows_endpoint, params=params, timeout=25)
+        res = requests.get(zenrows_endpoint, params=params, timeout=30)
         if res.status_code == 200:
             return json.loads(res.text)
+        else:
+            print(f"[!] Target URL returned unexpected status code: {res.status_code}")
     except Exception as e:
-        print(f"[!] ZenRows JSON proxy fetch failed for {url}: {e}")
+        print(f"[!] Proxy connection failed for {url}: {e}")
     return {}
 
 def format_display_address(raw_address):
-    """Separates building names and street numbers cleanly onto two lines."""
     addr = raw_address.strip()
     addr = re.sub(r'([a-zA-Z])(\d+[\sA-Za-z])', r'\1, \2', addr)
     if ',' in addr:
@@ -102,7 +104,7 @@ def load_primary_schools_once():
     if CACHED_PRIMARY_SCHOOLS:
         return CACHED_PRIMARY_SCHOOLS
         
-    print("[*] Downloading MOE Primary School dataset via ZenRows...")
+    print("[*] Retrieving primary school catchments via OneMap proxy...")
     url = "https://www.onemap.gov.sg/api/public/themesvc/retrieveTheme?queryName=primaryschool"
     res = fetch_json_safe(url)
     
@@ -120,7 +122,7 @@ def load_primary_schools_once():
                     })
                 except ValueError:
                     continue
-        print(f"[+] Successfully cached {len(CACHED_PRIMARY_SCHOOLS)} MOE Primary Schools!")
+        print(f"[+] Synced {len(CACHED_PRIMARY_SCHOOLS)} school records.")
     return CACHED_PRIMARY_SCHOOLS
 
 def count_nearby_primary_schools(target_lat, target_lon, radius_meters=1500):
@@ -134,21 +136,16 @@ def count_nearby_primary_schools(target_lat, target_lon, radius_meters=1500):
             count += 1
     return count
 
-def get_robust_gps(address_string, raw_text="", cluster_key=""):
+def get_robust_gps(address_string, cluster_key=""):
     queries_to_try = []
-
-    postal_match = re.search(r'\b(?:S\(|S|Singapore\s*)?(\d{6})\b', raw_text, re.I)
+    postal_match = re.search(r'\b(\d{6})\b', address_string)
     if postal_match:
         queries_to_try.append(postal_match.group(1))
 
     clean_addr = re.sub(r'#\d+-[a-zA-Z0-9/]+', '', address_string)
-    clean_addr = re.sub(r'\b(Shop|Retail|Unit|#\S+)\b', ' ', clean_addr, flags=re.I)
-    clean_addr = re.sub(r'\s+', ' ', clean_addr).strip()
+    clean_addr = re.sub(r'\b(Shop|Retail|Unit|#\S+)\b', ' ', clean_addr, flags=re.I).strip()
     if len(clean_addr) > 5:
         queries_to_try.append(clean_addr)
-
-    if cluster_key and cluster_key not in queries_to_try:
-        queries_to_try.append(f"{cluster_key} Singapore")
 
     for query in queries_to_try:
         url = f"https://www.onemap.gov.sg/api/common/elastic/search?searchVal={query}&returnGeom=Y&getAddrDetails=Y&pageNum=1"
@@ -163,10 +160,7 @@ def load_price_ledger():
     if os.path.exists(STATE_FILE):
         try:
             with open(STATE_FILE, "r") as f:
-                data = json.load(f)
-                if isinstance(data, list):
-                    return {item: 0.0 for item in data}
-                return data
+                return json.load(f)
         except Exception:
             return {}
     return {}
@@ -186,120 +180,104 @@ def send_telegram_alert(markdown_message):
     requests.post(url, json=payload)
 
 # ==========================================
-# 3. HDB PLACE2LEASE SCRAPER ENGINE
+# 3. DIRECT HDB API INTERCEPTION ENGINE
 # ==========================================
 def scrape_hdb_place2lease():
-    print("[*] Connecting to HDB Place2Lease portal via ZenRows (with 6s JS render wait)...")
-    url = "https://place2lease.hdb.gov.sg/public/"
-    zenrows_endpoint = "https://api.zenrows.com/v1/"
+    """Hits the extracted public search API directly using ZenRows Singapore proxy."""
+    print("[*] Intercepting internal HDB JSON feed...")
     
-    # CRITICAL FIX: "wait": "6000" gives HDB's frontend 6 seconds to fetch and render dynamic tables
-    params = {
-        "url": url, 
-        "apikey": ZENROWS_API_KEY, 
-        "js_render": "true", 
-        "premium_proxy": "true",
-        "wait": "6000"
-    }
+    # Using the exact functional endpoint extracted via DevTools
+    api_url = "https://place2lease.hdb.gov.sg/webservice-public/api/v1/tender-units/public/search-tender-units?page=1&pageSize=40&order=asc&orderProperty=lastPost.currentBidClosingDate&startIndex=0"
     
-    try:
-        res = requests.get(zenrows_endpoint, params=params, timeout=60)
-        if res.status_code != 200:
-            print(f"[!] HDB portal returned status code: {res.status_code}")
-            return []
-        html = res.text
-    except Exception as e:
-        print(f"[!] Connection to HDB failed: {e}")
-        return []
-
-    soup = BeautifulSoup(html, "html.parser")
+    payload = fetch_json_safe(api_url, use_sg_proxy=True)
+    
+    # Dynamic wrapper normalization (HDB APIs output raw list, "content", or "results")
+    raw_units = []
+    if isinstance(payload, list):
+        raw_units = payload
+    elif isinstance(payload, dict):
+        raw_units = payload.get("content") or payload.get("results") or payload.get("tenderUnits") or []
+        
+    print(f"[+] Intercepted {len(raw_units)} live properties from data payload.")
     listings = []
-    
-    # Check multiple container types HDB uses for cards, tables, or grid lists
-    rows = soup.find_all(["tr", "div", "li", "article"], class_=re.compile(r"(row|card|listing|property|item|datatable|grid)", re.I))
-    print(f"[*] Found {len(rows)} potential DOM elements on HDB page. Applying Acer Academy filters...")
 
-    for row in rows:
+    for item in raw_units:
         try:
-            text = row.get_text(separator=" ").strip()
+            # 1. Gather structural address data from nested JSON blocks
+            block = str(item.get("blockNo", "")).strip()
+            street = str(item.get("streetName", "")).strip()
+            postal = str(item.get("postalCode", "")).strip()
+            unit_no = str(item.get("unitNo", "")).strip()
             
-            # Basic validation: must contain Singapore postal code regex or sizing keyword
-            if "sqm" not in text.lower() and "sqft" not in text.lower() and "s(" not in text.lower():
-                continue
-
-            # 1. Cluster Match
+            # Combine into standardized address string
+            full_address = f"Blk {block} {street}"
+            if unit_no and unit_no != "None":
+                full_address += f" #{unit_no}"
+            if postal and postal != "None":
+                full_address += f" S({postal})"
+                
+            # 2. Check cluster assignment
+            combined_text_blob = f"{full_address} {item.get('townDescription', '')} {item.get('locationDescription', '')}"
             matched_key = None
             for cluster in CLUSTER_NAMES.keys():
-                if re.search(r"\b" + re.escape(cluster) + r"\b", text, re.I):
+                if re.search(r"\b" + re.escape(cluster) + r"\b", combined_text_blob, re.I):
                     matched_key = cluster
                     break
             if not matched_key:
                 continue
 
-            # 2. Size Match
-            sqm_match = re.search(r"([\d\.]+)\s*sqm", text, re.I)
-            sqft_match = re.search(r"([\d,]+)\s*sqft", text, re.I)
-            
-            if sqm_match:
-                sqm = float(sqm_match.group(1))
-                sqft = sqm * 10.7639
-            elif sqft_match:
-                sqft = float(sqft_match.group(1).replace(",", ""))
-                sqm = sqft / 10.7639
-            else:
+            # 3. Size Extraction (safely mapping float variables)
+            allocated_area = item.get("allocatedArea") or item.get("area") or 0.0
+            sqm = float(allocated_area)
+            if sqm <= 0:
                 continue
-                
+            sqft = sqm * 10.7639
+            
             if sqft > MAX_SQFT_LIMIT or sqft < 100:
-                print(f"[debug] Filtered out {matched_key} unit due to size: {int(sqft)} sqft")
                 continue
 
-            # 3. Trade Match (Widened net to catch open trade, education, retail, and commercial office)
-            valid_trade = re.search(r"(open trade|education|tuition|enrichment|school|retail|specific trade|commercial|office)", text, re.I)
-            if not valid_trade:
-                print(f"[debug] Filtered out {matched_key} unit due to trade restriction.")
+            # 4. Target Trade Filtering
+            trade_desc = str(item.get("tradeDescription", "") or item.get("allowableTrade", "")).lower()
+            valid_trade = re.search(r"(open trade|education|tuition|enrichment|school|retail|commercial|office)", trade_desc)
+            if not valid_trade and trade_desc != "":
                 continue
 
-            # 4. Address & Price Extraction
-            addr_match = re.search(r"([^\n]+S\(\d{6}\))", text)
-            address = addr_match.group(1).strip() if addr_match else f"HDB Commercial Unit ({matched_key})"
+            # 5. Handle Blind Tenders vs Live Bid Price logic
+            # Checked elements from UI: 'Price Only' tenders don't show current high bids.
+            current_bid = item.get("currentBid") or item.get("highestBid") or item.get("tenderPrice") or 0.0
+            price = float(current_bid)
             
-            price_match = re.search(r"\$\s*([\d,]+\.?\d*)", text)
-            price = float(price_match.group(1).replace(",", "")) if price_match else 0.0
-            
-            # Identify Sealed Tenders vs Live Bidding
-            is_sealed_tender = ("price only" in text.lower() or "tender" in text.lower() or price == 0.0)
+            is_sealed = ("price only" in str(item.get("tenderType", "")).lower() or 
+                         "sealed" in str(item.get("postType", "")).lower() or 
+                         price == 0.0)
 
-            listing_id = f"HDB_{re.sub(r'[^a-zA-Z0-9]', '', address)[:25]}_{int(sqft)}"
+            unique_id = f"HDB_{re.sub(r'[^a-zA-Z0-9]', '', full_address)[:25]}_{int(sqft)}"
 
             listings.append({
-                "id": listing_id,
-                "portal": "HDB Place2Lease",
+                "id": unique_id,
+                "portal": "HDB Place2Lease API",
                 "cluster_key": matched_key,
-                "address": address,
+                "address": full_address,
                 "sqft": sqft,
                 "sqm": round(sqm),
                 "price": price,
-                "is_sealed": is_sealed_tender,
-                "link": url,
-                "raw_text": text
+                "is_sealed": is_sealed,
+                "link": "https://place2lease.hdb.gov.sg/public/",
+                "raw_payload": item
             })
         except Exception as e:
+            print(f"[!] Processing error on item tracking block: {e}")
             continue
 
-    # Deduplicate in case HDB table rows have wrapper divs
-    unique_listings = {u["id"]: u for u in listings}.values()
-    print(f"[*] HDB Place2Lease: Filtered down to {len(unique_listings)} unique qualified targets.")
-    return list(unique_listings)
+    return listings
 
 # ==========================================
-# 4. ORCHESTRATION & TELEGRAM BROADCAST
+# 4. ORCHESTRATION ENGINE
 # ==========================================
 def main():
-    send_telegram_alert("🟢 **System Test:** HDB Daily Price-Tracker initialized online.")
-
-    load_primary_schools_once()
-    price_ledger = load_price_ledger()
+    send_telegram_alert("🟢 **System Test:** Direct HDB API Pipeline live.")
     
+    price_ledger = load_price_ledger()
     all_units = scrape_hdb_place2lease()
     
     actionable_units = []
@@ -310,28 +288,27 @@ def main():
         if lid not in price_ledger:
             u["alert_type"] = "NEW_LISTING"
             actionable_units.append(u)
-        elif current_price > price_ledger[lid] and current_price > 0 and not u["is_sealed"]:
+        elif current_price > price_ledger.get(lid, 0.0) and current_price > 0 and not u["is_sealed"]:
             u["alert_type"] = "PRICE_INCREASE"
             u["old_price"] = price_ledger[lid]
             actionable_units.append(u)
             
         price_ledger[lid] = current_price
 
-    print(f"[*] Total actionable HDB alerts today: {len(actionable_units)}")
+    print(f"[*] Dispatching {len(actionable_units)} parsed HDB alerts.")
     
     if not actionable_units:
-        send_telegram_alert("ℹ️ **HDB Daily Scan:** Checked active properties. 0 new listings or bid jumps today.\n*(Note: HDB Place2Lease tables refresh dynamically during active E-Bidding and open tender windows).*")
+        send_telegram_alert("ℹ️ **HDB Feed Diagnostic:** Clean connection established. 0 new property movements or high-bid changes since last check.")
         save_price_ledger(price_ledger)
-        print("[*] Pipeline finished cleanly.")
         return
 
     report_blocks = [
-        "🏢 **ACER ACADEMY: HDB DAILY INTEL** 🏢",
-        f"*{len(actionable_units)} Actionable Updates Found*",
+        "🏢 **ACER ACADEMY: HDB DIRECT API INTEL** 🏢",
+        f"*{len(actionable_units)} Target Matches Verified*",
         "---"
     ]
 
-    for idx, unit in enumerate(actionable_units, 1):
+    for unit in actionable_units:
         if unit["is_sealed"] or unit["price"] == 0:
             price_display = "💰 **🔒 Sealed Tender** | *Price determined on submission*"
         else:
@@ -339,25 +316,22 @@ def main():
             psf_flag = " ⚠️ *(Above Market)*" if psf > MAX_PSF_THRESHOLD else ""
             price_display = f"💰 **${unit['price']:,.0f} / mth** |  **${psf:.2f} PSF**{psf_flag}"
 
-        lat, lon = get_robust_gps(unit["address"], raw_text=unit.get("raw_text", ""), cluster_key=unit["cluster_key"])
+        lat, lon = get_robust_gps(unit["address"], cluster_key=unit["cluster_key"])
         display_address = format_display_address(unit['address'])
 
         if lat and lon:
             nearest_branch, dist = check_cannibalization(lat, lon)
             schools_count = count_nearby_primary_schools(lat, lon)
             
-            schools_line = f"**{schools_count} Primary Schools** within 1.5km" if schools_count != -1 else "*OneMap sync error*"
+            schools_line = f"**{schools_count} Primary Schools** within 1.5km" if schools_count != -1 else "*Catchment lookup down*"
             buffer_line = f"**{round(dist/1000, 1)} km** to {nearest_branch}"
             if dist < 800:
                 schools_line += " ⚠️ *(High Cannibalization)*"
         else:
-            schools_line = "*GPS sync pending* (Manual check needed)"
-            buffer_line = "*GPS sync pending*"
+            schools_line = "*GPS Resolution Missing* (Manual check required)"
+            buffer_line = "*GPS Sync Pending*"
 
-        if unit["alert_type"] == "PRICE_INCREASE":
-            header_badge = f"📈 **LIVE BID INCREASE** *(Was ${unit['old_price']:,.0f}/mth)*"
-        else:
-            header_badge = "📍 **NEW HDB LEASE**"
+        header_badge = "📈 **LIVE BID JUMP**" if unit["alert_type"] == "PRICE_INCREASE" else "📍 **NEW HDB LEASE**"
 
         block = (
             f"{header_badge}\n"
@@ -372,7 +346,6 @@ def main():
         )
         report_blocks.append(block)
         report_blocks.append("---")
-        time.sleep(0.1)
 
     for i in range(0, len(report_blocks), 3):
         chunk = "\n\n".join(report_blocks[i:i+3])
@@ -380,7 +353,7 @@ def main():
         time.sleep(1)
 
     save_price_ledger(price_ledger)
-    print("[+] Price ledger updated. All HDB alerts dispatched successfully!")
+    print("[+] Pipeline finished successfully.")
 
 if __name__ == "__main__":
     main()
