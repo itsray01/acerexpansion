@@ -111,16 +111,32 @@ def load_school_db():
 # 3. CORE UTILITIES
 # ==========================================
 def fetch_json_safe(url, use_sg_proxy=False):
+    """Fetches API data utilizing ZenRows Anti-Bot layer to bypass Cloudflare/HDB firewalls."""
     zenrows_endpoint = "https://api.zenrows.com/v1/"
-    params = {"url": url, "apikey": ZENROWS_API_KEY, "premium_proxy": "true"}
+    params = {
+        "url": url, 
+        "apikey": ZENROWS_API_KEY, 
+        "premium_proxy": "true",
+        "antibot": "true" # Forces ZenRows to solve CAPTCHAs before returning API data
+    }
     if use_sg_proxy: params["proxy_country"] = "sg"
     
     try:
-        res = requests.get(zenrows_endpoint, params=params, timeout=30)
+        res = requests.get(zenrows_endpoint, params=params, timeout=45)
         if res.status_code == 200:
             text = res.text
-            if text.strip().startswith("<"): return {}
-            return json.loads(text)
+            if text.strip().startswith("<"): 
+                debug_log("[!] FATAL: ZenRows returned HTML. HDB's Firewall blocked the JSON API request!")
+                return {}
+            try:
+                data = json.loads(text)
+                debug_log(f"[+] API Hit Success! Keys retrieved: {list(data.keys())[:5]}")
+                return data
+            except Exception as e:
+                debug_log(f"[!] Failed to parse JSON. Response preview: {text[:100]}")
+                return {}
+        else:
+            debug_log(f"[!] Target URL returned HTTP {res.status_code}. Response preview: {res.text[:100]}")
     except Exception as e:
         debug_log(f"[!] Proxy connection failed for {url}: {e}")
     return {}
@@ -261,8 +277,18 @@ def scrape_hdb_place2lease():
     payload = fetch_json_safe(api_url, use_sg_proxy=True)
     raw_units = []
     
-    if isinstance(payload, list): raw_units = payload
+    if not payload:
+        debug_log("[!] Payload is completely empty. API blocked or timed out.")
+        return []
+
+    if isinstance(payload, list): 
+        raw_units = payload
     elif isinstance(payload, dict):
+        total_elements = payload.get("totalElements")
+        if total_elements == 0:
+            debug_log("[*] HDB API confirms totalElements = 0. There are LEGITIMATELY no active tenders right now.")
+            return []
+            
         for key in ["content", "results", "tenderUnits", "data", "list", "items"]:
             if key in payload and isinstance(payload[key], list): 
                 raw_units = payload[key]
@@ -271,10 +297,12 @@ def scrape_hdb_place2lease():
             for k, v in payload.items():
                 if isinstance(v, dict):
                     for subkey in ["content", "results", "tenderUnits", "list", "items"]:
-                        if subkey in v and isinstance(v[subkey], list): raw_units = v[subkey]
-        
+                        if subkey in v and isinstance(v[subkey], list): 
+                            raw_units = v[subkey]
+                            break
+    
     if not raw_units:
-        debug_log("[!] No raw properties found in payload.")
+        debug_log(f"[!] Could not extract property array from payload. Payload dump: {str(payload)[:150]}")
         return []
 
     debug_log(f"[+] Intercepted {len(raw_units)} raw properties. Applying filters...")
