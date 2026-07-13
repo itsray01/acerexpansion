@@ -179,7 +179,6 @@ def scrape_hdb_place2lease():
 
     for item in raw_units:
         try:
-            # Flatten entire JSON item to lowercase string for bulletproof matching
             item_text = json.dumps(item).lower()
             
             block = str(item.get("blockNo", "")).strip()
@@ -259,13 +258,9 @@ def main():
     debug_log(f"[*] Found {len(all_units)} qualified active HDB properties today.")
     
     if not all_units:
-        # Format the internal debug logs to send to Telegram
-        log_text = "\n".join(DEBUG_LOGS[-15:]) # Grab the last 15 log lines
-        error_msg = (
-            f"ℹ️ **HDB Feed Diagnostic:** 0 properties matched criteria.\n\n"
-            f"**Auto-Debug Logs:**\n
-```text\n{log_text}\n```"
-        )
+        # Flattened error message to completely prevent multiline syntax errors!
+        log_text = "\n".join(DEBUG_LOGS[-15:])
+        error_msg = f"ℹ️ **HDB Feed Diagnostic:** 0 properties matched criteria.\n\n**Auto-Debug Logs:**\n```text\n{log_text}\n```"
         send_telegram_alert(error_msg)
         return
 
