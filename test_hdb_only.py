@@ -10,7 +10,7 @@ import requests
 # ==========================================
 TELEGRAM_BOT_TOKEN = "8891294738:AAGOuTbxEhZe0Y0wBX0cOFFonFp5m_1bvdA"
 TELEGRAM_CHAT_ID = "-1004306469919"
-ZENROWS_API_KEY = "0a72b44b388084523647e4dce2f6787701a1fbd6"
+ZENROWS_API_KEY = "922f4ae90333948c53ba9f226b43fd36a79dca44"
 
 STATE_FILE = "seen_hdb_listings.json"
 MIN_SQFT_LIMIT = 400.0  # No maximum limit as per boss's directive
