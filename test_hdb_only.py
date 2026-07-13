@@ -109,31 +109,9 @@ def deep_find(obj, *keys):
     return None
 
 def extract_closing_date(item):
-    """Aggressively hunts for any valid timestamp key to defeat HDB's shifting schemas."""
-    # Attempt 1: Known keys
-    raw = deep_find(item, "currentBidClosingDate", "tenderClosingDate", "closingDate", "tenderEndDate", "endDate", "biddingEndDate", "closeDate", "tenderClose")
-    if raw: return format_hdb_date(raw)
-    
-    # Attempt 2: Dynamic Scan for any key implying a deadline
-    def scan_for_date(obj):
-        if isinstance(obj, dict):
-            for k, v in obj.items():
-                kl = k.lower()
-                if ("date" in kl or "close" in kl or "end" in kl) and isinstance(v, (str, int, float)):
-                    if str(v).strip() != "None" and str(v).strip() != "":
-                        return v
-            for v in obj.values():
-                if isinstance(v, (dict, list)):
-                    res = scan_for_date(v)
-                    if res: return res
-        elif isinstance(obj, list):
-            for i in obj:
-                res = scan_for_date(i)
-                if res: return res
-        return None
-        
-    raw_fallback = scan_for_date(item)
-    return format_hdb_date(raw_fallback) if raw_fallback else "TBA"
+    """Safely extracts closing date using known explicit keys, avoiding the 1970 ID trap."""
+    raw = deep_find(item, "currentBidClosingDate", "tenderClosingDate", "closingDate", "tenderEndDate", "endDate", "biddingEndDate", "closeDate")
+    return format_hdb_date(raw) if raw else "TBA"
 
 def format_display_address(raw_address):
     addr = raw_address.strip()
@@ -148,21 +126,25 @@ def format_hdb_date(date_val):
     if not date_val or str(date_val).lower() == "none":
         return "TBA"
     try:
+        # Handle Unix Timestamps safely
         if isinstance(date_val, (int, float)) or (isinstance(date_val, str) and str(date_val).isdigit()):
             ts = int(date_val)
+            if ts < 1000000000: 
+                # 1 Billion seconds = Sept 2001. Prevents small HDB IDs from becoming 1970 dates!
+                return "TBA" 
             if ts > 9999999999: # Convert milliseconds to seconds
                 ts = ts / 1000
             dt = time.localtime(ts)
             return time.strftime("%d %b %Y, %I:%M %p", dt)
             
-        date_str = str(date_val)
-        clean_str = date_str.split('.')[0].replace('Z', '')
-        if 'T' in clean_str:
+        # Handle standard string formats (e.g. 15 Jul 2026 or ISO formats)
+        date_str = str(date_val).strip()
+        if 'T' in date_str and ('Z' in date_str or '+' in date_str):
+            clean_str = date_str.split('.')[0].replace('Z', '')
             dt = time.strptime(clean_str, "%Y-%m-%dT%H:%M:%S")
             return time.strftime("%d %b %Y, %I:%M %p", dt)
         
-        # Clean up stray characters if they passed a raw string like "15 Jul 2026"
-        return date_str.strip()
+        return date_str
     except Exception:
         return str(date_val)
 
@@ -183,7 +165,7 @@ def check_cannibalization(target_lat, target_lon):
     return nearest_branch, min_dist
 
 def process_school_payload(res):
-    """Helper to extract schools from payload."""
+    """Helper to extract schools from OneMap payload."""
     schools = []
     if "SrchResults" in res:
         for item in res["SrchResults"][1:]:
@@ -195,16 +177,47 @@ def process_school_payload(res):
                 except ValueError: continue
     return schools
 
+def load_schools_osm_fallback():
+    """Unbreakable Tertiary Fallback using OpenStreetMap's Overpass API if OneMap goes down."""
+    debug_log("[*] Engaging OpenStreetMap Overpass API fallback for school catchments...")
+    try:
+        query = """
+        [out:json][timeout:15];
+        area["name"="Singapore"]->.searchArea;
+        (
+          node["amenity"="school"]["name"~"Primary",i](area.searchArea);
+          way["amenity"="school"]["name"~"Primary",i](area.searchArea);
+        );
+        out center;
+        """
+        res = requests.get("https://overpass-api.de/api/interpreter", params={'data': query}, timeout=15)
+        if res.status_code == 200:
+            schools = []
+            for el in res.json().get("elements", []):
+                lat = el.get("lat") or el.get("center", {}).get("lat")
+                lon = el.get("lon") or el.get("center", {}).get("lon")
+                name = el.get("tags", {}).get("name", "Primary School")
+                if lat and lon:
+                    schools.append({"name": name, "lat": float(lat), "lon": float(lon)})
+            debug_log(f"[+] OSM Fallback successful: Extracted {len(schools)} primary schools.")
+            return schools
+    except Exception as e:
+        debug_log(f"[!] OSM Fallback failed: {e}")
+    return []
+
 def load_primary_schools_once():
-    """Dual-Fetch mechanism to ensure school payload survives API timeouts."""
+    """Triple-Fetch mechanism to guarantee school catchments survive API timeouts."""
     global CACHED_PRIMARY_SCHOOLS
     if CACHED_PRIMARY_SCHOOLS: return CACHED_PRIMARY_SCHOOLS
     
     url = "https://www.onemap.gov.sg/api/public/themesvc/retrieveTheme?queryName=primaryschool"
     
-    # Attempt 1: Direct blazing-fast request (Bypasses ZenRows timeout limits)
+    # Attempt 1: Direct Request
     try:
-        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+            "Referer": "https://www.onemap.gov.sg/"
+        }
         direct_res = requests.get(url, headers=headers, timeout=10)
         if direct_res.status_code == 200:
             CACHED_PRIMARY_SCHOOLS = process_school_payload(direct_res.json())
@@ -213,9 +226,14 @@ def load_primary_schools_once():
     except Exception:
         pass
         
-    # Attempt 2: Bulletproof ZenRows fallback if Direct request was blocked
+    # Attempt 2: ZenRows SG Proxy Request
     res = fetch_json_safe(url, use_sg_proxy=True) 
     CACHED_PRIMARY_SCHOOLS = process_school_payload(res)
+    if CACHED_PRIMARY_SCHOOLS:
+        return CACHED_PRIMARY_SCHOOLS
+        
+    # Attempt 3: OpenStreetMap Overpass Ultimate Fallback
+    CACHED_PRIMARY_SCHOOLS = load_schools_osm_fallback()
     return CACHED_PRIMARY_SCHOOLS
 
 def count_nearby_primary_schools(target_lat, target_lon, radius_meters=1500):
@@ -290,18 +308,23 @@ def scrape_hdb_place2lease():
             item_text = json.dumps(item).lower()
             
             # Robust Address Construction utilizing deep_find
-            block = str(deep_find(item, "blockNo", "block") or "").strip()
-            street = str(deep_find(item, "streetName", "street") or "").strip()
-            postal = str(deep_find(item, "postalCode", "postal") or "").strip()
-            unit_no = str(deep_find(item, "unitNo", "unit") or "").strip()
+            raw_full_address = deep_find(item, "address", "propertyAddress", "displayAddress", "locationAddress")
             
-            if block and street: full_address = f"Blk {block} {street}"
-            elif block: full_address = f"Blk {block}"
-            elif street: full_address = street
-            else: full_address = f"HDB Commercial Unit"
+            if raw_full_address and len(str(raw_full_address)) > 5:
+                full_address = str(raw_full_address).strip()
+            else:
+                block = str(deep_find(item, "blockNo", "block") or "").strip()
+                street = str(deep_find(item, "streetName", "street") or "").strip()
+                postal = str(deep_find(item, "postalCode", "postal") or "").strip()
+                unit_no = str(deep_find(item, "unitNo", "unit") or "").strip()
                 
-            if unit_no and unit_no != "None": full_address += f" #{unit_no}"
-            if postal and postal != "None": full_address += f" S({postal})"
+                if block and street: full_address = f"Blk {block} {street}"
+                elif block: full_address = f"Blk {block}"
+                elif street: full_address = street
+                else: full_address = f"HDB Commercial Unit"
+                    
+                if unit_no and unit_no != "None": full_address += f" #{unit_no}"
+                if postal and postal != "None": full_address += f" S({postal})"
                 
             # 1. Cluster Verification
             matched_key = None
