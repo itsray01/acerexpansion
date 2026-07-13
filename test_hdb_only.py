@@ -16,12 +16,11 @@ STATE_FILE = "seen_hdb_listings.json"
 MAX_SQFT_LIMIT = 1200.0
 MAX_PSF_THRESHOLD = 15.0
 
-# Expanded Clusters (Catches abbreviations like 'Bt Merah')
 CLUSTER_NAMES = {
-    "JURONG": "West Cluster", "CLEMENTI": "West Cluster", "BUKIT BATOK": "West Cluster", "BT BATOK": "West Cluster",
+    "JURONG": "West Cluster", "CLEMENTI": "West Cluster", "BUKIT BATOK": "West Cluster", 
     "CHOA CHU KANG": "West Cluster", "BUKIT PANJANG": "West Cluster", "BOON LAY": "West Cluster",
     "TOA PAYOH": "Central Cluster", "BISHAN": "Central Cluster", "KALLANG": "Central Cluster", 
-    "WHAMPOA": "Central Cluster", "QUEENSTOWN": "Central Cluster", "BUKIT MERAH": "Central Cluster", "BT MERAH": "Central Cluster",
+    "WHAMPOA": "Central Cluster", "QUEENSTOWN": "Central Cluster", "BUKIT MERAH": "Central Cluster", 
     "CENTRAL AREA": "Central Cluster", "NOVENA": "Central Cluster",
     "SERANGOON": "East / Northeast Cluster", "HOUGANG": "East / Northeast Cluster", 
     "SENGKANG": "East / Northeast Cluster", "PUNGGOL": "East / Northeast Cluster", 
@@ -30,7 +29,6 @@ CLUSTER_NAMES = {
     "KOVAN": "East / Northeast Cluster"
 }
 
-# Existing Branches
 EXISTING_BRANCHES = {
     "Junction 9 (North)": (1.4331, 103.8405), "Admiralty Place (North)": (1.4402, 103.8008),
     "The Woodgrove (North)": (1.4310, 103.7845), "Vista Point (North)": (1.4300, 103.7920),
@@ -44,6 +42,12 @@ EXISTING_BRANCHES = {
 }
 
 CACHED_PRIMARY_SCHOOLS = []
+DEBUG_LOGS = []
+
+def debug_log(msg):
+    """Stores logs so they can be sent directly to Telegram if the script fails."""
+    print(msg)
+    DEBUG_LOGS.append(msg)
 
 # ==========================================
 # 2. CORE UTILITIES
@@ -52,11 +56,19 @@ def fetch_json_safe(url, use_sg_proxy=False):
     zenrows_endpoint = "https://api.zenrows.com/v1/"
     params = {"url": url, "apikey": ZENROWS_API_KEY, "premium_proxy": "true"}
     if use_sg_proxy: params["proxy_country"] = "sg"
+    
     try:
         res = requests.get(zenrows_endpoint, params=params, timeout=30)
-        if res.status_code == 200: return json.loads(res.text)
+        if res.status_code == 200:
+            text = res.text
+            if text.strip().startswith("<"):
+                debug_log("[!] ZenRows returned HTML. HDB Firewall is blocking the API request!")
+                return {}
+            return json.loads(text)
+        else:
+            debug_log(f"[!] Target URL returned status code: {res.status_code}")
     except Exception as e:
-        print(f"[!] Proxy fetch failed: {e}")
+        debug_log(f"[!] Proxy connection failed for {url}: {e}")
     return {}
 
 def format_display_address(raw_address):
@@ -139,22 +151,37 @@ def send_telegram_alert(markdown_message):
 # ==========================================
 # 3. DIRECT HDB API INTERCEPTION
 # ==========================================
+def extract_list_from_payload(data):
+    """Hunts deeply for the array of properties regardless of what HDB named the keys."""
+    if isinstance(data, list): return data
+    if isinstance(data, dict):
+        for key in ["content", "results", "tenderUnits", "data", "list", "items"]:
+            if key in data and isinstance(data[key], list): return data[key]
+        for k, v in data.items():
+            if isinstance(v, dict):
+                for subkey in ["content", "results", "tenderUnits", "list", "items"]:
+                    if subkey in v and isinstance(v[subkey], list): return v[subkey]
+    return []
+
 def scrape_hdb_place2lease():
-    print("[*] Intercepting internal HDB JSON feed...")
-    # Increased pageSize to 100 to ensure we capture all listings
+    debug_log("[*] Intercepting internal HDB JSON feed...")
     api_url = "https://place2lease.hdb.gov.sg/webservice-public/api/v1/tender-units/public/search-tender-units?page=1&pageSize=100&order=asc&orderProperty=lastPost.currentBidClosingDate&startIndex=0"
     
     payload = fetch_json_safe(api_url, use_sg_proxy=True)
-    
-    raw_units = []
-    if isinstance(payload, list): raw_units = payload
-    elif isinstance(payload, dict): raw_units = payload.get("content") or payload.get("results") or payload.get("tenderUnits") or []
+    raw_units = extract_list_from_payload(payload)
         
-    print(f"[+] Intercepted {len(raw_units)} raw properties from API. Applying filters...")
+    if not raw_units:
+        debug_log(f"[!] No raw properties found in payload. Extracted Keys: {list(payload.keys())[:10] if isinstance(payload, dict) else 'None'}")
+        return []
+
+    debug_log(f"[+] Intercepted {len(raw_units)} raw properties. Applying filters...")
     listings = []
 
     for item in raw_units:
         try:
+            # Flatten entire JSON item to lowercase string for bulletproof matching
+            item_text = json.dumps(item).lower()
+            
             block = str(item.get("blockNo", "")).strip()
             street = str(item.get("streetName", "")).strip()
             postal = str(item.get("postalCode", "")).strip()
@@ -165,33 +192,33 @@ def scrape_hdb_place2lease():
             if postal and postal != "None": full_address += f" S({postal})"
                 
             # 1. Cluster Verification
-            combined_text = f"{full_address} {item.get('townDescription', '')} {item.get('locationDescription', '')}"
             matched_key = None
             for cluster in CLUSTER_NAMES.keys():
-                if re.search(r"\b" + re.escape(cluster) + r"\b", combined_text, re.I):
+                if cluster.lower() in item_text:
                     matched_key = cluster
                     break
             if not matched_key:
-                print(f"[debug] Dropped {full_address}: Not in target clusters.")
+                debug_log(f"[drop] {full_address}: No valid cluster/town found.")
                 continue
 
-            # 2. Size Verification (Robust Key Search)
-            sqm_val = item.get("floorArea") or item.get("areaSqm") or item.get("allocatedArea") or item.get("area") or 0.0
-            sqm = float(sqm_val)
-            if sqm <= 0:
-                print(f"[debug] Dropped {full_address}: JSON sizing data missing/zero.")
-                continue
-            sqft = sqm * 10.7639
+            # 2. Size Verification
+            sqm = 0.0
+            for k in ["floorArea", "areaSqm", "allocatedArea", "area", "sqm"]:
+                if k in item and item[k]:
+                    try: 
+                        sqm = float(item[k])
+                        break
+                    except: pass
             
+            sqft = sqm * 10.7639
             if sqft > MAX_SQFT_LIMIT or sqft < 100:
-                print(f"[debug] Dropped {full_address}: Size {int(sqft)} sqft out of bounds.")
+                debug_log(f"[drop] {full_address}: Size {int(sqft)} sqft exceeds limit.")
                 continue
 
-            # 3. Trade Verification (Expanded to include "shop" and "specific trade")
-            trade_desc = str(item.get("tradeDescription", "") or item.get("allowableTrade", "") or item.get("trade", "")).lower()
-            valid_trade = re.search(r"(open trade|specific trade|shop|education|tuition|enrichment|school|retail|commercial|office)", trade_desc)
-            if not valid_trade and trade_desc != "":
-                print(f"[debug] Dropped {full_address}: Trade '{trade_desc}' restricted.")
+            # 3. Trade Verification
+            valid_trade = re.search(r"(open trade|specific trade|shop|education|tuition|enrichment|school|retail|commercial|office)", item_text)
+            if not valid_trade:
+                debug_log(f"[drop] {full_address}: Trade type restricted.")
                 continue
 
             # 4. Pricing Logic
@@ -216,7 +243,7 @@ def scrape_hdb_place2lease():
                 "link": "https://place2lease.hdb.gov.sg/public/"
             })
         except Exception as e:
-            print(f"[!] Processing error on item: {e}")
+            debug_log(f"[!] Processing error on item: {e}")
 
     return listings
 
@@ -229,10 +256,17 @@ def main():
     price_ledger = load_price_ledger()
     all_units = scrape_hdb_place2lease()
     
-    print(f"[*] Found {len(all_units)} qualified active HDB properties today.")
+    debug_log(f"[*] Found {len(all_units)} qualified active HDB properties today.")
     
     if not all_units:
-        send_telegram_alert("ℹ️ **HDB Feed Diagnostic:** 0 properties currently match your cluster and size criteria (<1,200 sqft). Check GitHub Actions logs to see [debug] reasons for dropped units.")
+        # Format the internal debug logs to send to Telegram
+        log_text = "\n".join(DEBUG_LOGS[-15:]) # Grab the last 15 log lines
+        error_msg = (
+            f"ℹ️ **HDB Feed Diagnostic:** 0 properties matched criteria.\n\n"
+            f"**Auto-Debug Logs:**\n
+```text\n{log_text}\n```"
+        )
+        send_telegram_alert(error_msg)
         return
 
     report_blocks = [
@@ -295,7 +329,7 @@ def main():
         time.sleep(1)
 
     save_price_ledger(price_ledger)
-    print("[+] Pipeline finished successfully.")
+    debug_log("[+] Pipeline finished successfully.")
 
 if __name__ == "__main__":
     main()
