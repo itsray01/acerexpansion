@@ -1,36 +1,38 @@
-name: Multi-Portal Real Estate Scraper Test
+name: HDB Scraper Automation
 
+# Triggers: Run automatically every day at 8 AM UTC (4 PM SG time) and manually via GitHub UI
 on:
   schedule:
-    # Triggers at 01:00 UTC (9:00 AM Singapore Time) every Monday, Wednesday, and Friday
-    - cron: '0 1 * * 1,3,5'
-  workflow_dispatch: # Enables the gray "Run workflow" button in the GitHub Actions UI for manual testing
+    - cron: '0 8 * * *'
+  workflow_dispatch:
 
 jobs:
   run-scraper:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write # Essential permission to let the runner save and push seen_listings.json back to your repo
 
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v3
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v4
         with:
-          python-version: '3.11'
-          cache: 'pip'
+          python-version: '3.10'
 
       - name: Install Dependencies
-        run: |
-          pip install -r requirements.txt
+        run: pip install requests
 
-      - name: Run Test Scraper
+      - name: Run HDB Scraper
         run: python test_hdb_only.py
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          ZENROWS_API_KEY: ${{ secrets.ZENROWS_API_KEY }}
 
-      - name: Commit State File (seen_listings.json)
-        uses: stefanzweifel/git-auto-commit-action@v5
-        with:
-          commit_message: "chore: update multi-portal seen listings ledger [skip ci]"
-          file_pattern: seen_listings.json
+      - name: Commit and Push state file (if changed)
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add seen_hdb_listings.json || true
+          git commit -m "chore: update active ledger" || true
+          git push || true
