@@ -13,8 +13,16 @@ TELEGRAM_CHAT_ID = "-1004306469919"
 ZENROWS_API_KEY = "0a72b44b388084523647e4dce2f6787701a1fbd6"
 
 STATE_FILE = "seen_hdb_listings.json"
-MAX_SQFT_LIMIT = 1200.0
+MIN_SQFT_LIMIT = 400.0 # No maximum limit as per new directive
 MAX_PSF_THRESHOLD = 15.0
+
+# Estimated Private Market PSF by Region (Used for 35% Discount Guessing Game)
+PRIVATE_MARKET_PSF = {
+    "West Cluster": 10.00,
+    "Central Cluster": 15.00,
+    "East / Northeast Cluster": 12.00,
+    "General Region": 12.00 # Fallback for new/unmapped HDB towns
+}
 
 CLUSTER_NAMES = {
     "JURONG": "West Cluster", "CLEMENTI": "West Cluster", "BUKIT BATOK": "West Cluster", 
@@ -29,16 +37,26 @@ CLUSTER_NAMES = {
     "KOVAN": "East / Northeast Cluster"
 }
 
+# Updated with highly precise map coordinates for accurate cannibalization buffers
 EXISTING_BRANCHES = {
-    "Junction 9 (North)": (1.4331, 103.8405), "Admiralty Place (North)": (1.4402, 103.8008),
-    "The Woodgrove (North)": (1.4310, 103.7845), "Vista Point (North)": (1.4300, 103.7920),
-    "Canberra Plaza (North)": (1.4430, 103.8300), "Tampines West (East)": (1.3503, 103.9358),
-    "Buangkok Square (East)": (1.3838, 103.8820), "Aljunied Maths/Science (East)": (1.3193, 103.8831),
-    "Aljunied Languages (East)": (1.3195, 103.8833), "Elias Mall (East)": (1.3780, 103.9430),
-    "Dawson (Central)": (1.2950, 103.8110), "Depot Heights (Central)": (1.2806, 103.8080),
-    "Tiong Bahru (Central)": (1.2865, 103.8260), "Cantonment (Central)": (1.2755, 103.8400),
-    "Commonwealth (Central)": (1.3030, 103.7990), "Senja Heights (West)": (1.3850, 103.7610),
-    "Greenridge (West)": (1.3860, 103.7710), "Hong Kah (West)": (1.3520, 103.7250)
+    "Junction 9 (North)": (1.4328, 103.8413), 
+    "Admiralty Place (North)": (1.4403, 103.8009),
+    "The Woodgrove (North)": (1.4312, 103.7844), 
+    "Vista Point (North)": (1.4315, 103.7937),
+    "Canberra Plaza (North)": (1.4434, 103.8299), 
+    "Tampines West (East)": (1.3486, 103.9360),
+    "Buangkok Square (East)": (1.3839, 103.8817), 
+    "Aljunied Maths/Science (East)": (1.3195, 103.8833),
+    "Aljunied Languages (East)": (1.3196, 103.8833), 
+    "Elias Mall (East)": (1.3775, 103.9427),
+    "Dawson (Central)": (1.2934, 103.8110), 
+    "Depot Heights (Central)": (1.2811, 103.8084),
+    "Tiong Bahru (Central)": (1.2864, 103.8269), 
+    "Cantonment (Central)": (1.2759, 103.8402),
+    "Commonwealth (Central)": (1.3023, 103.7992), 
+    "Senja Heights (West)": (1.3860, 103.7607),
+    "Greenridge (West)": (1.3855, 103.7663), 
+    "Hong Kah (West)": (1.3496, 103.7208)
 }
 
 CACHED_PRIMARY_SCHOOLS = []
@@ -79,6 +97,27 @@ def format_display_address(raw_address):
         if len(parts[0]) > 2 and len(parts[1]) > 2:
             return f"**{parts[0]}**\n📍 {parts[1]}"
     return f"**{addr}**"
+
+def format_hdb_date(date_val):
+    """Safely formats HDB API dates (ISO or millisecond timestamps) to a readable format."""
+    if not date_val or str(date_val).lower() == "none":
+        return "TBA"
+    try:
+        if isinstance(date_val, (int, float)) or (isinstance(date_val, str) and str(date_val).isdigit()):
+            ts = int(date_val)
+            if ts > 9999999999: # Convert milliseconds to seconds if necessary
+                ts = ts / 1000
+            dt = time.localtime(ts)
+            return time.strftime("%d %b %Y, %I:%M %p", dt)
+            
+        date_str = str(date_val)
+        clean_str = date_str.split('.')[0].replace('Z', '')
+        if 'T' in clean_str:
+            dt = time.strptime(clean_str, "%Y-%m-%dT%H:%M:%S")
+            return time.strftime("%d %b %Y, %I:%M %p", dt)
+        return date_str
+    except Exception:
+        return str(date_val)
 
 def calculate_haversine_distance(lat1, lon1, lat2, lon2):
     R = 6371000  
@@ -123,13 +162,14 @@ def get_robust_gps(address_string, cluster_key=""):
     if postal_match: queries_to_try.append(postal_match.group(1))
 
     clean_addr = re.sub(r'#\d+-[a-zA-Z0-9/]+', '', address_string)
-    clean_addr = re.sub(r'\b(Shop|Retail|Unit|#\S+)\b', ' ', clean_addr, flags=re.I).strip()
+    clean_addr = re.sub(r'\b(Shop|Retail|Unit|HDB|Commercial|#\S+)\b', ' ', clean_addr, flags=re.I).strip()
     if len(clean_addr) > 5: queries_to_try.append(clean_addr)
-    if cluster_key and cluster_key not in queries_to_try: queries_to_try.append(f"{cluster_key} Singapore")
+    
+    if cluster_key: queries_to_try.append(f"{cluster_key} Singapore")
 
     for query in queries_to_try:
         res = fetch_json_safe(f"https://www.onemap.gov.sg/api/common/elastic/search?searchVal={query}&returnGeom=Y&getAddrDetails=Y&pageNum=1")
-        if res.get("found", 0) > 0:
+        if res and res.get("found", 0) > 0:
             return float(res["results"][0]["LATITUDE"]), float(res["results"][0]["LONGITUDE"])
     return None, None
 
@@ -152,7 +192,6 @@ def send_telegram_alert(markdown_message):
 # 3. DIRECT HDB API INTERCEPTION
 # ==========================================
 def extract_list_from_payload(data):
-    """Hunts deeply for the array of properties regardless of what HDB named the keys."""
     if isinstance(data, list): return data
     if isinstance(data, dict):
         for key in ["content", "results", "tenderUnits", "data", "list", "items"]:
@@ -181,26 +220,36 @@ def scrape_hdb_place2lease():
         try:
             item_text = json.dumps(item).lower()
             
+            # Robust Address Construction
             block = str(item.get("blockNo", "")).strip()
             street = str(item.get("streetName", "")).strip()
             postal = str(item.get("postalCode", "")).strip()
             unit_no = str(item.get("unitNo", "")).strip()
             
-            full_address = f"Blk {block} {street}"
+            if block and street: full_address = f"Blk {block} {street}"
+            elif block: full_address = f"Blk {block}"
+            elif street: full_address = street
+            else: full_address = f"HDB Commercial Unit"
+                
             if unit_no and unit_no != "None": full_address += f" #{unit_no}"
             if postal and postal != "None": full_address += f" S({postal})"
                 
-            # 1. Cluster Verification
+            # 1. Cluster Verification (No longer drops if unmatched!)
             matched_key = None
             for cluster in CLUSTER_NAMES.keys():
                 if cluster.lower() in item_text:
                     matched_key = cluster
                     break
+            
             if not matched_key:
-                debug_log(f"[drop] {full_address}: No valid cluster/town found.")
-                continue
+                # Fallback to the raw HDB town description instead of dropping
+                raw_town = item.get("townDescription") or item.get("town") or ""
+                matched_key = str(raw_town).strip().title() if raw_town else "Unmapped Region"
 
-            # 2. Size Verification
+            if full_address == "HDB Commercial Unit":
+                full_address = f"HDB Commercial Unit ({matched_key})"
+
+            # 2. Size Verification (400 sqft minimum)
             sqm = 0.0
             for k in ["floorArea", "areaSqm", "allocatedArea", "area", "sqm"]:
                 if k in item and item[k]:
@@ -210,8 +259,8 @@ def scrape_hdb_place2lease():
                     except: pass
             
             sqft = sqm * 10.7639
-            if sqft > MAX_SQFT_LIMIT or sqft < 100:
-                debug_log(f"[drop] {full_address}: Size {int(sqft)} sqft exceeds limit.")
+            if sqft < MIN_SQFT_LIMIT:
+                debug_log(f"[drop] {full_address}: Size {int(sqft)} sqft below {MIN_SQFT_LIMIT} sqft minimum.")
                 continue
 
             # 3. Trade Verification
@@ -219,16 +268,31 @@ def scrape_hdb_place2lease():
             if not valid_trade:
                 debug_log(f"[drop] {full_address}: Trade type restricted.")
                 continue
+                
+            # Extract Trade Type exactly as shown on HDB portal
+            raw_trade = item.get("tradeDescription") or item.get("allowableTrade") or item.get("trade") or "Not Specified"
+            trade_type = str(raw_trade).strip().title()
 
-            # 4. Pricing Logic
+            # 4. Pricing & Date Logic
             current_bid = item.get("currentBid") or item.get("highestBid") or item.get("tenderPrice") or 0.0
             price = float(current_bid)
             
             is_sealed = ("price only" in str(item.get("tenderType", "")).lower() or 
                          "sealed" in str(item.get("postType", "")).lower() or 
                          price == 0.0)
+                         
+            # Extract Tender Closing Date
+            closing_date_raw = item.get("currentBidClosingDate") or item.get("tenderClosingDate") or item.get("closingDate") or ""
+            closing_date = format_hdb_date(closing_date_raw)
 
             unique_id = f"HDB_{re.sub(r'[^a-zA-Z0-9]', '', full_address)[:25]}_{int(sqft)}"
+            
+            # 5. Extract specific unit ID for direct "Find out more" link
+            item_id = str(item.get("id") or item.get("tenderUnitId") or item.get("propertyId") or "")
+            if item_id and item_id != "None":
+                direct_link = f"https://place2lease.hdb.gov.sg/public/view-properties/true/unit-details/{item_id}"
+            else:
+                direct_link = "https://place2lease.hdb.gov.sg/public/"
 
             listings.append({
                 "id": unique_id,
@@ -239,7 +303,9 @@ def scrape_hdb_place2lease():
                 "sqm": round(sqm),
                 "price": price,
                 "is_sealed": is_sealed,
-                "link": "https://place2lease.hdb.gov.sg/public/"
+                "trade_type": trade_type,
+                "closing_date": closing_date,
+                "link": direct_link
             })
         except Exception as e:
             debug_log(f"[!] Processing error on item: {e}")
@@ -258,7 +324,6 @@ def main():
     debug_log(f"[*] Found {len(all_units)} qualified active HDB properties today.")
     
     if not all_units:
-        # Flattened error message to completely prevent multiline syntax errors!
         log_text = "\n".join(DEBUG_LOGS[-15:])
         error_msg = f"ℹ️ **HDB Feed Diagnostic:** 0 properties matched criteria.\n\n**Auto-Debug Logs:**\n```text\n{log_text}\n```"
         send_telegram_alert(error_msg)
@@ -283,12 +348,26 @@ def main():
             
         price_ledger[lid] = current_price
 
+        # Guessing Game Calculations
+        cluster_region = CLUSTER_NAMES.get(unit['cluster_key'], "General Region")
+        est_private_psf = PRIVATE_MARKET_PSF.get(cluster_region, 12.0)
+        hdb_psf_bid = est_private_psf * 0.65 # 35% discount calculation
+        est_monthly = hdb_psf_bid * unit['sqft']
+
         if unit["is_sealed"] or unit["price"] == 0:
-            price_display = "💰 **🔒 Sealed Tender** | *Price determined on submission*"
+            price_display = (
+                f"💰 **🔒 Sealed Tender** (No upfront price listed)\n"
+                f"💡 **Suggested Bid:** ~${est_monthly:,.0f} / mth (${hdb_psf_bid:.2f} PSF)\n"
+                f"*(Based on ~35% discount from ${est_private_psf:.2f} private market avg)*"
+            )
         else:
             psf = round(unit["price"] / unit["sqft"], 2)
             psf_flag = " ⚠️ *(Above Market)*" if psf > MAX_PSF_THRESHOLD else ""
-            price_display = f"💰 **${unit['price']:,.0f} / mth** |  **${psf:.2f} PSF**{psf_flag}"
+            price_display = (
+                f"💰 **${unit['price']:,.0f} / mth** | **${psf:.2f} PSF**{psf_flag}\n"
+                f"💡 **Target Bid:** ~${est_monthly:,.0f} / mth (${hdb_psf_bid:.2f} PSF)\n"
+                f"*(Based on ~35% discount from ${est_private_psf:.2f} private market avg)*"
+            )
 
         lat, lon = get_robust_gps(unit["address"], cluster_key=unit["cluster_key"])
         display_address = format_display_address(unit['address'])
@@ -304,22 +383,27 @@ def main():
             schools_line = "*GPS Resolution Missing* (Manual check required)"
             buffer_line = "*GPS Sync Pending*"
 
+        warning_block = "⚠️ **ACTION REQUIRED:** Click the link below and expand \"Important Unit Conditions\" to verify no existing tuition/enrichment trades currently exist in this block."
+
         block = (
             f"{header_badge}\n"
             f"🏢 {display_address}\n"
-            f"🏷️ Official HDB Lease ({unit['cluster_key'].title()} / {CLUSTER_NAMES[unit['cluster_key']]})\n\n"
+            f"🏷️ Official HDB Lease ({unit['cluster_key'].title()} / {cluster_region})\n\n"
             f"📐 **{int(unit['sqft']):,} sqft** ({unit['sqm']} m²)\n"
             f"{price_display}\n\n"
+            f"🛍️ **Trade Type:** {unit.get('trade_type', 'Not Specified')}\n"
+            f"🗓️ **Tender Ends:** {unit.get('closing_date', 'TBA')}\n\n"
             f"📍 **Location & Catchment:**\n"
             f"• **Schools:** {schools_line}\n"
             f"• **Branch Buffer:** {buffer_line}\n\n"
-            f"🔗 [Open HDB Portal]({unit['link']})"
+            f"{warning_block}\n\n"
+            f"🔗 [Find Out More]({unit['link']})"
         )
         report_blocks.append(block)
         report_blocks.append("---")
 
-    for i in range(0, len(report_blocks), 3):
-        chunk = "\n\n".join(report_blocks[i:i+3])
+    for i in range(0, len(report_blocks), 2):
+        chunk = "\n\n".join(report_blocks[i:i+2])
         send_telegram_alert(chunk)
         time.sleep(1)
 
