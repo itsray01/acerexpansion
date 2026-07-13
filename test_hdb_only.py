@@ -68,7 +68,7 @@ def debug_log(msg):
     DEBUG_LOGS.append(msg)
 
 # ==========================================
-# 2. CORE UTILITIES
+# 2. CORE UTILITIES & DEEP SEARCH
 # ==========================================
 def fetch_json_safe(url, use_sg_proxy=False):
     zenrows_endpoint = "https://api.zenrows.com/v1/"
@@ -88,6 +88,27 @@ def fetch_json_safe(url, use_sg_proxy=False):
     except Exception as e:
         debug_log(f"[!] Proxy connection failed for {url}: {e}")
     return {}
+
+def deep_find(obj, *keys):
+    """Recursively searches for keys in a nested JSON object to defeat nested HDB data."""
+    target_keys = [k.lower() for k in keys]
+    if isinstance(obj, dict):
+        # Check immediate keys first
+        for k, v in obj.items():
+            if k.lower() in target_keys and v is not None and str(v).strip() != "":
+                return v
+        # Then recurse into nested dicts/lists
+        for k, v in obj.items():
+            if isinstance(v, (dict, list)):
+                res = deep_find(v, *keys)
+                if res is not None and str(res).strip() != "":
+                    return res
+    elif isinstance(obj, list):
+        for item in obj:
+            res = deep_find(item, *keys)
+            if res is not None and str(res).strip() != "":
+                return res
+    return None
 
 def format_display_address(raw_address):
     addr = raw_address.strip()
@@ -138,8 +159,9 @@ def check_cannibalization(target_lat, target_lon):
 def load_primary_schools_once():
     global CACHED_PRIMARY_SCHOOLS
     if CACHED_PRIMARY_SCHOOLS: return CACHED_PRIMARY_SCHOOLS
+    # Explicitly use Singapore proxy to bypass OneMap block!
     url = "https://www.onemap.gov.sg/api/public/themesvc/retrieveTheme?queryName=primaryschool"
-    res = fetch_json_safe(url)
+    res = fetch_json_safe(url, use_sg_proxy=True) 
     if "SrchResults" in res:
         for item in res["SrchResults"][1:]:
             lat = item.get("LATITUDE") or item.get("lat") or item.get("Y")
@@ -168,7 +190,9 @@ def get_robust_gps(address_string, cluster_key=""):
     if cluster_key: queries_to_try.append(f"{cluster_key} Singapore")
 
     for query in queries_to_try:
-        res = fetch_json_safe(f"https://www.onemap.gov.sg/api/common/elastic/search?searchVal={query}&returnGeom=Y&getAddrDetails=Y&pageNum=1")
+        # Explicitly use Singapore proxy to bypass OneMap block!
+        url = f"https://www.onemap.gov.sg/api/common/elastic/search?searchVal={query}&returnGeom=Y&getAddrDetails=Y&pageNum=1"
+        res = fetch_json_safe(url, use_sg_proxy=True)
         if res and res.get("found", 0) > 0:
             return float(res["results"][0]["LATITUDE"]), float(res["results"][0]["LONGITUDE"])
     return None, None
@@ -220,11 +244,11 @@ def scrape_hdb_place2lease():
         try:
             item_text = json.dumps(item).lower()
             
-            # Robust Address Construction
-            block = str(item.get("blockNo", "")).strip()
-            street = str(item.get("streetName", "")).strip()
-            postal = str(item.get("postalCode", "")).strip()
-            unit_no = str(item.get("unitNo", "")).strip()
+            # Robust Address Construction utilizing deep_find
+            block = str(deep_find(item, "blockNo", "block") or "").strip()
+            street = str(deep_find(item, "streetName", "street") or "").strip()
+            postal = str(deep_find(item, "postalCode", "postal") or "").strip()
+            unit_no = str(deep_find(item, "unitNo", "unit") or "").strip()
             
             if block and street: full_address = f"Blk {block} {street}"
             elif block: full_address = f"Blk {block}"
@@ -234,7 +258,7 @@ def scrape_hdb_place2lease():
             if unit_no and unit_no != "None": full_address += f" #{unit_no}"
             if postal and postal != "None": full_address += f" S({postal})"
                 
-            # 1. Cluster Verification (No longer drops if unmatched!)
+            # 1. Cluster Verification
             matched_key = None
             for cluster in CLUSTER_NAMES.keys():
                 if cluster.lower() in item_text:
@@ -242,8 +266,7 @@ def scrape_hdb_place2lease():
                     break
             
             if not matched_key:
-                # Fallback to the raw HDB town description instead of dropping
-                raw_town = item.get("townDescription") or item.get("town") or ""
+                raw_town = deep_find(item, "townDescription", "town") or ""
                 matched_key = str(raw_town).strip().title() if raw_town else "Unmapped Region"
 
             if full_address == "HDB Commercial Unit":
@@ -269,26 +292,30 @@ def scrape_hdb_place2lease():
                 debug_log(f"[drop] {full_address}: Trade type restricted.")
                 continue
                 
-            # Extract Trade Type exactly as shown on HDB portal
-            raw_trade = item.get("tradeDescription") or item.get("allowableTrade") or item.get("trade") or "Not Specified"
-            trade_type = str(raw_trade).strip().title()
+            # Deep hunt for Trade Type with regex fallback
+            raw_trade = deep_find(item, "tradeDescription", "allowableTrade", "tradeCategory", "trade")
+            if raw_trade:
+                trade_type = str(raw_trade).strip().title()
+            elif valid_trade:
+                trade_type = valid_trade.group(0).title()
+            else:
+                trade_type = "Not Specified"
 
             # 4. Pricing & Date Logic
-            current_bid = item.get("currentBid") or item.get("highestBid") or item.get("tenderPrice") or 0.0
+            current_bid = deep_find(item, "currentBid", "highestBid", "tenderPrice", "price") or 0.0
             price = float(current_bid)
             
-            is_sealed = ("price only" in str(item.get("tenderType", "")).lower() or 
-                         "sealed" in str(item.get("postType", "")).lower() or 
-                         price == 0.0)
+            tender_type = str(deep_find(item, "tenderType", "postType", "type") or "").lower()
+            is_sealed = ("price only" in tender_type or "sealed" in tender_type or price == 0.0)
                          
-            # Extract Tender Closing Date
-            closing_date_raw = item.get("currentBidClosingDate") or item.get("tenderClosingDate") or item.get("closingDate") or ""
+            # Extract Tender Closing Date cleanly
+            closing_date_raw = deep_find(item, "currentBidClosingDate", "tenderClosingDate", "closingDate", "tenderEndDate", "endDate")
             closing_date = format_hdb_date(closing_date_raw)
 
             unique_id = f"HDB_{re.sub(r'[^a-zA-Z0-9]', '', full_address)[:25]}_{int(sqft)}"
             
             # 5. Extract specific unit ID for direct "Find out more" link
-            item_id = str(item.get("id") or item.get("tenderUnitId") or item.get("propertyId") or "")
+            item_id = str(deep_find(item, "id", "tenderUnitId", "propertyId", "unitId") or "")
             if item_id and item_id != "None":
                 direct_link = f"https://place2lease.hdb.gov.sg/public/view-properties/true/unit-details/{item_id}"
             else:
