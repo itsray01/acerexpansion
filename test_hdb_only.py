@@ -80,7 +80,7 @@ def fetch_json_safe(url, use_sg_proxy=False):
         if res.status_code == 200:
             text = res.text
             if text.strip().startswith("<"):
-                debug_log("[!] ZenRows returned HTML. HDB Firewall is blocking the API request!")
+                debug_log("[!] ZenRows returned HTML. Firewall is blocking the API request!")
                 return {}
             return json.loads(text)
         else:
@@ -93,11 +93,9 @@ def deep_find(obj, *keys):
     """Recursively searches for keys in a nested JSON object to defeat nested HDB data."""
     target_keys = [k.lower() for k in keys]
     if isinstance(obj, dict):
-        # Check immediate keys first
         for k, v in obj.items():
             if k.lower() in target_keys and v is not None and str(v).strip() != "":
                 return v
-        # Then recurse into nested dicts/lists
         for k, v in obj.items():
             if isinstance(v, (dict, list)):
                 res = deep_find(v, *keys)
@@ -110,6 +108,33 @@ def deep_find(obj, *keys):
                 return res
     return None
 
+def extract_closing_date(item):
+    """Aggressively hunts for any valid timestamp key to defeat HDB's shifting schemas."""
+    # Attempt 1: Known keys
+    raw = deep_find(item, "currentBidClosingDate", "tenderClosingDate", "closingDate", "tenderEndDate", "endDate", "biddingEndDate", "closeDate", "tenderClose")
+    if raw: return format_hdb_date(raw)
+    
+    # Attempt 2: Dynamic Scan for any key implying a deadline
+    def scan_for_date(obj):
+        if isinstance(obj, dict):
+            for k, v in obj.items():
+                kl = k.lower()
+                if ("date" in kl or "close" in kl or "end" in kl) and isinstance(v, (str, int, float)):
+                    if str(v).strip() != "None" and str(v).strip() != "":
+                        return v
+            for v in obj.values():
+                if isinstance(v, (dict, list)):
+                    res = scan_for_date(v)
+                    if res: return res
+        elif isinstance(obj, list):
+            for i in obj:
+                res = scan_for_date(i)
+                if res: return res
+        return None
+        
+    raw_fallback = scan_for_date(item)
+    return format_hdb_date(raw_fallback) if raw_fallback else "TBA"
+
 def format_display_address(raw_address):
     addr = raw_address.strip()
     addr = re.sub(r'([a-zA-Z])(\d+[\sA-Za-z])', r'\1, \2', addr)
@@ -120,13 +145,12 @@ def format_display_address(raw_address):
     return f"**{addr}**"
 
 def format_hdb_date(date_val):
-    """Safely formats HDB API dates (ISO or millisecond timestamps) to a readable format."""
     if not date_val or str(date_val).lower() == "none":
         return "TBA"
     try:
         if isinstance(date_val, (int, float)) or (isinstance(date_val, str) and str(date_val).isdigit()):
             ts = int(date_val)
-            if ts > 9999999999: # Convert milliseconds to seconds if necessary
+            if ts > 9999999999: # Convert milliseconds to seconds
                 ts = ts / 1000
             dt = time.localtime(ts)
             return time.strftime("%d %b %Y, %I:%M %p", dt)
@@ -136,7 +160,9 @@ def format_hdb_date(date_val):
         if 'T' in clean_str:
             dt = time.strptime(clean_str, "%Y-%m-%dT%H:%M:%S")
             return time.strftime("%d %b %Y, %I:%M %p", dt)
-        return date_str
+        
+        # Clean up stray characters if they passed a raw string like "15 Jul 2026"
+        return date_str.strip()
     except Exception:
         return str(date_val)
 
@@ -156,20 +182,40 @@ def check_cannibalization(target_lat, target_lon):
             min_dist, nearest_branch = dist, name
     return nearest_branch, min_dist
 
-def load_primary_schools_once():
-    global CACHED_PRIMARY_SCHOOLS
-    if CACHED_PRIMARY_SCHOOLS: return CACHED_PRIMARY_SCHOOLS
-    # Explicitly use Singapore proxy to bypass OneMap block!
-    url = "https://www.onemap.gov.sg/api/public/themesvc/retrieveTheme?queryName=primaryschool"
-    res = fetch_json_safe(url, use_sg_proxy=True) 
+def process_school_payload(res):
+    """Helper to extract schools from payload."""
+    schools = []
     if "SrchResults" in res:
         for item in res["SrchResults"][1:]:
             lat = item.get("LATITUDE") or item.get("lat") or item.get("Y")
             lon = item.get("LONGITUDE") or item.get("lng") or item.get("lon") or item.get("X")
             name = item.get("NAME") or item.get("Name") or "Primary School"
             if lat and lon:
-                try: CACHED_PRIMARY_SCHOOLS.append({"name": str(name).strip(), "lat": float(lat), "lon": float(lon)})
+                try: schools.append({"name": str(name).strip(), "lat": float(lat), "lon": float(lon)})
                 except ValueError: continue
+    return schools
+
+def load_primary_schools_once():
+    """Dual-Fetch mechanism to ensure school payload survives API timeouts."""
+    global CACHED_PRIMARY_SCHOOLS
+    if CACHED_PRIMARY_SCHOOLS: return CACHED_PRIMARY_SCHOOLS
+    
+    url = "https://www.onemap.gov.sg/api/public/themesvc/retrieveTheme?queryName=primaryschool"
+    
+    # Attempt 1: Direct blazing-fast request (Bypasses ZenRows timeout limits)
+    try:
+        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
+        direct_res = requests.get(url, headers=headers, timeout=10)
+        if direct_res.status_code == 200:
+            CACHED_PRIMARY_SCHOOLS = process_school_payload(direct_res.json())
+            if CACHED_PRIMARY_SCHOOLS:
+                return CACHED_PRIMARY_SCHOOLS
+    except Exception:
+        pass
+        
+    # Attempt 2: Bulletproof ZenRows fallback if Direct request was blocked
+    res = fetch_json_safe(url, use_sg_proxy=True) 
+    CACHED_PRIMARY_SCHOOLS = process_school_payload(res)
     return CACHED_PRIMARY_SCHOOLS
 
 def count_nearby_primary_schools(target_lat, target_lon, radius_meters=1500):
@@ -190,7 +236,6 @@ def get_robust_gps(address_string, cluster_key=""):
     if cluster_key: queries_to_try.append(f"{cluster_key} Singapore")
 
     for query in queries_to_try:
-        # Explicitly use Singapore proxy to bypass OneMap block!
         url = f"https://www.onemap.gov.sg/api/common/elastic/search?searchVal={query}&returnGeom=Y&getAddrDetails=Y&pageNum=1"
         res = fetch_json_safe(url, use_sg_proxy=True)
         if res and res.get("found", 0) > 0:
@@ -283,13 +328,11 @@ def scrape_hdb_place2lease():
             
             sqft = sqm * 10.7639
             if sqft < MIN_SQFT_LIMIT:
-                debug_log(f"[drop] {full_address}: Size {int(sqft)} sqft below {MIN_SQFT_LIMIT} sqft minimum.")
                 continue
 
             # 3. Trade Verification
             valid_trade = re.search(r"(open trade|specific trade|shop|education|tuition|enrichment|school|retail|commercial|office)", item_text)
             if not valid_trade:
-                debug_log(f"[drop] {full_address}: Trade type restricted.")
                 continue
                 
             # Deep hunt for Trade Type with regex fallback
@@ -308,9 +351,8 @@ def scrape_hdb_place2lease():
             tender_type = str(deep_find(item, "tenderType", "postType", "type") or "").lower()
             is_sealed = ("price only" in tender_type or "sealed" in tender_type or price == 0.0)
                          
-            # Extract Tender Closing Date cleanly
-            closing_date_raw = deep_find(item, "currentBidClosingDate", "tenderClosingDate", "closingDate", "tenderEndDate", "endDate")
-            closing_date = format_hdb_date(closing_date_raw)
+            # Supercharged Closing Date extractor 
+            closing_date = extract_closing_date(item)
 
             unique_id = f"HDB_{re.sub(r'[^a-zA-Z0-9]', '', full_address)[:25]}_{int(sqft)}"
             
