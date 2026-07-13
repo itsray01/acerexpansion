@@ -11,17 +11,50 @@ import requests
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 ZENROWS_API_KEY = os.getenv("ZENROWS_API_KEY")
+URA_ACCESS_KEY = os.getenv("URA_ACCESS_KEY") # Add to GitHub Secrets for live private market data
 
 STATE_FILE = "seen_hdb_listings.json"
 MIN_SQFT_LIMIT = 400.0  # No maximum limit as per boss's directive
 MAX_PSF_THRESHOLD = 15.0
 
-# Estimated Private Market PSF by Region (Used for 35% Discount Guessing Game)
-PRIVATE_MARKET_PSF = {
+# Fallback Dictionary (Used only if URA API key is missing or fails)
+FALLBACK_PRIVATE_PSF = {
     "West Cluster": 10.00,
     "Central Cluster": 15.00,
     "East / Northeast Cluster": 12.00,
-    "General Region": 12.00  # Fallback for new/unmapped HDB towns
+    "General Region": 12.00  
+}
+
+# Exhaustive Mapping of 2-Digit Postal Sectors to URA Districts (D01 - D28)
+POSTAL_TO_DISTRICT = {
+    "01": "01", "02": "01", "03": "01", "04": "01", "05": "01", "06": "01",
+    "07": "02", "08": "02",
+    "14": "03", "15": "03", "16": "03",
+    "09": "04", "10": "04",
+    "11": "05", "12": "05", "13": "05",
+    "17": "06",
+    "18": "07", "19": "07",
+    "20": "08", "21": "08",
+    "22": "09", "23": "09",
+    "24": "10", "25": "10", "26": "10", "27": "10",
+    "28": "11", "29": "11", "30": "11",
+    "31": "12", "32": "12", "33": "12",
+    "34": "13", "35": "13", "36": "13", "37": "13",
+    "38": "14", "39": "14", "40": "14", "41": "14",
+    "42": "15", "43": "15", "44": "15", "45": "15",
+    "46": "16", "47": "16", "48": "16",
+    "49": "17", "50": "17", "81": "17",
+    "51": "18", "52": "18",
+    "53": "19", "54": "19", "55": "19", "82": "19",
+    "56": "20", "57": "20",
+    "58": "21", "59": "21",
+    "60": "22", "61": "22", "62": "22", "63": "22", "64": "22",
+    "65": "23", "66": "23", "67": "23", "68": "23",
+    "69": "24", "70": "24", "71": "24",
+    "72": "25", "73": "25",
+    "77": "26", "78": "26",
+    "75": "27", "76": "27",
+    "79": "28", "80": "28"
 }
 
 CLUSTER_NAMES = {
@@ -37,26 +70,16 @@ CLUSTER_NAMES = {
     "KOVAN": "East / Northeast Cluster"
 }
 
-# Highly precise map coordinates for accurate cannibalization buffers
 EXISTING_BRANCHES = {
-    "Junction 9 (North)": (1.4328, 103.8413), 
-    "Admiralty Place (North)": (1.4403, 103.8009),
-    "The Woodgrove (North)": (1.4312, 103.7844), 
-    "Vista Point (North)": (1.4315, 103.7937),
-    "Canberra Plaza (North)": (1.4434, 103.8299), 
-    "Tampines West (East)": (1.3486, 103.9360),
-    "Buangkok Square (East)": (1.3839, 103.8817), 
-    "Aljunied Maths/Science (East)": (1.3195, 103.8833),
-    "Aljunied Languages (East)": (1.3196, 103.8833), 
-    "Elias Mall (East)": (1.3775, 103.9427),
-    "Dawson (Central)": (1.2934, 103.8110), 
-    "Depot Heights (Central)": (1.2811, 103.8084),
-    "Tiong Bahru (Central)": (1.2864, 103.8269), 
-    "Cantonment (Central)": (1.2759, 103.8402),
-    "Commonwealth (Central)": (1.3023, 103.7992), 
-    "Senja Heights (West)": (1.3860, 103.7607),
-    "Greenridge (West)": (1.3855, 103.7663), 
-    "Hong Kah (West)": (1.3496, 103.7208)
+    "Junction 9 (North)": (1.4328, 103.8413), "Admiralty Place (North)": (1.4403, 103.8009),
+    "The Woodgrove (North)": (1.4312, 103.7844), "Vista Point (North)": (1.4315, 103.7937),
+    "Canberra Plaza (North)": (1.4434, 103.8299), "Tampines West (East)": (1.3486, 103.9360),
+    "Buangkok Square (East)": (1.3839, 103.8817), "Aljunied Maths/Science (East)": (1.3195, 103.8833),
+    "Aljunied Languages (East)": (1.3196, 103.8833), "Elias Mall (East)": (1.3775, 103.9427),
+    "Dawson (Central)": (1.2934, 103.8110), "Depot Heights (Central)": (1.2811, 103.8084),
+    "Tiong Bahru (Central)": (1.2864, 103.8269), "Cantonment (Central)": (1.2759, 103.8402),
+    "Commonwealth (Central)": (1.3023, 103.7992), "Senja Heights (West)": (1.3860, 103.7607),
+    "Greenridge (West)": (1.3855, 103.7663), "Hong Kah (West)": (1.3496, 103.7208)
 }
 
 DEBUG_LOGS = []
@@ -66,7 +89,10 @@ def debug_log(msg):
     DEBUG_LOGS.append(msg)
 
 def send_telegram_alert(markdown_message):
-    """Sends formatted alert messages to the configured Telegram chat."""
+    if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
+        debug_log("[!] Telegram credentials missing from environment.")
+        return
+        
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
     payload = {
         "chat_id": TELEGRAM_CHAT_ID, 
@@ -83,7 +109,6 @@ def send_telegram_alert(markdown_message):
 # 2. LOCAL MEMORY DATABASE LOADER
 # ==========================================
 def load_school_db():
-    """Robust local database loader with path fail-safes."""
     possible_paths = [
         "school_db.json",
         os.path.join(os.path.dirname(__file__), "school_db.json") if "__file__" in globals() else None
@@ -98,7 +123,6 @@ def load_school_db():
             except Exception as e:
                 debug_log(f"[!] Warning reading '{path}': {e}")
                 
-    # Fallback just in case school_db.json is missing on the runner
     debug_log("[!] school_db.json missing. Using micro-fallback database.")
     return [
         {"name": "Nanyang Primary School", "lat": 1.3210, "lon": 103.8060, "level": "PRIMARY"},
@@ -111,13 +135,12 @@ def load_school_db():
 # 3. CORE UTILITIES
 # ==========================================
 def fetch_json_safe(url, use_sg_proxy=False):
-    """Fetches API data utilizing ZenRows Anti-Bot layer to bypass Cloudflare/HDB firewalls."""
     zenrows_endpoint = "https://api.zenrows.com/v1/"
     params = {
         "url": url, 
         "apikey": ZENROWS_API_KEY, 
         "premium_proxy": "true",
-        "antibot": "true" # Forces ZenRows to solve CAPTCHAs before returning API data
+        "antibot": "true" 
     }
     if use_sg_proxy: params["proxy_country"] = "sg"
     
@@ -130,7 +153,6 @@ def fetch_json_safe(url, use_sg_proxy=False):
                 return {}
             try:
                 data = json.loads(text)
-                debug_log(f"[+] API Hit Success! Keys retrieved: {list(data.keys())[:5]}")
                 return data
             except Exception as e:
                 debug_log(f"[!] Failed to parse JSON. Response preview: {text[:100]}")
@@ -176,7 +198,6 @@ def check_cannibalization(target_lat, target_lon):
     return nearest_branch, min_dist
 
 def count_local_schools(target_lat, target_lon, school_list, radius_meters=1500):
-    """Instant local calculation: 0 API overhead and 100% immune to firewalls."""
     if not target_lat or not target_lon: return 0
     count = sum(1 for s in school_list if calculate_haversine_distance(target_lat, target_lon, s["lat"], s["lon"]) <= radius_meters)
     return count
@@ -197,6 +218,63 @@ def get_robust_gps(address_string, cluster_key=""):
         if res and res.get("found", 0) > 0:
             return float(res["results"][0]["LATITUDE"]), float(res["results"][0]["LONGITUDE"])
     return None, None
+
+# ==========================================
+# 3.5. URA PRIVATE RENTAL DATA ENGINE
+# ==========================================
+def get_ura_token():
+    if not URA_ACCESS_KEY: return None
+    url = "https://www.ura.gov.sg/uraDataMobile/insertNewToken.action"
+    headers = {"AccessKey": URA_ACCESS_KEY}
+    try:
+        res = requests.get(url, headers=headers, timeout=10)
+        return res.json().get("Result")
+    except Exception as e:
+        debug_log(f"[!] URA Token Error: {e}")
+        return None
+
+def fetch_ura_retail_psf():
+    """Fetches officially stamped private retail rents by district from URA APIs."""
+    ura_district_psf = {}
+    if not URA_ACCESS_KEY: 
+        debug_log("[*] No URA_ACCESS_KEY found. Falling back to static estimates.")
+        return ura_district_psf
+        
+    token = get_ura_token()
+    if not token: return ura_district_psf
+    
+    url = "https://www.ura.gov.sg/uraDataMobile/service/commercial/pmicr/rental"
+    headers = {"AccessKey": URA_ACCESS_KEY, "Token": token}
+    
+    try:
+        res = requests.get(url, headers=headers, timeout=20)
+        data = res.json()
+        
+        if data.get("Status") == "Success":
+            records = data.get("Result", [])
+            district_accum = {}
+            for rec in records:
+                # Filter for Retail (exclude Office space)
+                if rec.get("propertyType", "").upper() == "RETAIL":
+                    dist = str(rec.get("district", "")).zfill(2)
+                    rent_sqm = rec.get("medianRent") # URA returns $ / sqm / month
+                    if dist and rent_sqm:
+                        try:
+                            rent_sqft = float(rent_sqm) / 10.7639
+                            if dist not in district_accum: district_accum[dist] = []
+                            district_accum[dist].append(rent_sqft)
+                        except: pass
+            
+            # Average the historical rents to get the District Median PSF
+            for dist, prices in district_accum.items():
+                if prices:
+                    ura_district_psf[dist] = round(sum(prices) / len(prices), 2)
+                    
+            debug_log(f"[+] URA API Sync Success! Loaded live private retail market data for {len(ura_district_psf)} districts.")
+    except Exception as e:
+        debug_log(f"[!] URA API Fetch Error: {e}")
+        
+    return ura_district_psf
 
 def format_display_address(raw_address):
     addr = raw_address.strip()
@@ -238,7 +316,6 @@ def clean_html(raw_html):
     return re.sub(cleanr, ' ', str(raw_html))
 
 def extract_closing_date(item, item_id, link_path):
-    # 1. Structured Data Scan
     keys_to_check = ["currentBidClosingDate", "tenderClosingDate", "closingDate", "tenderEndDate", "endDate", "closeDate"]
     for k in keys_to_check:
         raw = deep_find(item, k)
@@ -246,27 +323,16 @@ def extract_closing_date(item, item_id, link_path):
             formatted = format_hdb_date(raw)
             if formatted != "TBA": return formatted
 
-    # 2. Hard-Scrape Fallback (with stripped HTML tags to bypass formatting traps)
     if item_id:
         debug_log(f"[*] Date hidden or non-chronological. Hard-scraping JS HTML for unit {item_id}...")
         try:
             page_url = f"https://place2lease.hdb.gov.sg/public/view-properties/true/{link_path}/{item_id}"
             zr = "https://api.zenrows.com/v1/"
-            
-            # FIXED: Added 'antibot': 'true' and extended the wait time to 5000ms for JS to render
-            params = {
-                "url": page_url, 
-                "apikey": ZENROWS_API_KEY, 
-                "premium_proxy": "true", 
-                "antibot": "true", 
-                "js_render": "true", 
-                "wait": "5000"
-            }
+            params = {"url": page_url, "apikey": ZENROWS_API_KEY, "premium_proxy": "true", "antibot": "true", "js_render": "true", "wait": "5000"}
             html_res = requests.get(zr, params=params, timeout=45)
             
             clean_text = clean_html(html_res.text)
             
-            # FIXED: Enhanced Regex to handle variations like '12:00PM', '12:00:00 PM', etc.
             m1 = re.search(r'Tender closing on\s*([0-9]{1,2}\s+[a-zA-Z]+\s+[0-9]{4}[,\s]+[0-9]{1,2}:[0-9]{2}(?::[0-9]{2})?\s*[a-zA-Z]{2})', clean_text, re.IGNORECASE)
             if m1: return m1.group(1).strip()
             
@@ -423,6 +489,7 @@ def main():
     
     price_ledger = load_price_ledger()
     school_list = load_school_db()
+    ura_live_data = fetch_ura_retail_psf() 
     all_units = scrape_hdb_place2lease()
     
     debug_log(f"[*] Found {len(all_units)} qualified active HDB properties.")
@@ -450,25 +517,40 @@ def main():
             
         price_ledger[lid] = current_price
 
-        # Guessing Game Calculations
-        cluster_region = CLUSTER_NAMES.get(unit['cluster_key'], "General Region")
-        est_private_psf = PRIVATE_MARKET_PSF.get(cluster_region, 12.0)
+        # EXTRACT POSTAL DISTRICT FOR URA DATA MATCHING
+        postal_match = re.search(r'\b(\d{6})\b', unit["address"])
+        ura_district = None
+        if postal_match:
+            sector = postal_match.group(1)[:2]
+            ura_district = POSTAL_TO_DISTRICT.get(sector)
+
+        # DATA-DRIVEN CALCULATION
+        if ura_district and ura_district in ura_live_data:
+            # Use actual URA stamped retail leases for this exact district
+            est_private_psf = ura_live_data[ura_district]
+            calc_source = f"URA Official Data (District {ura_district})"
+        else:
+            # Fallback to the old guessing game if URA API fails or no postal code is found
+            cluster_region = CLUSTER_NAMES.get(unit['cluster_key'], "General Region")
+            est_private_psf = FALLBACK_PRIVATE_PSF.get(cluster_region, 12.0)
+            calc_source = f"Static Regional Estimate ({cluster_region})"
+            
         hdb_psf_bid = est_private_psf * 0.65 
         est_monthly = hdb_psf_bid * unit['sqft']
 
         if unit["is_sealed"] or unit["price"] == 0:
             price_display = (
                 f"💰 **🔒 Sealed Tender** (No upfront price listed)\n"
-                f"💡 **Suggested Bid:** ~${est_monthly:,.0f} / mth (${hdb_psf_bid:.2f} PSF)\n"
-                f"*(Based on ~35% discount from ${est_private_psf:.2f} private market avg)*"
+                f"💡 **Suggested Target Bid:** ~${est_monthly:,.0f} / mth (${hdb_psf_bid:.2f} PSF)\n"
+                f"*(Derived via 35% HDB discount on **${est_private_psf:.2f} PSF** {calc_source})*"
             )
         else:
             psf = round(unit["price"] / unit["sqft"], 2)
             psf_flag = " ⚠️ *(Above Market)*" if psf > MAX_PSF_THRESHOLD else ""
             price_display = (
                 f"💰 **${unit['price']:,.0f} / mth** | **${psf:.2f} PSF**{psf_flag}\n"
-                f"💡 **Target Bid:** ~${est_monthly:,.0f} / mth (${hdb_psf_bid:.2f} PSF)\n"
-                f"*(Based on ~35% discount from ${est_private_psf:.2f} private market avg)*"
+                f"💡 **Suggested Target Bid:** ~${est_monthly:,.0f} / mth (${hdb_psf_bid:.2f} PSF)\n"
+                f"*(Derived via 35% HDB discount on **${est_private_psf:.2f} PSF** {calc_source})*"
             )
 
         lat, lon = get_robust_gps(unit["address"], cluster_key=unit["cluster_key"])
