@@ -108,20 +108,6 @@ def deep_find(obj, *keys):
                 return res
     return None
 
-def extract_closing_date(item):
-    """Safely extracts closing date using known explicit keys, avoiding the 1970 ID trap."""
-    raw = deep_find(item, "currentBidClosingDate", "tenderClosingDate", "closingDate", "tenderEndDate", "endDate", "biddingEndDate", "closeDate")
-    return format_hdb_date(raw) if raw else "TBA"
-
-def format_display_address(raw_address):
-    addr = raw_address.strip()
-    addr = re.sub(r'([a-zA-Z])(\d+[\sA-Za-z])', r'\1, \2', addr)
-    if ',' in addr:
-        parts = [p.strip() for p in addr.split(',', 1)]
-        if len(parts[0]) > 2 and len(parts[1]) > 2:
-            return f"**{parts[0]}**\n📍 {parts[1]}"
-    return f"**{addr}**"
-
 def format_hdb_date(date_val):
     if not date_val or str(date_val).lower() == "none":
         return "TBA"
@@ -147,6 +133,73 @@ def format_hdb_date(date_val):
         return date_str
     except Exception:
         return str(date_val)
+
+def extract_closing_date(item, item_id, link_path):
+    """Bulletproof date extractor: Checks API keys, runs safe dynamic scans, and falls back to JS scraping."""
+    # 1. Check strict known explicit keys
+    raw = deep_find(item, "currentBidClosingDate", "tenderClosingDate", "closingDate", "tenderEndDate", "endDate", "biddingEndDate", "closeDate")
+    if raw:
+        formatted = format_hdb_date(raw)
+        if formatted != "TBA": return formatted
+
+    # 2. Dynamic safe scan (ignoring ID fields to prevent 1970 bug)
+    def scan_for_date_keys(obj):
+        if isinstance(obj, dict):
+            for k, v in obj.items():
+                kl = k.lower()
+                if kl in ['id', 'tenderunitid', 'propertyid', 'unitid', 'batchid', 'townid', 'clusterid', 'zoneid', 'price']:
+                    continue
+                if ("date" in kl or "close" in kl or "end" in kl or "time" in kl) and isinstance(v, (str, int, float)):
+                    if str(v).strip() not in ["None", "", "0", "0.0"]:
+                        if isinstance(v, (int, float)) or str(v).isdigit():
+                            if int(v) > 1000000000: return v
+                        else:
+                            return v
+            for v in obj.values():
+                if isinstance(v, (dict, list)):
+                    res = scan_for_date_keys(v)
+                    if res: return res
+        elif isinstance(obj, list):
+            for i in obj:
+                res = scan_for_date_keys(i)
+                if res: return res
+        return None
+        
+    raw_fallback = scan_for_date_keys(item)
+    if raw_fallback:
+        formatted = format_hdb_date(raw_fallback)
+        if formatted != "TBA": return formatted
+
+    # 3. Last Resort: ZenRows Headless Browser HTML Scrape
+    if item_id:
+        debug_log(f"[*] Date hidden. Hard-scraping JS HTML for unit {item_id}...")
+        try:
+            page_url = f"https://place2lease.hdb.gov.sg/public/view-properties/true/{link_path}/{item_id}"
+            zr = "https://api.zenrows.com/v1/"
+            # js_render=true forces ZenRows to wait for HDB's javascript timer to load
+            params = {"url": page_url, "apikey": ZENROWS_API_KEY, "premium_proxy": "true", "js_render": "true", "wait": "3000"}
+            html_res = requests.get(zr, params=params, timeout=40)
+            
+            # Regex Match: "Tender closing on 25 August 2026, 10:00:00am"
+            m1 = re.search(r'Tender closing on\s*([0-9]{1,2}\s+[a-zA-Z]+\s+[0-9]{4}[,\s]+[0-9]{1,2}:[0-9]{2}:[0-9]{2}[a-zA-Z]{2})', html_res.text, re.IGNORECASE)
+            if m1: return m1.group(1).strip()
+            
+            # Regex Match: "Tender ends on 15 Jul 2026"
+            m2 = re.search(r'Tender ends on\s*([0-9]{1,2}\s+[a-zA-Z]+\s+[0-9]{4})', html_res.text, re.IGNORECASE)
+            if m2: return m2.group(1).strip()
+        except Exception as e:
+            debug_log(f"[!] HTML Scrape fallback failed for {item_id}: {e}")
+            
+    return "TBA"
+
+def format_display_address(raw_address):
+    addr = raw_address.strip()
+    addr = re.sub(r'([a-zA-Z])(\d+[\sA-Za-z])', r'\1, \2', addr)
+    if ',' in addr:
+        parts = [p.strip() for p in addr.split(',', 1)]
+        if len(parts[0]) > 2 and len(parts[1]) > 2:
+            return f"**{parts[0]}**\n📍 {parts[1]}"
+    return f"**{addr}**"
 
 def calculate_haversine_distance(lat1, lon1, lat2, lon2):
     R = 6371000  
@@ -178,15 +231,15 @@ def process_school_payload(res):
     return schools
 
 def load_schools_osm_fallback():
-    """Unbreakable Tertiary Fallback using OpenStreetMap's Overpass API if OneMap goes down."""
+    """Unbreakable Tertiary Fallback using OpenStreetMap's Overpass Bounding Box if OneMap goes down."""
     debug_log("[*] Engaging OpenStreetMap Overpass API fallback for school catchments...")
     try:
+        # Bounding Box specifically for Singapore (Lat/Lon range)
         query = """
         [out:json][timeout:15];
-        area["name"="Singapore"]->.searchArea;
         (
-          node["amenity"="school"]["name"~"Primary",i](area.searchArea);
-          way["amenity"="school"]["name"~"Primary",i](area.searchArea);
+          node["amenity"="school"]["name"~"Primary",i](1.156, 103.565, 1.483, 104.130);
+          way["amenity"="school"]["name"~"Primary",i](1.156, 103.565, 1.483, 104.130);
         );
         out center;
         """
@@ -212,11 +265,12 @@ def load_primary_schools_once():
     
     url = "https://www.onemap.gov.sg/api/public/themesvc/retrieveTheme?queryName=primaryschool"
     
-    # Attempt 1: Direct Request
+    # Attempt 1: Direct Request with full spoofed browser headers
     try:
         headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-            "Referer": "https://www.onemap.gov.sg/"
+            "Referer": "https://www.onemap.gov.sg/",
+            "Accept": "application/json, text/plain, */*"
         }
         direct_res = requests.get(url, headers=headers, timeout=10)
         if direct_res.status_code == 200:
@@ -367,24 +421,26 @@ def scrape_hdb_place2lease():
             else:
                 trade_type = "Not Specified"
 
-            # 4. Pricing & Date Logic
+            # 4. Pricing & Details ID extraction
             current_bid = deep_find(item, "currentBid", "highestBid", "tenderPrice", "price") or 0.0
             price = float(current_bid)
             
             tender_type = str(deep_find(item, "tenderType", "postType", "type") or "").lower()
             is_sealed = ("price only" in tender_type or "sealed" in tender_type or price == 0.0)
-                         
-            # Supercharged Closing Date extractor 
-            closing_date = extract_closing_date(item)
 
             unique_id = f"HDB_{re.sub(r'[^a-zA-Z0-9]', '', full_address)[:25]}_{int(sqft)}"
             
-            # 5. Extract specific unit ID for direct "Find out more" link
+            # 5. Build explicit Path based on User Discovery ('ebid-unit-details' covers mostly everything now)
             item_id = str(deep_find(item, "id", "tenderUnitId", "propertyId", "unitId") or "")
+            link_path = "ebid-unit-details" # Default to this as per your manual URL test!
+            
             if item_id and item_id != "None":
-                direct_link = f"https://place2lease.hdb.gov.sg/public/view-properties/true/unit-details/{item_id}"
+                direct_link = f"https://place2lease.hdb.gov.sg/public/view-properties/true/{link_path}/{item_id}"
             else:
                 direct_link = "https://place2lease.hdb.gov.sg/public/"
+
+            # 6. Extract Closing Date (Will fall back to Hard Scraping if needed!)
+            closing_date = extract_closing_date(item, item_id, link_path)
 
             listings.append({
                 "id": unique_id,
