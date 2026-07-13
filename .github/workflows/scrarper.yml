@@ -27,7 +27,7 @@ jobs:
           pip install -r requirements.txt
 
       - name: Run Test Scraper
-        run: python test_portals.py
+        run: python test_hdb_only.py
 
       - name: Commit State File (seen_listings.json)
         uses: stefanzweifel/git-auto-commit-action@v5
