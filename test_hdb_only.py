@@ -13,7 +13,7 @@ TELEGRAM_CHAT_ID = "-1004306469919"
 ZENROWS_API_KEY = "0a72b44b388084523647e4dce2f6787701a1fbd6"
 
 STATE_FILE = "seen_hdb_listings.json"
-MIN_SQFT_LIMIT = 400.0 # No maximum limit as per new directive
+MIN_SQFT_LIMIT = 400.0  # No maximum limit as per boss's directive
 MAX_PSF_THRESHOLD = 15.0
 
 # Estimated Private Market PSF by Region (Used for 35% Discount Guessing Game)
@@ -21,7 +21,7 @@ PRIVATE_MARKET_PSF = {
     "West Cluster": 10.00,
     "Central Cluster": 15.00,
     "East / Northeast Cluster": 12.00,
-    "General Region": 12.00 # Fallback for new/unmapped HDB towns
+    "General Region": 12.00  # Fallback for new/unmapped HDB towns
 }
 
 CLUSTER_NAMES = {
@@ -37,7 +37,7 @@ CLUSTER_NAMES = {
     "KOVAN": "East / Northeast Cluster"
 }
 
-# Updated with highly precise map coordinates for accurate cannibalization buffers
+# Highly precise map coordinates for accurate cannibalization buffers
 EXISTING_BRANCHES = {
     "Junction 9 (North)": (1.4328, 103.8413), 
     "Admiralty Place (North)": (1.4403, 103.8009),
@@ -59,16 +59,42 @@ EXISTING_BRANCHES = {
     "Hong Kah (West)": (1.3496, 103.7208)
 }
 
-CACHED_PRIMARY_SCHOOLS = []
 DEBUG_LOGS = []
 
 def debug_log(msg):
-    """Stores logs so they can be sent directly to Telegram if the script fails."""
     print(msg)
     DEBUG_LOGS.append(msg)
 
 # ==========================================
-# 2. CORE UTILITIES & DEEP SEARCH
+# 2. LOCAL MEMORY DATABASE LOADER
+# ==========================================
+def load_school_db():
+    """Robust local database loader with path fail-safes."""
+    possible_paths = [
+        "school_db.json",
+        os.path.join(os.path.dirname(__file__), "school_db.json") if "__file__" in globals() else None
+    ]
+    for path in possible_paths:
+        if path and os.path.exists(path):
+            try:
+                with open(path, "r", encoding="utf-8") as f:
+                    schools = json.load(f)
+                    if schools:
+                        return schools
+            except Exception as e:
+                debug_log(f"[!] Warning reading '{path}': {e}")
+                
+    # Fallback just in case school_db.json is missing on the runner
+    debug_log("[!] school_db.json missing. Using micro-fallback database.")
+    return [
+        {"name": "Nanyang Primary School", "lat": 1.3210, "lon": 103.8060, "level": "PRIMARY"},
+        {"name": "Rulang Primary School", "lat": 1.3468, "lon": 103.7190, "level": "PRIMARY"},
+        {"name": "Nan Hua Primary School", "lat": 1.3190, "lon": 103.7600, "level": "PRIMARY"},
+        {"name": "United World College (East)", "lat": 1.3575, "lon": 103.9450, "level": "INTERNATIONAL"}
+    ]
+
+# ==========================================
+# 3. CORE UTILITIES
 # ==========================================
 def fetch_json_safe(url, use_sg_proxy=False):
     zenrows_endpoint = "https://api.zenrows.com/v1/"
@@ -79,18 +105,13 @@ def fetch_json_safe(url, use_sg_proxy=False):
         res = requests.get(zenrows_endpoint, params=params, timeout=30)
         if res.status_code == 200:
             text = res.text
-            if text.strip().startswith("<"):
-                debug_log("[!] ZenRows returned HTML. Firewall is blocking the API request!")
-                return {}
+            if text.strip().startswith("<"): return {}
             return json.loads(text)
-        else:
-            debug_log(f"[!] Target URL returned status code: {res.status_code}")
     except Exception as e:
         debug_log(f"[!] Proxy connection failed for {url}: {e}")
     return {}
 
 def deep_find(obj, *keys):
-    """Recursively searches for keys in a nested JSON object to defeat nested HDB data."""
     target_keys = [k.lower() for k in keys]
     if isinstance(obj, dict):
         for k, v in obj.items():
@@ -108,99 +129,6 @@ def deep_find(obj, *keys):
                 return res
     return None
 
-def format_hdb_date(date_val):
-    if not date_val or str(date_val).lower() == "none":
-        return "TBA"
-    try:
-        # Handle Unix Timestamps safely
-        if isinstance(date_val, (int, float)) or (isinstance(date_val, str) and str(date_val).isdigit()):
-            ts = int(date_val)
-            if ts < 1000000000: 
-                # 1 Billion seconds = Sept 2001. Prevents small HDB IDs from becoming 1970 dates!
-                return "TBA" 
-            if ts > 9999999999: # Convert milliseconds to seconds
-                ts = ts / 1000
-            dt = time.localtime(ts)
-            return time.strftime("%d %b %Y, %I:%M %p", dt)
-            
-        # Handle standard string formats (e.g. 15 Jul 2026 or ISO formats)
-        date_str = str(date_val).strip()
-        if 'T' in date_str and ('Z' in date_str or '+' in date_str):
-            clean_str = date_str.split('.')[0].replace('Z', '')
-            dt = time.strptime(clean_str, "%Y-%m-%dT%H:%M:%S")
-            return time.strftime("%d %b %Y, %I:%M %p", dt)
-        
-        return date_str
-    except Exception:
-        return str(date_val)
-
-def extract_closing_date(item, item_id, link_path):
-    """Bulletproof date extractor: Checks API keys, runs safe dynamic scans, and falls back to JS scraping."""
-    # 1. Check strict known explicit keys
-    raw = deep_find(item, "currentBidClosingDate", "tenderClosingDate", "closingDate", "tenderEndDate", "endDate", "biddingEndDate", "closeDate")
-    if raw:
-        formatted = format_hdb_date(raw)
-        if formatted != "TBA": return formatted
-
-    # 2. Dynamic safe scan (ignoring ID fields to prevent 1970 bug)
-    def scan_for_date_keys(obj):
-        if isinstance(obj, dict):
-            for k, v in obj.items():
-                kl = k.lower()
-                if kl in ['id', 'tenderunitid', 'propertyid', 'unitid', 'batchid', 'townid', 'clusterid', 'zoneid', 'price']:
-                    continue
-                if ("date" in kl or "close" in kl or "end" in kl or "time" in kl) and isinstance(v, (str, int, float)):
-                    if str(v).strip() not in ["None", "", "0", "0.0"]:
-                        if isinstance(v, (int, float)) or str(v).isdigit():
-                            if int(v) > 1000000000: return v
-                        else:
-                            return v
-            for v in obj.values():
-                if isinstance(v, (dict, list)):
-                    res = scan_for_date_keys(v)
-                    if res: return res
-        elif isinstance(obj, list):
-            for i in obj:
-                res = scan_for_date_keys(i)
-                if res: return res
-        return None
-        
-    raw_fallback = scan_for_date_keys(item)
-    if raw_fallback:
-        formatted = format_hdb_date(raw_fallback)
-        if formatted != "TBA": return formatted
-
-    # 3. Last Resort: ZenRows Headless Browser HTML Scrape
-    if item_id:
-        debug_log(f"[*] Date hidden. Hard-scraping JS HTML for unit {item_id}...")
-        try:
-            page_url = f"https://place2lease.hdb.gov.sg/public/view-properties/true/{link_path}/{item_id}"
-            zr = "https://api.zenrows.com/v1/"
-            # js_render=true forces ZenRows to wait for HDB's javascript timer to load
-            params = {"url": page_url, "apikey": ZENROWS_API_KEY, "premium_proxy": "true", "js_render": "true", "wait": "3000"}
-            html_res = requests.get(zr, params=params, timeout=40)
-            
-            # Regex Match: "Tender closing on 25 August 2026, 10:00:00am"
-            m1 = re.search(r'Tender closing on\s*([0-9]{1,2}\s+[a-zA-Z]+\s+[0-9]{4}[,\s]+[0-9]{1,2}:[0-9]{2}:[0-9]{2}[a-zA-Z]{2})', html_res.text, re.IGNORECASE)
-            if m1: return m1.group(1).strip()
-            
-            # Regex Match: "Tender ends on 15 Jul 2026"
-            m2 = re.search(r'Tender ends on\s*([0-9]{1,2}\s+[a-zA-Z]+\s+[0-9]{4})', html_res.text, re.IGNORECASE)
-            if m2: return m2.group(1).strip()
-        except Exception as e:
-            debug_log(f"[!] HTML Scrape fallback failed for {item_id}: {e}")
-            
-    return "TBA"
-
-def format_display_address(raw_address):
-    addr = raw_address.strip()
-    addr = re.sub(r'([a-zA-Z])(\d+[\sA-Za-z])', r'\1, \2', addr)
-    if ',' in addr:
-        parts = [p.strip() for p in addr.split(',', 1)]
-        if len(parts[0]) > 2 and len(parts[1]) > 2:
-            return f"**{parts[0]}**\n📍 {parts[1]}"
-    return f"**{addr}**"
-
 def calculate_haversine_distance(lat1, lon1, lat2, lon2):
     R = 6371000  
     phi1, phi2 = math.radians(lat1), math.radians(lat2)
@@ -217,83 +145,10 @@ def check_cannibalization(target_lat, target_lon):
             min_dist, nearest_branch = dist, name
     return nearest_branch, min_dist
 
-def process_school_payload(res):
-    """Helper to extract schools from OneMap payload."""
-    schools = []
-    if "SrchResults" in res:
-        for item in res["SrchResults"][1:]:
-            lat = item.get("LATITUDE") or item.get("lat") or item.get("Y")
-            lon = item.get("LONGITUDE") or item.get("lng") or item.get("lon") or item.get("X")
-            name = item.get("NAME") or item.get("Name") or "Primary School"
-            if lat and lon:
-                try: schools.append({"name": str(name).strip(), "lat": float(lat), "lon": float(lon)})
-                except ValueError: continue
-    return schools
-
-def load_schools_osm_fallback():
-    """Unbreakable Tertiary Fallback using OpenStreetMap's Overpass Bounding Box if OneMap goes down."""
-    debug_log("[*] Engaging OpenStreetMap Overpass API fallback for school catchments...")
-    try:
-        # Bounding Box specifically for Singapore (Lat/Lon range)
-        query = """
-        [out:json][timeout:15];
-        (
-          node["amenity"="school"]["name"~"Primary",i](1.156, 103.565, 1.483, 104.130);
-          way["amenity"="school"]["name"~"Primary",i](1.156, 103.565, 1.483, 104.130);
-        );
-        out center;
-        """
-        res = requests.get("https://overpass-api.de/api/interpreter", params={'data': query}, timeout=15)
-        if res.status_code == 200:
-            schools = []
-            for el in res.json().get("elements", []):
-                lat = el.get("lat") or el.get("center", {}).get("lat")
-                lon = el.get("lon") or el.get("center", {}).get("lon")
-                name = el.get("tags", {}).get("name", "Primary School")
-                if lat and lon:
-                    schools.append({"name": name, "lat": float(lat), "lon": float(lon)})
-            debug_log(f"[+] OSM Fallback successful: Extracted {len(schools)} primary schools.")
-            return schools
-    except Exception as e:
-        debug_log(f"[!] OSM Fallback failed: {e}")
-    return []
-
-def load_primary_schools_once():
-    """Triple-Fetch mechanism to guarantee school catchments survive API timeouts."""
-    global CACHED_PRIMARY_SCHOOLS
-    if CACHED_PRIMARY_SCHOOLS: return CACHED_PRIMARY_SCHOOLS
-    
-    url = "https://www.onemap.gov.sg/api/public/themesvc/retrieveTheme?queryName=primaryschool"
-    
-    # Attempt 1: Direct Request with full spoofed browser headers
-    try:
-        headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-            "Referer": "https://www.onemap.gov.sg/",
-            "Accept": "application/json, text/plain, */*"
-        }
-        direct_res = requests.get(url, headers=headers, timeout=10)
-        if direct_res.status_code == 200:
-            CACHED_PRIMARY_SCHOOLS = process_school_payload(direct_res.json())
-            if CACHED_PRIMARY_SCHOOLS:
-                return CACHED_PRIMARY_SCHOOLS
-    except Exception:
-        pass
-        
-    # Attempt 2: ZenRows SG Proxy Request
-    res = fetch_json_safe(url, use_sg_proxy=True) 
-    CACHED_PRIMARY_SCHOOLS = process_school_payload(res)
-    if CACHED_PRIMARY_SCHOOLS:
-        return CACHED_PRIMARY_SCHOOLS
-        
-    # Attempt 3: OpenStreetMap Overpass Ultimate Fallback
-    CACHED_PRIMARY_SCHOOLS = load_schools_osm_fallback()
-    return CACHED_PRIMARY_SCHOOLS
-
-def count_nearby_primary_schools(target_lat, target_lon, radius_meters=1500):
-    schools = load_primary_schools_once()
-    if not schools: return -1
-    count = sum(1 for s in schools if calculate_haversine_distance(target_lat, target_lon, s["lat"], s["lon"]) <= radius_meters)
+def count_local_schools(target_lat, target_lon, school_list, radius_meters=1500):
+    """Instant local calculation: 0 API overhead and 100% immune to firewalls."""
+    if not target_lat or not target_lon: return 0
+    count = sum(1 for s in school_list if calculate_haversine_distance(target_lat, target_lon, s["lat"], s["lon"]) <= radius_meters)
     return count
 
 def get_robust_gps(address_string, cluster_key=""):
@@ -304,7 +159,6 @@ def get_robust_gps(address_string, cluster_key=""):
     clean_addr = re.sub(r'#\d+-[a-zA-Z0-9/]+', '', address_string)
     clean_addr = re.sub(r'\b(Shop|Retail|Unit|HDB|Commercial|#\S+)\b', ' ', clean_addr, flags=re.I).strip()
     if len(clean_addr) > 5: queries_to_try.append(clean_addr)
-    
     if cluster_key: queries_to_try.append(f"{cluster_key} Singapore")
 
     for query in queries_to_try:
@@ -314,44 +168,99 @@ def get_robust_gps(address_string, cluster_key=""):
             return float(res["results"][0]["LATITUDE"]), float(res["results"][0]["LONGITUDE"])
     return None, None
 
-def load_price_ledger():
-    if os.path.exists(STATE_FILE):
+def format_display_address(raw_address):
+    addr = raw_address.strip()
+    addr = re.sub(r'([a-zA-Z])(\d+[\sA-Za-z])', r'\1, \2', addr)
+    if ',' in addr:
+        parts = [p.strip() for p in addr.split(',', 1)]
+        if len(parts[0]) > 2 and len(parts[1]) > 2:
+            return f"**{parts[0]}**\n📍 {parts[1]}"
+    return f"**{addr}**"
+
+# ==========================================
+# 4. DATA PARSING & HARDSCRAPE DATE FALLBACK
+# ==========================================
+def format_hdb_date(date_val):
+    val_str = str(date_val).strip()
+    if not val_str or val_str.lower() in ["none", "e-bidding", "open", "null", "tba", "price only"]:
+        return "TBA"
+
+    try:
+        if val_str.isdigit() or isinstance(date_val, (int, float)):
+            ts = int(date_val)
+            if ts < 1000000000: return "TBA"
+            if ts > 9999999999: ts = ts / 1000
+            return time.strftime("%d %b %Y, %I:%M %p", time.localtime(ts))
+            
+        if 'T' in val_str:
+            clean_str = val_str.split('.')[0].replace('Z', '')
+            dt = time.strptime(clean_str, "%Y-%m-%dT%H:%M:%S")
+            return time.strftime("%d %b %Y, %I:%M %p", dt)
+            
+        if any(char.isdigit() for char in val_str) and len(val_str) > 5:
+            return val_str
+    except Exception: pass
+    
+    return "TBA"
+
+def clean_html(raw_html):
+    cleanr = re.compile('<.*?>')
+    return re.sub(cleanr, ' ', str(raw_html))
+
+def extract_closing_date(item, item_id, link_path):
+    # 1. Structured Data Scan
+    keys_to_check = ["currentBidClosingDate", "tenderClosingDate", "closingDate", "tenderEndDate", "endDate", "closeDate"]
+    for k in keys_to_check:
+        raw = deep_find(item, k)
+        if raw:
+            formatted = format_hdb_date(raw)
+            if formatted != "TBA": return formatted
+
+    # 2. Hard-Scrape Fallback (with stripped HTML tags to bypass formatting traps)
+    if item_id:
+        debug_log(f"[*] Date hidden or non-chronological. Hard-scraping JS HTML for unit {item_id}...")
         try:
-            with open(STATE_FILE, "r") as f: return json.load(f)
-        except Exception: pass
-    return {}
-
-def save_price_ledger(ledger_dict):
-    with open(STATE_FILE, "w") as f: json.dump(ledger_dict, f, indent=2)
-
-def send_telegram_alert(markdown_message):
-    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
-    payload = {"chat_id": TELEGRAM_CHAT_ID, "text": markdown_message, "parse_mode": "Markdown", "disable_web_page_preview": True}
-    requests.post(url, json=payload)
+            page_url = f"https://place2lease.hdb.gov.sg/public/view-properties/true/{link_path}/{item_id}"
+            zr = "https://api.zenrows.com/v1/"
+            params = {"url": page_url, "apikey": ZENROWS_API_KEY, "premium_proxy": "true", "js_render": "true", "wait": "3000"}
+            html_res = requests.get(zr, params=params, timeout=40)
+            
+            clean_text = clean_html(html_res.text)
+            
+            m1 = re.search(r'Tender closing on\s*([0-9]{1,2}\s+[a-zA-Z]+\s+[0-9]{4}[,\s]+[0-9]{1,2}:[0-9]{2}:[0-9]{2}[a-zA-Z]{2})', clean_text, re.IGNORECASE)
+            if m1: return m1.group(1).strip()
+            
+            m2 = re.search(r'Tender ends on\s*([0-9]{1,2}\s+[a-zA-Z]+\s+[0-9]{4})', clean_text, re.IGNORECASE)
+            if m2: return m2.group(1).strip()
+        except Exception as e:
+            debug_log(f"[!] HTML Scrape fallback failed for {item_id}: {e}")
+            
+    return "TBA"
 
 # ==========================================
-# 3. DIRECT HDB API INTERCEPTION
+# 5. SCRAPER & FILTER LOOP
 # ==========================================
-def extract_list_from_payload(data):
-    if isinstance(data, list): return data
-    if isinstance(data, dict):
-        for key in ["content", "results", "tenderUnits", "data", "list", "items"]:
-            if key in data and isinstance(data[key], list): return data[key]
-        for k, v in data.items():
-            if isinstance(v, dict):
-                for subkey in ["content", "results", "tenderUnits", "list", "items"]:
-                    if subkey in v and isinstance(v[subkey], list): return v[subkey]
-    return []
-
 def scrape_hdb_place2lease():
     debug_log("[*] Intercepting internal HDB JSON feed...")
     api_url = "https://place2lease.hdb.gov.sg/webservice-public/api/v1/tender-units/public/search-tender-units?page=1&pageSize=100&order=asc&orderProperty=lastPost.currentBidClosingDate&startIndex=0"
     
     payload = fetch_json_safe(api_url, use_sg_proxy=True)
-    raw_units = extract_list_from_payload(payload)
+    raw_units = []
+    
+    if isinstance(payload, list): raw_units = payload
+    elif isinstance(payload, dict):
+        for key in ["content", "results", "tenderUnits", "data", "list", "items"]:
+            if key in payload and isinstance(payload[key], list): 
+                raw_units = payload[key]
+                break
+        if not raw_units:
+            for k, v in payload.items():
+                if isinstance(v, dict):
+                    for subkey in ["content", "results", "tenderUnits", "list", "items"]:
+                        if subkey in v and isinstance(v[subkey], list): raw_units = v[subkey]
         
     if not raw_units:
-        debug_log(f"[!] No raw properties found in payload. Extracted Keys: {list(payload.keys())[:10] if isinstance(payload, dict) else 'None'}")
+        debug_log("[!] No raw properties found in payload.")
         return []
 
     debug_log(f"[+] Intercepted {len(raw_units)} raw properties. Applying filters...")
@@ -361,9 +270,7 @@ def scrape_hdb_place2lease():
         try:
             item_text = json.dumps(item).lower()
             
-            # Robust Address Construction utilizing deep_find
             raw_full_address = deep_find(item, "address", "propertyAddress", "displayAddress", "locationAddress")
-            
             if raw_full_address and len(str(raw_full_address)) > 5:
                 full_address = str(raw_full_address).strip()
             else:
@@ -380,13 +287,11 @@ def scrape_hdb_place2lease():
                 if unit_no and unit_no != "None": full_address += f" #{unit_no}"
                 if postal and postal != "None": full_address += f" S({postal})"
                 
-            # 1. Cluster Verification
             matched_key = None
             for cluster in CLUSTER_NAMES.keys():
                 if cluster.lower() in item_text:
                     matched_key = cluster
                     break
-            
             if not matched_key:
                 raw_town = deep_find(item, "townDescription", "town") or ""
                 matched_key = str(raw_town).strip().title() if raw_town else "Unmapped Region"
@@ -394,7 +299,6 @@ def scrape_hdb_place2lease():
             if full_address == "HDB Commercial Unit":
                 full_address = f"HDB Commercial Unit ({matched_key})"
 
-            # 2. Size Verification (400 sqft minimum)
             sqm = 0.0
             for k in ["floorArea", "areaSqm", "allocatedArea", "area", "sqm"]:
                 if k in item and item[k]:
@@ -404,24 +308,16 @@ def scrape_hdb_place2lease():
                     except: pass
             
             sqft = sqm * 10.7639
-            if sqft < MIN_SQFT_LIMIT:
-                continue
+            if sqft < MIN_SQFT_LIMIT: continue
 
-            # 3. Trade Verification
             valid_trade = re.search(r"(open trade|specific trade|shop|education|tuition|enrichment|school|retail|commercial|office)", item_text)
-            if not valid_trade:
-                continue
+            if not valid_trade: continue
                 
-            # Deep hunt for Trade Type with regex fallback
             raw_trade = deep_find(item, "tradeDescription", "allowableTrade", "tradeCategory", "trade")
-            if raw_trade:
-                trade_type = str(raw_trade).strip().title()
-            elif valid_trade:
-                trade_type = valid_trade.group(0).title()
-            else:
-                trade_type = "Not Specified"
+            if raw_trade: trade_type = str(raw_trade).strip().title()
+            elif valid_trade: trade_type = valid_trade.group(0).title()
+            else: trade_type = "Not Specified"
 
-            # 4. Pricing & Details ID extraction
             current_bid = deep_find(item, "currentBid", "highestBid", "tenderPrice", "price") or 0.0
             price = float(current_bid)
             
@@ -430,16 +326,13 @@ def scrape_hdb_place2lease():
 
             unique_id = f"HDB_{re.sub(r'[^a-zA-Z0-9]', '', full_address)[:25]}_{int(sqft)}"
             
-            # 5. Build explicit Path based on User Discovery ('ebid-unit-details' covers mostly everything now)
             item_id = str(deep_find(item, "id", "tenderUnitId", "propertyId", "unitId") or "")
-            link_path = "ebid-unit-details" # Default to this as per your manual URL test!
-            
+            link_path = "ebid-unit-details" 
             if item_id and item_id != "None":
                 direct_link = f"https://place2lease.hdb.gov.sg/public/view-properties/true/{link_path}/{item_id}"
             else:
                 direct_link = "https://place2lease.hdb.gov.sg/public/"
 
-            # 6. Extract Closing Date (Will fall back to Hard Scraping if needed!)
             closing_date = extract_closing_date(item, item_id, link_path)
 
             listings.append({
@@ -460,16 +353,27 @@ def scrape_hdb_place2lease():
 
     return listings
 
+def load_price_ledger():
+    if os.path.exists(STATE_FILE):
+        try:
+            with open(STATE_FILE, "r") as f: return json.load(f)
+        except Exception: pass
+    return {}
+
+def save_price_ledger(ledger_dict):
+    with open(STATE_FILE, "w") as f: json.dump(ledger_dict, f, indent=2)
+
 # ==========================================
-# 4. ORCHESTRATION ENGINE
+# 6. ORCHESTRATION ENGINE
 # ==========================================
 def main():
     send_telegram_alert("🟢 **System Test:** Direct HDB API Pipeline live. Fetching active inventory...")
     
     price_ledger = load_price_ledger()
+    school_list = load_school_db()
     all_units = scrape_hdb_place2lease()
     
-    debug_log(f"[*] Found {len(all_units)} qualified active HDB properties today.")
+    debug_log(f"[*] Found {len(all_units)} qualified active HDB properties.")
     
     if not all_units:
         log_text = "\n".join(DEBUG_LOGS[-15:])
@@ -487,19 +391,17 @@ def main():
         lid = unit["id"]
         current_price = unit["price"]
         
-        if lid not in price_ledger:
-            header_badge = "📍 **NEW HDB LEASE**"
+        if lid not in price_ledger: header_badge = "📍 **NEW HDB LEASE**"
         elif current_price > price_ledger.get(lid, 0.0) and current_price > 0 and not unit["is_sealed"]:
             header_badge = f"📈 **LIVE BID INCREASE** *(Was ${price_ledger[lid]:,.0f}/mth)*"
-        else:
-            header_badge = "📌 **ACTIVE HDB LEASE**"
+        else: header_badge = "📌 **ACTIVE HDB LEASE**"
             
         price_ledger[lid] = current_price
 
         # Guessing Game Calculations
         cluster_region = CLUSTER_NAMES.get(unit['cluster_key'], "General Region")
         est_private_psf = PRIVATE_MARKET_PSF.get(cluster_region, 12.0)
-        hdb_psf_bid = est_private_psf * 0.65 # 35% discount calculation
+        hdb_psf_bid = est_private_psf * 0.65 
         est_monthly = hdb_psf_bid * unit['sqft']
 
         if unit["is_sealed"] or unit["price"] == 0:
@@ -522,9 +424,9 @@ def main():
 
         if lat and lon:
             nearest_branch, dist = check_cannibalization(lat, lon)
-            schools_count = count_nearby_primary_schools(lat, lon)
+            schools_count = count_local_schools(lat, lon, school_list)
             
-            schools_line = f"**{schools_count} Primary Schools** within 1.5km" if schools_count != -1 else "*Catchment lookup down*"
+            schools_line = f"**{schools_count} Academic Institutions** within 1.5km" 
             buffer_line = f"**{round(dist/1000, 1)} km** to {nearest_branch}"
             if dist < 800: schools_line += " ⚠️ *(High Cannibalization)*"
         else:
@@ -541,7 +443,7 @@ def main():
             f"{price_display}\n\n"
             f"🛍️ **Trade Type:** {unit.get('trade_type', 'Not Specified')}\n"
             f"🗓️ **Tender Ends:** {unit.get('closing_date', 'TBA')}\n\n"
-            f"📍 **Location & Catchment:**\n"
+            f"📍 **Location & Local Catchment:**\n"
             f"• **Schools:** {schools_line}\n"
             f"• **Branch Buffer:** {buffer_line}\n\n"
             f"{warning_block}\n\n"
