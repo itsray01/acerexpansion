@@ -67,20 +67,44 @@ def debug_log(msg):
     print(msg)
     DEBUG_LOGS.append(msg)
 
-def send_telegram_alert(markdown_message):
+def send_telegram_alert(markdown_message, image_url=None):
     if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
         debug_log("[!] Telegram credentials missing from environment.")
         return
         
-    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
-    payload = {
-        "chat_id": TELEGRAM_CHAT_ID, 
-        "text": markdown_message, 
-        "parse_mode": "Markdown", 
-        "disable_web_page_preview": True
-    }
     try:
-        requests.post(url, json=payload, timeout=10)
+        if image_url:
+            # Use sendPhoto to natively attach the image to the chat bubble!
+            url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendPhoto"
+            payload = {
+                "chat_id": TELEGRAM_CHAT_ID, 
+                "photo": image_url,
+                "caption": markdown_message, 
+                "parse_mode": "Markdown"
+            }
+            res = requests.post(url, json=payload, timeout=10)
+            
+            # If the image upload fails (invalid link or file too large), gracefully fall back
+            if res.status_code != 200:
+                debug_log(f"[*] Native Photo Upload Failed ({res.status_code}). Falling back to text-mode...")
+                url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
+                fallback_msg = f"{markdown_message}\n\n[🖼️ View Floorplan]({image_url})"
+                payload = {
+                    "chat_id": TELEGRAM_CHAT_ID,
+                    "text": fallback_msg,
+                    "parse_mode": "Markdown",
+                    "disable_web_page_preview": False
+                }
+                requests.post(url, json=payload, timeout=10)
+        else:
+            url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
+            payload = {
+                "chat_id": TELEGRAM_CHAT_ID, 
+                "text": markdown_message, 
+                "parse_mode": "Markdown", 
+                "disable_web_page_preview": True
+            }
+            requests.post(url, json=payload, timeout=10)
     except Exception as e:
         debug_log(f"[!] Failed to send Telegram alert: {e}")
 
@@ -142,7 +166,7 @@ def lookup_market_psf(project_name, cluster_key):
     if not os.path.exists(MARKET_DATA_FILE):
         debug_log(f"[*] Reference file {MARKET_DATA_FILE} not found. Reverting to regional baseline.")
         cluster_region = CLUSTER_NAMES.get(cluster_key, "General Region")
-        return REGIONAL_FALLBACK_PSF.get(cluster_region, 16.0), cluster_region, False
+        return REGIONAL_FALLBACK_PSF.get(cluster_region, 16.0), "Baseline Fallback", False
 
     try:
         matching_psfs = []
@@ -167,7 +191,7 @@ def lookup_market_psf(project_name, cluster_key):
             mid = len(matching_psfs) // 2
             median_psf = (matching_psfs[mid] + matching_psfs[~mid]) / 2.0
             debug_log(f"[+] Found {len(matching_psfs)} direct market database matches for '{project_name}'. Calculated Localized Median: ${median_psf:.2f} PSF.")
-            return median_psf, "Direct Matching (CSV Data Source)", True
+            return median_psf, "Direct Match", True
 
     except Exception as e:
         debug_log(f"[!] Error reading market dataset: {e}")
@@ -194,7 +218,7 @@ def lookup_market_psf(project_name, cluster_key):
             mid = len(cluster_psfs) // 2
             median_psf = (cluster_psfs[mid] + cluster_psfs[~mid]) / 2.0
             debug_log(f"[+] Local matches missing. Resolved {len(cluster_psfs)} regional matches on cluster '{cluster_key}'. Regional Median: ${median_psf:.2f} PSF.")
-            return median_psf, f"{cluster_key} (CSV Extrapolated)", True
+            return median_psf, f"CSV: {cluster_key}", True
             
     except Exception as e:
         debug_log(f"[!] Error during regional CSV analysis step: {e}")
@@ -202,7 +226,7 @@ def lookup_market_psf(project_name, cluster_key):
     # Absolute fallback
     cluster_region = CLUSTER_NAMES.get(cluster_key, "General Region")
     fallback_val = REGIONAL_FALLBACK_PSF.get(cluster_region, 16.0)
-    return fallback_val, f"{cluster_region} (Pre-Set Baseline Fallback)", False
+    return fallback_val, "Baseline Fallback", False
 
 def fetch_json_safe(url, use_sg_proxy=False):
     """Safely fetches JSON using standard Python Requests with your native Proxy"""
@@ -295,13 +319,8 @@ def get_robust_gps(address_string, cluster_key=""):
     return None, None
 
 def format_display_address(raw_address):
-    addr = raw_address.strip()
-    addr = re.sub(r'([a-zA-Z])(\d+[\sA-Za-z])', r'\1, \2', addr)
-    if ',' in addr:
-        parts = [p.strip() for p in addr.split(',', 1)]
-        if len(parts[0]) > 2 and len(parts[1]) > 2:
-            return f"**{parts[0]}**\n📍 {parts[1]}"
-    return f"**{addr}**"
+    # Leaves the address perfectly intact exactly as formatted in the JSON
+    return raw_address.strip()
 
 def format_hdb_date(date_val):
     val_str = str(date_val).strip()
@@ -503,7 +522,7 @@ def save_price_ledger(ledger_dict):
     with open(STATE_FILE, "w") as f: json.dump(ledger_dict, f, indent=2)
 
 def main():
-    send_telegram_alert("🟢 **System Test:** Direct HDB API Pipeline live. Fetching active inventory...")
+    send_telegram_alert("🟢 *System Test:* Direct HDB API Pipeline live. Fetching active inventory...")
     
     # 1. ALWAYS download the latest commercial benchmark file directly from GitHub!
     fetch_latest_commercial_data()
@@ -516,93 +535,95 @@ def main():
     
     if not all_units:
         log_text = "\n".join(DEBUG_LOGS[-15:])
-        error_msg = f"ℹ️ **HDB Feed Diagnostic:** 0 properties matched criteria.\n\n**Auto-Debug Logs:**\n```text\n{log_text}\n```"
+        error_msg = f"ℹ️ *HDB Feed Diagnostic:* 0 properties matched criteria.\n\n*Auto-Debug Logs:*\n```text\n{log_text}\n```"
         send_telegram_alert(error_msg)
         return
 
-    report_blocks = [
-        "🏢 **ACER ACADEMY: ACTIVE HDB INVENTORY** 🏢",
-        f"*{len(all_units)} Target Matches Currently Open for Bidding/Tender*"
-    ]
+    # Container to hold all processed alerts
+    property_alerts = []
 
     for unit in all_units:
         lid = unit["id"]
         current_price = unit["price"]
         
-        if lid not in price_ledger: header_badge = "📍 **NEW HDB LEASE**"
+        if lid not in price_ledger: 
+            header_badge = "🆕 *NEW TENDER*"
         elif current_price > price_ledger.get(lid, 0.0) and current_price > 0 and not unit["is_sealed"]:
-            header_badge = f"📈 **LIVE BID INCREASE** *(Was ${price_ledger[lid]:,.0f}/mth)*"
-        else: header_badge = "📌 **ACTIVE HDB LEASE**"
+            header_badge = f"📈 *BID INCREASED* (Was ${price_ledger[lid]:,.0f}/mo)"
+        else: 
+            header_badge = "📌 *ACTIVE TENDER*"
             
         price_ledger[lid] = current_price
 
         # Dynamic Pricing Engine lookup using local sorted CSV
         est_private_psf, mapping_source, database_found = lookup_market_psf(unit["address"], unit["cluster_key"])
         
-        # Derived formula applying the standard 35% HDB target discount on the source private price index
         hdb_psf_bid = est_private_psf * 0.65 
         est_monthly = hdb_psf_bid * unit['sqft']
 
         if unit["is_sealed"] or unit["price"] == 0:
-            price_display = (
-                f"💰 **🔒 Sealed Tender** (No upfront price listed)\n"
-                f"💡 **Suggested Target Bid:** ~${est_monthly:,.0f} / mth (${hdb_psf_bid:.2f} PSF)\n"
-                f"*(Derived via 35% HDB discount on ${est_private_psf:.2f} PSF Reference ({mapping_source}))*"
-            )
+            price_status = "🔒 Sealed Tender"
         else:
             psf = round(unit["price"] / unit["sqft"], 2)
-            psf_flag = " ⚠️ *(Above Market)*" if psf > MAX_PSF_THRESHOLD else ""
-            price_display = (
-                f"💰 **${unit['price']:,.0f} / mth** | **${psf:.2f} PSF**{psf_flag}\n"
-                f"💡 **Suggested Target Bid:** ~${est_monthly:,.0f} / mth (${hdb_psf_bid:.2f} PSF)\n"
-                f"*(Derived via 35% HDB discount on ${est_private_psf:.2f} PSF Reference ({mapping_source}))*"
-            )
+            psf_flag = " ⚠️ (Above Market)" if psf > MAX_PSF_THRESHOLD else ""
+            price_status = f"${unit['price']:,.0f}/mo (${psf:.2f} psf){psf_flag}"
 
         lat, lon = get_robust_gps(unit["address"], cluster_key=unit["cluster_key"])
         display_address = format_display_address(unit['address'])
 
+        # Catchment analysis strings
         if lat and lon:
             nearest_branch, dist = check_cannibalization(lat, lon)
             schools_count = count_local_schools(lat, lon, school_list)
             
-            schools_line = f"**{schools_count} Academic Institutions** within 1.5km" 
-            buffer_line = f"**{round(dist/1000, 1)} km** to {nearest_branch}"
-            if dist < 800: schools_line += " ⚠️ *(High Cannibalization)*"
+            schools_line = f"Schools <1.5km: {schools_count}" 
+            buffer_line = f"Nearest Branch: {round(dist/1000, 1)}km ({nearest_branch})"
+            if dist < 800: buffer_line += " ⚠️ *(Too Close)*"
         else:
-            schools_line = "*GPS Resolution Missing* (Manual check required)"
-            buffer_line = "*GPS Sync Pending*"
+            schools_line = "Schools <1.5km: *GPS Missing*"
+            buffer_line = "Nearest Branch: *GPS Missing*"
 
-        warning_block = "⚠️ **ACTION REQUIRED:** Verify no existing tuition/enrichment trades exist in this block."
+        # Smart Warning Check
+        trade_type_str = unit.get('trade_type', 'Not Specified')
+        target_trades = ["tuition", "enrichment", "student care", "open trade"]
+        
+        if any(kw in trade_type_str.lower() for kw in target_trades):
+            warning_block = ""
+        else:
+            warning_block = "⚠️ _Action Required: Verify no existing tuition/enrichment trades exist in this block._\n\n"
 
-        # Insert Image URL if available
-        img_markdown = f"\n[🖼️ View Floorplan / Image]({unit['image_url']})" if unit.get('image_url') else ""
-
+        # Ultra-Clean Modern UI Format
         block = (
-            f"{header_badge}\n"
-            f"🏢 {display_address}\n"
-            f"🏷️ HDB Place2Lease ({unit['cluster_key'].title()})\n\n"
-            f"📐 **{int(unit['sqft']):,} sqft** ({unit['sqm']} m²)\n"
-            f"{price_display}\n\n"
-            f"🛍️ **Trade Type:** {unit.get('trade_type', 'Not Specified')}\n"
-            f"🗓️ **Tender Ends:** {unit.get('closing_date', 'TBA')}\n\n"
-            f"📍 **Location & Local Catchment:**\n"
+            f"{header_badge} | *{unit['cluster_key'].title()}*\n"
+            f"🏢 *{display_address}*\n\n"
+            f"📐 *Size:* {int(unit['sqft']):,} sqft ({unit['sqm']} m²)\n"
+            f"📋 *Allowed Trades:* {trade_type_str}\n"
+            f"⏳ *Closing Date:* {unit.get('closing_date', 'TBA')}\n\n"
+            f"💵 *Valuation & Bidding:*\n"
+            f"• Current Ask: {price_status}\n"
+            f"• Market Rate: ${est_private_psf:.2f} psf ({mapping_source})\n"
+            f"• 🎯 *Target Bid:* *${hdb_psf_bid:.2f} psf* (~${est_monthly:,.0f}/mo)\n\n"
+            f"📍 *Catchment Analysis:*\n"
             f"• {schools_line}\n"
             f"• {buffer_line}\n\n"
-            f"{warning_block}\n\n"
-            f"🔗 [Find Out More]({unit['link']}){img_markdown}"
+            f"{warning_block}"
+            f"[🔗 View Listing on HDB Place2Lease]({unit['link']})"
         ).strip()
         
-        report_blocks.append(block)
+        property_alerts.append({
+            "text": block,
+            "image_url": unit.get("image_url")
+        })
 
-    # Send the header
-    header_text = "\n\n".join(report_blocks[:2])
+    # Send Introduction Message
+    header_text = f"🏢 *ACER ACADEMY: ACTIVE HDB INVENTORY* 🏢\n_{len(all_units)} Target Matches Currently Open for Bidding/Tender_"
     send_telegram_alert(header_text)
     time.sleep(1)
 
-    # Send each property block individually
-    for block in report_blocks[2:]:
-        send_telegram_alert(block)
-        time.sleep(1)
+    # Send each property block with embedded photos individually
+    for alert in property_alerts:
+        send_telegram_alert(alert["text"], alert["image_url"])
+        time.sleep(1.5) # Slight delay to prevent Telegram rate-limiting
 
     save_price_ledger(price_ledger)
     debug_log("[+] Pipeline finished successfully.")
