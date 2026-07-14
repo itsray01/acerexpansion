@@ -5,21 +5,27 @@ import math
 import time
 import csv
 import requests
+import pandas as pd
 
 # ==========================================
 # 1. CONFIGURATION & SECRETS  
 # ==========================================
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
-ZENROWS_API_KEY = os.getenv("ZENROWS_API_KEY")
+
+# Your Ziny Proxy Credentials injected from GitHub Secrets
+PROXY_HOST = os.getenv("PROXY_HOST")
+PROXY_PORT = os.getenv("PROXY_PORT")
+PROXY_USER = os.getenv("PROXY_USER")
+PROXY_PASS = os.getenv("PROXY_PASS")
 
 STATE_FILE = "seen_hdb_listings.json"
 MIN_SQFT_LIMIT = 400.0  
 
-# Default CSV file path
+# Default CSV file path (Will be downloaded from GitHub on the fly)
 MARKET_DATA_FILE = "sg_commercial_rent_listings_psf_sorted.csv"
 
-# Updated for Q1 2026 Inflation (Triggers "Above Market" warning)
+# Trigger "Above Market" warning
 MAX_PSF_THRESHOLD = 20.0
 
 # 2026 Regional Baselines if a specific location is missing in the CSV
@@ -78,9 +84,32 @@ def send_telegram_alert(markdown_message):
     except Exception as e:
         debug_log(f"[!] Failed to send Telegram alert: {e}")
 
-# ==========================================
-# 2. LOCAL MEMORY DATABASE LOADER
-# ==========================================
+def get_proxies():
+    """Constructs the standard proxy dictionary for requests from your env variables."""
+    if PROXY_HOST and PROXY_PORT:
+        proxy_url = f"http://{PROXY_USER}:{PROXY_PASS}@{PROXY_HOST}:{PROXY_PORT}"
+        return {
+            "http": proxy_url,
+            "https": proxy_url
+        }
+    return None
+
+def fetch_latest_commercial_data():
+    """Pulls the pristine sorted dataset directly from your GitHub repository."""
+    debug_log("[*] Downloading latest market dataset from GitHub repository...")
+    url = "https://raw.githubusercontent.com/itsray01/acerexpansion/main/sg_commercial_rent_listings_psf_sorted.csv"
+    
+    try:
+        response = requests.get(url, timeout=15)
+        if response.status_code == 200:
+            with open(MARKET_DATA_FILE, 'wb') as f:
+                f.write(response.content)
+            debug_log("[+] Successfully downloaded sg_commercial_rent_listings_psf_sorted.csv")
+        else:
+            debug_log(f"[!] GitHub raw file fetch failed. HTTP Status: {response.status_code}")
+    except Exception as e:
+        debug_log(f"[!] Error fetching CSV from GitHub: {e}")
+
 def load_school_db():
     possible_paths = [
         "school_db.json",
@@ -104,14 +133,11 @@ def load_school_db():
         {"name": "United World College (East)", "lat": 1.3575, "lon": 103.9450, "level": "INTERNATIONAL"}
     ]
 
-# ==========================================
-# 3. ADVANCED LISTING CSV MARKET ENGINE
-# ==========================================
 def lookup_market_psf(project_name, cluster_key):
     """
     Looks up the actual PSF for the given location using the reference sorted CSV file.
-    If the project/location matches entries in sg_commercial_rent_listings_psf_sorted.csv,
-    it computes a hyper-localized median PSF. Otherwise, it gracefully switches to falls back.
+    If the project/location matches entries, it computes a hyper-localized median PSF. 
+    Otherwise, it gracefully switches to falls back.
     """
     if not os.path.exists(MARKET_DATA_FILE):
         debug_log(f"[*] Reference file {MARKET_DATA_FILE} not found. Reverting to regional baseline.")
@@ -125,11 +151,9 @@ def lookup_market_psf(project_name, cluster_key):
         with open(MARKET_DATA_FILE, "r", encoding="utf-8") as f:
             reader = csv.DictReader(f)
             for row in reader:
-                # Normalizing parameters for flexible fuzzy matching
                 row_project = str(row.get("Project", "")).strip().lower()
                 row_address = str(row.get("Address", "")).strip().lower()
                 
-                # Check for project match or spatial address match
                 if (project_normalized in row_project) or (row_project in project_normalized) or (project_normalized in row_address):
                     try:
                         psf_val = float(row.get("PSF", 0.0))
@@ -180,25 +204,23 @@ def lookup_market_psf(project_name, cluster_key):
     fallback_val = REGIONAL_FALLBACK_PSF.get(cluster_region, 16.0)
     return fallback_val, f"{cluster_region} (Pre-Set Baseline Fallback)", False
 
-# ==========================================
-# 4. CORE UTILITIES
-# ==========================================
 def fetch_json_safe(url, use_sg_proxy=False):
-    zenrows_endpoint = "https://api.zenrows.com/v1/"
-    params = {
-        "url": url, 
-        "apikey": ZENROWS_API_KEY, 
-        "premium_proxy": "true",
-        "antibot": "true" 
+    """Safely fetches JSON using standard Python Requests with your native Proxy"""
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+        "Accept": "application/json",
+        "Referer": "https://www.hdb.gov.sg/"
     }
-    if use_sg_proxy: params["proxy_country"] = "sg"
+    
+    # We only apply the proxy if requested (to save data)
+    proxies = get_proxies() if use_sg_proxy else None
     
     try:
-        res = requests.get(zenrows_endpoint, params=params, timeout=45)
+        res = requests.get(url, headers=headers, proxies=proxies, timeout=30)
         if res.status_code == 200:
             text = res.text
             if text.strip().startswith("<"): 
-                debug_log("[!] FATAL: ZenRows returned HTML. HDB's Firewall blocked the JSON API request!")
+                debug_log("[!] FATAL: Firewall returned HTML instead of JSON API response!")
                 return {}
             try:
                 return json.loads(text)
@@ -208,7 +230,7 @@ def fetch_json_safe(url, use_sg_proxy=False):
         else:
             debug_log(f"[!] Target URL returned HTTP {res.status_code}. Response preview: {res.text[:100]}")
     except Exception as e:
-        debug_log(f"[!] Proxy connection failed for {url}: {e}")
+        debug_log(f"[!] Connection failed for {url}: {e}")
     return {}
 
 def deep_find(obj, *keys):
@@ -261,7 +283,7 @@ def get_robust_gps(address_string, cluster_key=""):
 
     for query in queries_to_try:
         url = f"https://www.onemap.gov.sg/api/common/elastic/search?searchVal={query}&returnGeom=Y&getAddrDetails=Y&pageNum=1"
-        res = fetch_json_safe(url, use_sg_proxy=True)
+        res = fetch_json_safe(url, use_sg_proxy=True) # Uses local proxy to fetch OneMap safely
         if res and res.get("found", 0) > 0:
             return float(res["results"][0]["LATITUDE"]), float(res["results"][0]["LONGITUDE"])
             
@@ -281,9 +303,6 @@ def format_display_address(raw_address):
             return f"**{parts[0]}**\n📍 {parts[1]}"
     return f"**{addr}**"
 
-# ==========================================
-# 5. DATA PARSING & HARDSCRAPE DATE FALLBACK
-# ==========================================
 def format_hdb_date(date_val):
     val_str = str(date_val).strip()
     if not val_str or val_str.lower() in ["none", "e-bidding", "open", "null", "tba", "price only"]:
@@ -323,17 +342,10 @@ def extract_closing_date(item, item_id, link_path):
         debug_log(f"[*] Date hidden in API. Hard-scraping frontend UI for unit {item_id}...")
         try:
             page_url = f"https://place2lease.hdb.gov.sg/public/view-properties/true/{link_path}/{item_id}"
-            zr = "https://api.zenrows.com/v1/"
+            headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
+            proxies = get_proxies()
             
-            params = {
-                "url": page_url, 
-                "apikey": ZENROWS_API_KEY, 
-                "premium_proxy": "true", 
-                "antibot": "true", 
-                "js_render": "true", 
-                "wait": "5000"
-            }
-            html_res = requests.get(zr, params=params, timeout=45)
+            html_res = requests.get(page_url, headers=headers, proxies=proxies, timeout=15)
             clean_text = clean_html(html_res.text)
             
             regex_pattern = r'(?:Tender closing on|Tender ends on|Closing Date|End Date)[\s:]*([0-9]{1,2}\s+[a-zA-Z]+\s+[0-9]{4}(?:[,\s]+[0-9]{1,2}:[0-9]{2}(?::[0-9]{2})?\s*(?:am|pm|AM|PM))?)'
@@ -351,13 +363,11 @@ def extract_closing_date(item, item_id, link_path):
             
     return "TBA"
 
-# ==========================================
-# 6. SCRAPER & FILTER LOOP
-# ==========================================
 def scrape_hdb_place2lease():
     debug_log("[*] Intercepting internal HDB JSON feed...")
     api_url = "https://place2lease.hdb.gov.sg/webservice-public/api/v1/tender-units/public/search-tender-units?page=1&pageSize=100&order=asc&orderProperty=lastPost.currentBidClosingDate&startIndex=0"
     
+    # Passing use_sg_proxy=True uses your Ziny Proxy implicitly!
     payload = fetch_json_safe(api_url, use_sg_proxy=True)
     raw_units = []
     
@@ -489,11 +499,11 @@ def load_price_ledger():
 def save_price_ledger(ledger_dict):
     with open(STATE_FILE, "w") as f: json.dump(ledger_dict, f, indent=2)
 
-# ==========================================
-# 7. ORCHESTRATION ENGINE
-# ==========================================
 def main():
     send_telegram_alert("🟢 **System Test:** Direct HDB API Pipeline live. Fetching active inventory...")
+    
+    # 1. ALWAYS download the latest commercial benchmark file directly from GitHub!
+    fetch_latest_commercial_data()
     
     price_ledger = load_price_ledger()
     school_list = load_school_db()
