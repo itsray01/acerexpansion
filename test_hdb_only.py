@@ -357,7 +357,10 @@ def extract_closing_date(item, item_id, link_path):
             generic_match = re.search(generic_date_pattern, clean_text, re.IGNORECASE)
             if generic_match:
                 return generic_match.group(1).strip()
-        return "TBA"
+        except Exception as e:
+            debug_log(f"[*] Fallback date scrape failed: {e}")
+            
+    return "TBA"
 
 def scrape_hdb_place2lease():
     debug_log("[*] Intercepting internal HDB JSON feed...")
