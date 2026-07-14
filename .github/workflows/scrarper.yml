@@ -1,15 +1,14 @@
-name: HDB Scraper Automation
+name: HDB Bidding Bot
 
-# Triggers: Run automatically every day at 8 AM UTC (4 PM SG time) and manually via GitHub UI
 on:
   schedule:
-    - cron: '0 8 * * *'
+    # 1:00 AM UTC translates to 9:00 AM Singapore Time (SGT)
+    - cron: '0 1 * * *'
   workflow_dispatch:
 
 jobs:
-  run-scraper:
+  run-bot:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v3
@@ -20,19 +19,17 @@ jobs:
           python-version: '3.10'
 
       - name: Install Dependencies
-        run: pip install requests
+        # Added pandas to support your new CSV fetching function
+        run: |
+          pip install requests pandas
 
-      - name: Run HDB Scraper
-        run: python test_hdb_only.py
+      - name: Run HDB Bidding Bot
         env:
+          # Pulls your secure secrets from GitHub settings
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-          ZENROWS_API_KEY: ${{ secrets.ZENROWS_API_KEY }}
-
-      - name: Commit and Push state file (if changed)
-        run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add seen_hdb_listings.json || true
-          git commit -m "chore: update active ledger" || true
-          git push || true
+          PROXY_HOST: ${{ secrets.PROXY_HOST }}
+          PROXY_PORT: ${{ secrets.PROXY_PORT }}
+          PROXY_USER: ${{ secrets.PROXY_USER }}
+          PROXY_PASS: ${{ secrets.PROXY_PASS }}
+        run: python test_hdb_only.py
