@@ -357,135 +357,135 @@ def extract_closing_date(item, item_id, link_path):
             generic_match = re.search(generic_date_pattern, clean_text, re.IGNORECASE)
             if generic_match:
                 return generic_match.group(1).strip()
-                
-        except Exception as e:
-            debug_log(f"[!] HTML Scrape fallback failed for {item_id}: {e}")
-            
-    return "TBA"
+        return "TBA"
 
 def scrape_hdb_place2lease():
     debug_log("[*] Intercepting internal HDB JSON feed...")
-    api_url = "https://place2lease.hdb.gov.sg/webservice-public/api/v1/tender-units/public/search-tender-units?page=1&pageSize=100&order=asc&orderProperty=lastPost.currentBidClosingDate&startIndex=0"
-    
-    # Passing use_sg_proxy=True uses your Ziny Proxy implicitly!
-    payload = fetch_json_safe(api_url, use_sg_proxy=True)
-    raw_units = []
-    
-    if not payload:
-        debug_log("[!] Payload is completely empty. API blocked or timed out.")
-        return []
-
-    if isinstance(payload, list): 
-        raw_units = payload
-    elif isinstance(payload, dict):
-        total_elements = payload.get("totalElements")
-        if total_elements == 0:
-            debug_log("[*] HDB API confirms totalElements = 0. There are LEGITIMATELY no active tenders right now.")
-            return []
-            
-        for key in ["content", "results", "tenderUnits", "data", "list", "items"]:
-            if key in payload and isinstance(payload[key], list): 
-                raw_units = payload[key]
-                break
-        if not raw_units:
-            for k, v in payload.items():
-                if isinstance(v, dict):
-                    for subkey in ["content", "results", "tenderUnits", "list", "items"]:
-                        if subkey in v and isinstance(v[subkey], list): 
-                            raw_units = v[subkey]
-                            break
-    
-    if not raw_units:
-        debug_log(f"[!] Could not extract property array from payload. Payload dump: {str(payload)[:150]}")
-        return []
-
-    debug_log(f"[+] Intercepted {len(raw_units)} raw properties. Applying filters...")
     listings = []
+    page_num = 1
+    max_pages = 10
+    
+    while page_num <= max_pages:
+        # We use page_num and pageSize=50 to capture absolutely everything
+        api_url = f"https://place2lease.hdb.gov.sg/webservice-public/api/v1/tender-units/public/search-tender-units?page={page_num}&pageSize=50&order=asc&orderProperty=lastPost.currentBidClosingDate&startIndex=0"
+        
+        # Passing use_sg_proxy=True uses your Ziny Proxy implicitly!
+        payload = fetch_json_safe(api_url, use_sg_proxy=True)
+        raw_units = []
+        
+        if not payload:
+            debug_log(f"[!] Payload is empty on page {page_num}.")
+            break
 
-    for item in raw_units:
-        try:
-            item_text = json.dumps(item).lower()
-            
-            raw_full_address = deep_find(item, "address", "propertyAddress", "displayAddress", "locationAddress")
-            if raw_full_address and len(str(raw_full_address)) > 5:
-                full_address = str(raw_full_address).strip()
-            else:
-                block = str(deep_find(item, "blockNo", "block") or "").strip()
-                street = str(deep_find(item, "streetName", "street") or "").strip()
-                postal = str(deep_find(item, "postalCode", "postal") or "").strip()
-                unit_no = str(deep_find(item, "unitNo", "unit") or "").strip()
+        if isinstance(payload, list): 
+            raw_units = payload
+        elif isinstance(payload, dict):
+            total_elements = payload.get("totalElements")
+            if total_elements == 0:
+                debug_log("[*] HDB API confirms totalElements = 0.")
+                break
                 
-                if block and street: full_address = f"Blk {block} {street}"
-                elif block: full_address = f"Blk {block}"
-                elif street: full_address = street
-                else: full_address = f"HDB Commercial Unit"
-                    
-                if unit_no and unit_no != "None": full_address += f" #{unit_no}"
-                if postal and postal != "None": full_address += f" S({postal})"
-                
-            matched_key = None
-            for cluster in CLUSTER_NAMES.keys():
-                if cluster.lower() in item_text:
-                    matched_key = cluster
+            for key in ["content", "results", "tenderUnits", "data", "list", "items"]:
+                if key in payload and isinstance(payload[key], list): 
+                    raw_units = payload[key]
                     break
-            if not matched_key:
-                raw_town = deep_find(item, "townDescription", "town") or ""
-                matched_key = str(raw_town).strip().title() if raw_town else "Unmapped Region"
+            if not raw_units:
+                for k, v in payload.items():
+                    if isinstance(v, dict):
+                        for subkey in ["content", "results", "tenderUnits", "list", "items"]:
+                            if subkey in v and isinstance(v[subkey], list): 
+                                raw_units = v[subkey]
+                                break
+        
+        if not raw_units:
+            break
 
-            if full_address == "HDB Commercial Unit":
-                full_address = f"HDB Commercial Unit ({matched_key})"
+        debug_log(f"[+] Page {page_num}: Intercepted {len(raw_units)} raw properties. Filtering trades...")
 
-            sqm = 0.0
-            for k in ["floorArea", "areaSqm", "allocatedArea", "area", "sqm"]:
-                if k in item and item[k]:
-                    try: 
-                        sqm = float(item[k])
-                        break
-                    except: pass
-            
-            sqft = sqm * 10.7639
-            if sqft < MIN_SQFT_LIMIT: continue
-
-            valid_trade = re.search(r"(open trade|specific trade|shop|education|tuition|enrichment|school|retail|commercial|office)", item_text)
-            if not valid_trade: continue
+        for item in raw_units:
+            try:
+                # 1. STRICT TRADE FILTERING (Tuition, Enrichment, Student Care, or Open)
+                is_open = item.get("isOpenTrade", False)
+                included_trades = item.get("includedTrades", []) or []
                 
-            raw_trade = deep_find(item, "tradeDescription", "allowableTrade", "tradeCategory", "trade")
-            if raw_trade: trade_type = str(raw_trade).strip().title()
-            elif valid_trade: trade_type = valid_trade.group(0).title()
-            else: trade_type = "Not Specified"
+                target_trades = ["tuition", "enrichment", "student care"]
+                trade_match = False
+                
+                if is_open:
+                    trade_match = True
+                    trade_type = "Open Trade"
+                else:
+                    matched_specific = [t for t in included_trades if any(kw in t.lower() for kw in target_trades)]
+                    if matched_specific:
+                        trade_match = True
+                        trade_type = ", ".join(matched_specific)
+                    else:
+                        trade_type = ", ".join(included_trades) if included_trades else "Not Specified"
+                
+                if not trade_match:
+                    continue # Skip hairdressers, generic retail, etc.
+                    
+                # 2. EXTRACT DATA
+                item_id = str(item.get("tenderUnitId") or item.get("id", ""))
+                full_address = item.get("address", "")
+                
+                # Fallback for address if empty
+                if not full_address:
+                    block = str(deep_find(item, "blockNo", "block") or "").strip()
+                    street = str(deep_find(item, "streetName", "street") or "").strip()
+                    unit_no = str(deep_find(item, "unitNo", "unit") or "").strip()
+                    if block and street: full_address = f"Blk {block} {street}"
+                    if unit_no and unit_no != "None": full_address += f" #{unit_no}"
 
-            current_bid = deep_find(item, "currentBid", "highestBid", "tenderPrice", "price") or 0.0
-            price = float(current_bid)
-            
-            tender_type = str(deep_find(item, "tenderType", "postType", "type") or "").lower()
-            is_sealed = ("price only" in tender_type or "sealed" in tender_type or price == 0.0)
+                sqm = float(item.get("floorArea", 0) or 0)
+                sqft = sqm * 10.7639
+                if sqft < MIN_SQFT_LIMIT: continue
 
-            unique_id = f"HDB_{re.sub(r'[^a-zA-Z0-9]', '', full_address)[:25]}_{int(sqft)}"
-            
-            item_id = str(deep_find(item, "id", "tenderUnitId", "propertyId", "unitId") or "")
-            link_path = "ebid-unit-details" 
-            if item_id and item_id != "None":
-                direct_link = f"https://place2lease.hdb.gov.sg/public/view-properties/true/{link_path}/{item_id}"
-            else:
-                direct_link = "https://place2lease.hdb.gov.sg/public/"
+                matched_key = item.get("hdbTown", "Unmapped Region").title()
+                
+                price = float(item.get("currentBid") or item.get("highestBid") or item.get("tenderPrice") or item.get("price") or 0.0)
+                tender_type = str(item.get("tenderType", "")).lower()
+                is_sealed = ("price only" in tender_type or "sealed" in tender_type or price == 0.0)
+                
+                # End Date directly from JSON
+                closing_date = item.get("bidClosingDate", "TBA")
+                if closing_date != "TBA":
+                    closing_date = closing_date.split(" ")[0] # Keep only "15-Jul-2026"
+                
+                # Media / Thumbnail
+                image_url = ""
+                medias = item.get("unitMedias", [])
+                if medias and isinstance(medias, list) and len(medias) > 0:
+                    image_url = medias[0].get("url", "")
+                    if image_url.startswith("/"):
+                        image_url = f"https://place2lease.hdb.gov.sg{image_url}"
 
-            closing_date = extract_closing_date(item, item_id, link_path)
+                direct_link = f"https://place2lease.hdb.gov.sg/public/view-properties/true/ebid-unit-details/{item_id}" if item_id else "https://place2lease.hdb.gov.sg/public/"
+                unique_id = f"HDB_{item_id}_{int(sqft)}"
 
-            listings.append({
-                "id": unique_id,
-                "portal": "HDB Place2Lease",
-                "cluster_key": matched_key,
-                "address": full_address,
-                "sqft": sqft,
-                "sqm": round(sqm),
-                "price": price,
-                "is_sealed": is_sealed,
-                "trade_type": trade_type,
-                "closing_date": closing_date,
-                "link": direct_link
-            })
-        except Exception as e:
-            debug_log(f"[!] Processing error on item: {e}")
+                listings.append({
+                    "id": unique_id,
+                    "portal": "HDB Place2Lease",
+                    "cluster_key": matched_key,
+                    "address": full_address,
+                    "sqft": sqft,
+                    "sqm": round(sqm),
+                    "price": price,
+                    "is_sealed": is_sealed,
+                    "trade_type": trade_type,
+                    "closing_date": closing_date,
+                    "link": direct_link,
+                    "image_url": image_url
+                })
+            except Exception as e:
+                debug_log(f"[!] Processing error on item: {e}")
+                
+        # Pagination Check
+        if isinstance(payload, dict):
+            total_elements = payload.get("totalElements", 0)
+            if page_num * 50 >= total_elements:
+                break
+        page_num += 1
 
     return listings
 
@@ -519,8 +519,7 @@ def main():
 
     report_blocks = [
         "🏢 **ACER ACADEMY: ACTIVE HDB INVENTORY** 🏢",
-        f"*{len(all_units)} Target Matches Currently Open for Bidding/Tender*",
-        "---"
+        f"*{len(all_units)} Target Matches Currently Open for Bidding/Tender*"
     ]
 
     for unit in all_units:
@@ -570,28 +569,36 @@ def main():
             schools_line = "*GPS Resolution Missing* (Manual check required)"
             buffer_line = "*GPS Sync Pending*"
 
-        warning_block = "⚠️ **ACTION REQUIRED:** Click the link below and expand \"Important Unit Conditions\" to verify no existing tuition/enrichment trades currently exist in this block."
+        warning_block = "⚠️ **ACTION REQUIRED:** Verify no existing tuition/enrichment trades exist in this block."
+
+        # Insert Image URL if available
+        img_markdown = f"\n[🖼️ View Floorplan / Image]({unit['image_url']})" if unit.get('image_url') else ""
 
         block = (
             f"{header_badge}\n"
             f"🏢 {display_address}\n"
-            f"🏷️ Official HDB Lease ({unit['cluster_key'].title()})\n\n"
+            f"🏷️ HDB Place2Lease ({unit['cluster_key'].title()})\n\n"
             f"📐 **{int(unit['sqft']):,} sqft** ({unit['sqm']} m²)\n"
             f"{price_display}\n\n"
             f"🛍️ **Trade Type:** {unit.get('trade_type', 'Not Specified')}\n"
             f"🗓️ **Tender Ends:** {unit.get('closing_date', 'TBA')}\n\n"
             f"📍 **Location & Local Catchment:**\n"
-            f"• **Schools:** {schools_line}\n"
-            f"• **Branch Buffer:** {buffer_line}\n\n"
+            f"• {schools_line}\n"
+            f"• {buffer_line}\n\n"
             f"{warning_block}\n\n"
-            f"🔗 [Find Out More]({unit['link']})"
-        )
+            f"🔗 [Find Out More]({unit['link']}){img_markdown}"
+        ).strip()
+        
         report_blocks.append(block)
-        report_blocks.append("---")
 
-    for i in range(0, len(report_blocks), 2):
-        chunk = "\n\n".join(report_blocks[i:i+2])
-        send_telegram_alert(chunk)
+    # Send the header
+    header_text = "\n\n".join(report_blocks[:2])
+    send_telegram_alert(header_text)
+    time.sleep(1)
+
+    # Send each property block individually
+    for block in report_blocks[2:]:
+        send_telegram_alert(block)
         time.sleep(1)
 
     save_price_ledger(price_ledger)
