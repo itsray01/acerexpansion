@@ -1,0 +1,35 @@
+name: Build Expansion Map
+
+on:
+  schedule:
+    - cron: '0 2 * * 1' # Runs automatically every Monday
+  workflow_dispatch: # Allows you to run it manually anytime!
+
+jobs:
+  build-map:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # Allows the bot to save the map to your repo
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install Map Engine (Folium)
+        run: pip install folium
+
+      - name: Generate Interactive Map
+        run: python generate_map.py
+
+      - name: Save Map to GitHub
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add acer_expansion_map.html
+          git commit -m "🗺️ Auto-update interactive expansion map" || exit 0
+          git push
