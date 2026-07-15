@@ -6,6 +6,7 @@ import time
 import csv
 import requests
 import pandas as pd
+from playwright.sync_api import sync_playwright
 
 # ==========================================
 # 1. CONFIGURATION & SECRETS  
@@ -74,7 +75,7 @@ def send_telegram_alert(markdown_message, image_url=None):
         
     try:
         if image_url:
-            # Use sendPhoto to natively attach the image to the chat bubble!
+            # Use sendPhoto to natively attach the image to the chat bubble
             url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendPhoto"
             payload = {
                 "chat_id": TELEGRAM_CHAT_ID, 
@@ -84,7 +85,7 @@ def send_telegram_alert(markdown_message, image_url=None):
             }
             res = requests.post(url, json=payload, timeout=10)
             
-            # If the image upload fails (invalid link or file too large), gracefully fall back
+            # If the image upload fails, gracefully fall back to text
             if res.status_code != 200:
                 debug_log(f"[*] Native Photo Upload Failed ({res.status_code}). Falling back to text-mode...")
                 url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
@@ -158,11 +159,6 @@ def load_school_db():
     ]
 
 def lookup_market_psf(project_name, cluster_key):
-    """
-    Looks up the actual PSF for the given location using the reference sorted CSV file.
-    If the project/location matches entries, it computes a hyper-localized median PSF. 
-    Otherwise, it gracefully switches to falls back.
-    """
     if not os.path.exists(MARKET_DATA_FILE):
         debug_log(f"[*] Reference file {MARKET_DATA_FILE} not found. Reverting to regional baseline.")
         cluster_region = CLUSTER_NAMES.get(cluster_key, "General Region")
@@ -190,7 +186,7 @@ def lookup_market_psf(project_name, cluster_key):
             matching_psfs.sort()
             mid = len(matching_psfs) // 2
             median_psf = (matching_psfs[mid] + matching_psfs[~mid]) / 2.0
-            debug_log(f"[+] Found {len(matching_psfs)} direct market database matches for '{project_name}'. Calculated Localized Median: ${median_psf:.2f} PSF.")
+            debug_log(f"[+] Found {len(matching_psfs)} direct market matches. Localized Median: ${median_psf:.2f} PSF.")
             return median_psf, "Direct Match", True
 
     except Exception as e:
@@ -217,7 +213,7 @@ def lookup_market_psf(project_name, cluster_key):
             cluster_psfs.sort()
             mid = len(cluster_psfs) // 2
             median_psf = (cluster_psfs[mid] + cluster_psfs[~mid]) / 2.0
-            debug_log(f"[+] Local matches missing. Resolved {len(cluster_psfs)} regional matches on cluster '{cluster_key}'. Regional Median: ${median_psf:.2f} PSF.")
+            debug_log(f"[+] Regional matches resolved on cluster '{cluster_key}'. Regional Median: ${median_psf:.2f} PSF.")
             return median_psf, f"CSV: {cluster_key}", True
             
     except Exception as e:
@@ -236,7 +232,6 @@ def fetch_json_safe(url, use_sg_proxy=False):
         "Referer": "https://www.hdb.gov.sg/"
     }
     
-    # We only apply the proxy if requested (to save data)
     proxies = get_proxies() if use_sg_proxy else None
     
     try:
@@ -307,104 +302,73 @@ def get_robust_gps(address_string, cluster_key=""):
 
     for query in queries_to_try:
         url = f"https://www.onemap.gov.sg/api/common/elastic/search?searchVal={query}&returnGeom=Y&getAddrDetails=Y&pageNum=1"
-        res = fetch_json_safe(url, use_sg_proxy=True) # Uses local proxy to fetch OneMap safely
+        res = fetch_json_safe(url, use_sg_proxy=True) 
         if res and res.get("found", 0) > 0:
             return float(res["results"][0]["LATITUDE"]), float(res["results"][0]["LONGITUDE"])
             
-    # Hardcoded Structural Fallback for new BTO Towns like Tengah
     if "tengah" in address_string.lower() or (cluster_key and "tengah" in cluster_key.lower()):
         debug_log("[*] Known BTO Fallback Triggered: Tengah")
-        return 1.3700, 103.7000 # Sector 69 Approximate Center
+        return 1.3700, 103.7000 
         
     return None, None
 
 def format_display_address(raw_address):
-    # Leaves the address perfectly intact exactly as formatted in the JSON
     return raw_address.strip()
-
-def format_hdb_date(date_val):
-    val_str = str(date_val).strip()
-    if not val_str or val_str.lower() in ["none", "e-bidding", "open", "null", "tba", "price only"]:
-        return "TBA"
-
-    try:
-        if val_str.isdigit() or isinstance(date_val, (int, float)):
-            ts = int(date_val)
-            if ts < 1000000000: return "TBA"
-            if ts > 9999999999: ts = ts / 1000
-            return time.strftime("%d %b %Y, %I:%M %p", time.localtime(ts))
-            
-        if 'T' in val_str:
-            clean_str = val_str.split('.')[0].replace('Z', '')
-            dt = time.strptime(clean_str, "%Y-%m-%dT%H:%M:%S")
-            return time.strftime("%d %b %Y, %I:%M %p", dt)
-            
-        if any(char.isdigit() for char in val_str) and len(val_str) > 5:
-            return val_str
-    except Exception: pass
-    
-    return "TBA"
-
-def clean_html(raw_html):
-    cleanr = re.compile('<.*?>')
-    return re.sub(cleanr, ' ', str(raw_html))
-
-def extract_closing_date(item, item_id, link_path):
-    keys_to_check = ["currentBidClosingDate", "tenderClosingDate", "closingDate", "tenderEndDate", "endDate", "closeDate"]
-    for k in keys_to_check:
-        raw = deep_find(item, k)
-        if raw:
-            formatted = format_hdb_date(raw)
-            if formatted != "TBA": return formatted
-
-    if item_id:
-        debug_log(f"[*] Date hidden in API. Hard-scraping frontend UI for unit {item_id}...")
-        try:
-            page_url = f"https://place2lease.hdb.gov.sg/public/view-properties/true/ebid-unit-details/{item_id}"
-            headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
-            proxies = get_proxies()
-            
-            html_res = requests.get(page_url, headers=headers, proxies=proxies, timeout=15)
-            clean_text = clean_html(html_res.text)
-            
-            regex_pattern = r'(?:Tender closing on|Tender ends on|Closing Date|End Date)[\s:]*([0-9]{1,2}\s+[a-zA-Z]+\s+[0-9]{4}(?:[,\s]+[0-9]{1,2}:[0-9]{2}(?::[0-9]{2})?\s*(?:am|pm|AM|PM))?)'
-            match = re.search(regex_pattern, clean_text, re.IGNORECASE)
-            if match:
-                return match.group(1).strip()
-            
-            generic_date_pattern = r'([0-9]{1,2}\s+[a-zA-Z]+\s+[0-9]{4}[,\s]+[0-9]{1,2}:[0-9]{2}\s*(?:am|pm|AM|PM))'
-            generic_match = re.search(generic_date_pattern, clean_text, re.IGNORECASE)
-            if generic_match:
-                return generic_match.group(1).strip()
-        except Exception as e:
-            debug_log(f"[*] Fallback date scrape failed: {e}")
-            
-    return "TBA"
 
 def extract_starting_bid(item_id):
     """
-    Scrapes the starting bid directly from the Place2Lease detail page
-    for E-Bidding listings using the specific class 'text-start bold'.
+    Spins up Playwright exclusively for E-Bidding units to render Angular
+    and extract the hidden starting bid from the DOM.
     """
     if not item_id:
         return 0.0
-        
-    debug_log(f"[*] E-Bidding unit detected. Fetching Starting Bid for ID: {item_id}...")
-    page_url = f"https://place2lease.hdb.gov.sg/public/view-properties/true/ebid-unit-details/{item_id}"
-    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
-    proxies = get_proxies()
-    
+
+    url = f"https://place2lease.hdb.gov.sg/public/view-properties/true/ebid-unit-details/{item_id}"
+    debug_log(f"[*] E-Bidding unit detected. Booting Playwright to scrape Starting Bid DOM for ID: {item_id}...")
+
     try:
-        html_res = requests.get(page_url, headers=headers, proxies=proxies, timeout=15)
-        # Resilient regex: searches for 'text-start bold', skips hidden tags or spaces, grabs the number.
-        match = re.search(r'class=["\'][^"\']*text-start\s+bold[^"\']*["\'][^>]*>(?:<[^>]+>|\s|S\$|\$|&nbsp;)*([0-9]{1,3}(?:,[0-9]{3})*(?:\.\d{2})?)', html_res.text, re.IGNORECASE)
-        
-        if match:
-            clean_val = match.group(1).replace(',', '')
-            return float(clean_val)
+        with sync_playwright() as p:
+            proxy_settings = None
+            if PROXY_HOST and PROXY_PORT:
+                proxy_settings = {
+                    "server": f"http://{PROXY_HOST}:{PROXY_PORT}",
+                    "username": PROXY_USER,
+                    "password": PROXY_PASS
+                }
+
+            browser = p.chromium.launch(headless=True)
+            context = browser.new_context(
+                proxy=proxy_settings,
+                user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"
+            )
+            page = context.new_page()
+            
+            # Navigate and wait for Angular to load the network requests
+            page.goto(url, wait_until="networkidle", timeout=45000)
+            
+            # Wait specifically for the price class to be injected into the DOM
+            page.wait_for_selector(".text-start.bold", timeout=15000)
+            
+            # Grab all matching classes (just in case there are multiple)
+            elements = page.query_selector_all(".text-start.bold")
+            for el in elements:
+                text = el.inner_text().strip()
+                # Ensure it's a monetary value (e.g., "$7,500.00", "7500")
+                if "$" in text or text.replace(",", "").replace(".", "").isdigit():
+                    # Extract the pure number
+                    match = re.search(r'([0-9]{1,3}(?:,[0-9]{3})*(?:\.\d{2})?)', text)
+                    if match:
+                        clean_val = match.group(1).replace(',', '')
+                        bid_value = float(clean_val)
+                        if bid_value > 500: # Sanity check (HDB rents are > $500)
+                            browser.close()
+                            debug_log(f"    -> Successfully extracted Playwright DOM Bid: ${bid_value}")
+                            return bid_value
+
+            browser.close()
     except Exception as e:
-        debug_log(f"[!] Failed to extract starting bid for {item_id}: {e}")
-        
+        debug_log(f"[!] Playwright scrape failed for {item_id}: {e}")
+
     return 0.0
 
 def scrape_hdb_place2lease():
@@ -414,10 +378,8 @@ def scrape_hdb_place2lease():
     max_pages = 10
     
     while page_num <= max_pages:
-        # We use page_num and pageSize=50 to capture absolutely everything
         api_url = f"https://place2lease.hdb.gov.sg/webservice-public/api/v1/tender-units/public/search-tender-units?page={page_num}&pageSize=50&order=asc&orderProperty=lastPost.currentBidClosingDate&startIndex=0"
         
-        # Passing use_sg_proxy=True uses your Ziny Proxy implicitly!
         payload = fetch_json_safe(api_url, use_sg_proxy=True)
         raw_units = []
         
@@ -452,7 +414,7 @@ def scrape_hdb_place2lease():
 
         for item in raw_units:
             try:
-                # 1. STRICT TRADE FILTERING (Tuition, Enrichment, Student Care, or Open)
+                # 1. STRICT TRADE FILTERING
                 is_open = item.get("isOpenTrade", False)
                 included_trades = item.get("includedTrades", []) or []
                 
@@ -471,13 +433,12 @@ def scrape_hdb_place2lease():
                         trade_type = ", ".join(included_trades) if included_trades else "Not Specified"
                 
                 if not trade_match:
-                    continue # Skip hairdressers, generic retail, etc.
+                    continue 
                     
                 # 2. EXTRACT DATA
                 item_id = str(item.get("tenderUnitId") or item.get("id", ""))
                 full_address = item.get("address", "")
                 
-                # Fallback for address if empty
                 if not full_address:
                     block = str(deep_find(item, "blockNo", "block") or "").strip()
                     street = str(deep_find(item, "streetName", "street") or "").strip()
@@ -493,12 +454,14 @@ def scrape_hdb_place2lease():
                 
                 # Fetch Current/Highest Price
                 price = float(item.get("currentBid") or item.get("highestBid") or item.get("tenderPrice") or item.get("price") or 0.0)
-                tender_type = str(item.get("tenderType", "")).lower()
                 
-                # FIX: Explicitly check for sealed/price only. E-bidding units (even with $0 bids) are NOT sealed!
+                # Fetch Tender Type exactly as written in the main API
+                tender_type_raw = str(item.get("tenderType", "Unknown"))
+                tender_type = tender_type_raw.lower()
+                
                 is_sealed = ("price only" in tender_type or "sealed" in tender_type)
                 
-                # CONDITIONAL SCRAPING: Only grab starting bid if E-Bidding
+                # === PLAYWRIGHT INTEGRATION ===
                 starting_bid = 0.0
                 if "e-bidding" in tender_type:
                     starting_bid = extract_starting_bid(item_id)
@@ -506,7 +469,7 @@ def scrape_hdb_place2lease():
                 # End Date directly from JSON
                 closing_date = item.get("bidClosingDate", "TBA")
                 if closing_date != "TBA":
-                    closing_date = closing_date.split(" ")[0] # Keep only "15-Jul-2026"
+                    closing_date = closing_date.split(" ")[0]
                 
                 # Media / Thumbnail
                 image_url = ""
@@ -529,6 +492,7 @@ def scrape_hdb_place2lease():
                     "price": price,
                     "starting_bid": starting_bid,
                     "is_sealed": is_sealed,
+                    "tender_type_raw": tender_type_raw,
                     "tender_type": tender_type,
                     "trade_type": trade_type,
                     "closing_date": closing_date,
@@ -560,7 +524,7 @@ def save_price_ledger(ledger_dict):
 def main():
     send_telegram_alert("🟢 *System Test:* Direct HDB API Pipeline live. Fetching active inventory...")
     
-    # 1. ALWAYS download the latest commercial benchmark file directly from GitHub!
+    # 1. ALWAYS download the latest commercial benchmark file directly from GitHub
     fetch_latest_commercial_data()
     
     price_ledger = load_price_ledger()
@@ -597,7 +561,9 @@ def main():
         hdb_psf_bid = est_private_psf * 0.65 
         est_monthly = hdb_psf_bid * unit['sqft']
 
-        # Determine Display Price (Sealed vs E-bidding w/ Starting Bid vs Price Only)
+        # Determine Display Price & Status
+        tender_type_display = unit.get("tender_type_raw", "Unknown").title()
+        
         if unit["is_sealed"]:
             price_status = "🔒 Sealed Tender"
         else:
@@ -646,6 +612,7 @@ def main():
             f"🏢 *{display_address}*\n\n"
             f"📐 *Size:* {int(unit['sqft']):,} sqft ({unit['sqm']} m²)\n"
             f"📋 *Allowed Trades:* {trade_type_str}\n"
+            f"🏷️ *Tender Type:* {tender_type_display}\n"
             f"⏳ *Closing Date:* {unit.get('closing_date', 'TBA')}\n\n"
             f"💵 *Valuation & Bidding:*\n"
             f"• Current Ask: {price_status}\n"
