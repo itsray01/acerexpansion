@@ -316,10 +316,6 @@ def format_display_address(raw_address):
     return raw_address.strip()
 
 def extract_starting_bid(item_id):
-    """
-    Spins up Playwright exclusively for E-Bidding units to render Angular
-    and extract the hidden starting bid from the DOM.
-    """
     if not item_id:
         return 0.0
 
@@ -343,27 +339,26 @@ def extract_starting_bid(item_id):
             )
             page = context.new_page()
             
-            # Navigate and wait for Angular to load the network requests
             page.goto(url, wait_until="networkidle", timeout=45000)
             
-            # Wait specifically for the price class to be injected into the DOM
-            page.wait_for_selector(".text-start.bold", timeout=15000)
+            # 1. Wait for the TABLE ROW containing "Starting Bid" to appear
+            page.wait_for_selector("tr:has-text('Starting Bid')", timeout=15000)
             
-            # Grab all matching classes (just in case there are multiple)
-            elements = page.query_selector_all(".text-start.bold")
-            for el in elements:
-                text = el.inner_text().strip()
-                # Ensure it's a monetary value (e.g., "$7,500.00", "7500")
-                if "$" in text or text.replace(",", "").replace(".", "").isdigit():
-                    # Extract the pure number
-                    match = re.search(r'([0-9]{1,3}(?:,[0-9]{3})*(?:\.\d{2})?)', text)
-                    if match:
-                        clean_val = match.group(1).replace(',', '')
-                        bid_value = float(clean_val)
-                        if bid_value > 500: # Sanity check (HDB rents are > $500)
-                            browser.close()
-                            debug_log(f"    -> Successfully extracted Playwright DOM Bid: ${bid_value}")
-                            return bid_value
+            # 2. Extract the text from that entire row (which will include both the label and the price)
+            row_locator = page.locator("tr", has_text="Starting Bid").first
+            
+            if row_locator:
+                text = row_locator.inner_text().strip()
+                # text will now look like: "Starting Bid : \n $8,400.00"
+                
+                match = re.search(r'([0-9]{1,3}(?:,[0-9]{3})*(?:\.\d{2})?)', text)
+                if match:
+                    clean_val = match.group(1).replace(',', '')
+                    bid_value = float(clean_val)
+                    if bid_value > 500:
+                        browser.close()
+                        debug_log(f"    -> Successfully extracted Playwright DOM Bid: ${bid_value}")
+                        return bid_value
 
             browser.close()
     except Exception as e:
