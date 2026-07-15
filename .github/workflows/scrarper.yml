@@ -3,7 +3,7 @@ name: HDB Bidding Bot
 on:
   schedule:
     # 1:00 AM UTC translates to 9:00 AM Singapore Time (SGT)
-    - cron: '0 1 * * *'
+    - cron: '16 1 * * *'
   workflow_dispatch:
 
 jobs:
