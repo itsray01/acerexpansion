@@ -214,6 +214,21 @@ def generate_map():
         background: #000;
         border-radius: 50%;
     }
+
+    /* Prominent Region Labels */
+    .region-label {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif !important;
+        font-size: 15px !important;
+        font-weight: 900 !important;
+        color: rgba(255, 255, 255, 0.8) !important;
+        text-transform: uppercase !important;
+        letter-spacing: 2.5px !important;
+        text-shadow: 0px 0px 12px rgba(0,0,0,1), 0px 0px 5px rgba(0,0,0,1) !important;
+        white-space: nowrap !important;
+        pointer-events: none !important; /* Acts like a ghost, doesn't block clicking pins underneath */
+        transform: translate(-50%, -50%) !important;
+        transition: all 0.3s ease !important;
+    }
     </style>
     """
     m.get_root().header.add_child(Element(custom_css))
@@ -238,7 +253,53 @@ def generate_map():
             print(f"[!] Warning: Could not fetch borders (HTTP {res.status_code}). Skipping boundary layer.")
     except Exception as e:
         print(f"[!] Warning: Network error fetching borders ({e}). Skipping boundary layer.")
+
+    # ==========================================
+    # INJECT PROMINENT REGION WATERMARKS
+    # ==========================================
+    print(f"[*] Injecting Prominent Region Watermarks...")
+    region_group = folium.FeatureGroup(name="Town & Region Labels", show=True)
     
+    REGIONS = {
+        "Jurong West": (1.345, 103.705),
+        "Jurong East": (1.333, 103.742),
+        "Bukit Batok": (1.349, 103.749),
+        "Bukit Panjang": (1.377, 103.771),
+        "Choa Chu Kang": (1.385, 103.744),
+        "Tengah": (1.364, 103.729),
+        "Woodlands": (1.436, 103.786),
+        "Sembawang": (1.449, 103.818),
+        "Yishun": (1.430, 103.835),
+        "Ang Mo Kio": (1.369, 103.845),
+        "Bishan": (1.352, 103.848),
+        "Toa Payoh": (1.334, 103.856),
+        "Clementi": (1.316, 103.764),
+        "Queenstown": (1.294, 103.806),
+        "Bukit Merah": (1.281, 103.823),
+        "Central Area": (1.286, 103.854),
+        "Kallang": (1.310, 103.865),
+        "Geylang": (1.318, 103.887),
+        "Hougang": (1.371, 103.892),
+        "Sengkang": (1.392, 103.894),
+        "Buangkok": (1.382, 103.893),
+        "Punggol": (1.405, 103.902),
+        "Pasir Ris": (1.372, 103.947),
+        "Tampines": (1.349, 103.943),
+        "Bedok": (1.323, 103.927),
+        "Marine Parade": (1.302, 103.904),
+        "Bukit Timah": (1.329, 103.793),
+        "Serangoon": (1.355, 103.867)
+    }
+
+    for region, (lat, lon) in REGIONS.items():
+        folium.Marker(
+            location=[lat, lon],
+            icon=folium.DivIcon(html=f'<div class="region-label">{region}</div>'),
+            interactive=False # Keeps it from blocking clicks on schools beneath it
+        ).add_to(region_group)
+        
+    region_group.add_to(m)
+
     print(f"[*] Plotting {len(schools)} schools...")
     primary_group = folium.FeatureGroup(name="Primary Schools (Sky Blue)")
     secondary_group = folium.FeatureGroup(name="Secondary Schools (Violet)")
@@ -383,6 +444,7 @@ def generate_map():
                 var title = legend ? legend.querySelector('h4') : null;
                 var innerRing = document.getElementById('legend-ring-inner');
                 var spans = legend ? legend.querySelectorAll('span.legend-text') : [];
+                var regionLabels = document.querySelectorAll('.region-label');
                 
                 if (e.name === 'Light Canvas') {
                     // Clean Grayscale Light Mode
@@ -395,6 +457,10 @@ def generate_map():
                         spans.forEach(s => s.style.color = '#333');
                         if (innerRing) innerRing.style.backgroundColor = 'rgba(255, 255, 255, 0.8)';
                     }
+                    regionLabels.forEach(lbl => {
+                        lbl.style.color = 'rgba(0, 0, 0, 0.75)';
+                        lbl.style.textShadow = '0px 0px 12px rgba(255,255,255,1), 0px 0px 5px rgba(255,255,255,1)';
+                    });
                 } else {
                     // Re-apply the magical Monochrome Dark Mode filter
                     tilePane.style.filter = 'grayscale(100%) invert(100%) brightness(95%) contrast(115%)';
@@ -406,6 +472,10 @@ def generate_map():
                         spans.forEach(s => s.style.color = 'white');
                         if (innerRing) innerRing.style.backgroundColor = 'rgba(20, 20, 20, 0.85)';
                     }
+                    regionLabels.forEach(lbl => {
+                        lbl.style.color = 'rgba(255, 255, 255, 0.8)';
+                        lbl.style.textShadow = '0px 0px 12px rgba(0,0,0,1), 0px 0px 5px rgba(0,0,0,1)';
+                    });
                 }
             });
         }
