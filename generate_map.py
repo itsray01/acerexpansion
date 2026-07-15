@@ -1,5 +1,6 @@
 import json
 import os
+import requests
 import folium
 from folium import plugins
 from folium import Element
@@ -85,18 +86,26 @@ def generate_map():
     """
     m.get_root().html.add_child(Element(svg_gradient))
 
-    # Draw a subtle dashed border around the mainland of Singapore
+    # Safely draw a subtle dashed border around the mainland of Singapore
     sg_border_url = "https://raw.githubusercontent.com/johan/world.geo.json/master/countries/SGP.geo.json"
-    folium.GeoJson(
-        sg_border_url,
-        name="Singapore Mainland Border",
-        style_function=lambda feature: {
-            'fillColor': 'none',
-            'color': '#9E9E9E', # Subtle grey outline that works on both light/dark mode
-            'weight': 2,
-            'dashArray': '6, 6'
-        }
-    ).add_to(m)
+    try:
+        print("[*] Fetching Singapore geographic boundaries...")
+        res = requests.get(sg_border_url, timeout=10)
+        if res.status_code == 200:
+            folium.GeoJson(
+                res.json(),
+                name="Singapore Mainland Border",
+                style_function=lambda feature: {
+                    'fillColor': 'none',
+                    'color': '#9E9E9E', # Subtle grey outline that works on both light/dark mode
+                    'weight': 2,
+                    'dashArray': '6, 6'
+                }
+            ).add_to(m)
+        else:
+            print(f"[!] Warning: Could not fetch borders (HTTP {res.status_code}). Skipping boundary layer.")
+    except Exception as e:
+        print(f"[!] Warning: Network error fetching borders ({e}). Skipping boundary layer.")
     
     print(f"[*] Plotting {len(schools)} schools...")
     primary_group = folium.FeatureGroup(name="Primary Schools (Blue)")
