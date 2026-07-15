@@ -45,16 +45,28 @@ def generate_map():
     schools = load_schools()
     if not schools: return
     
-    # Initialize the map. Zoom=13 brings it 150% closer than the previous Zoom=12
-    m = folium.Map(location=[1.3521, 103.8198], zoom_start=13)
+    # Initialize the map with 'tiles=None' so we can explicitly order our base maps
+    m = folium.Map(location=[1.3521, 103.8198], zoom_start=13, tiles=None)
     
-    # Add Dark and Light Mode base maps (the user can toggle them in the top right)
-    folium.TileLayer('CartoDB dark_matter', name='Dark Mode').add_to(m)
-    folium.TileLayer('CartoDB positron', name='Light Mode').add_to(m)
+    # 1. CartoDB Voyager (Added FIRST as Default)
+    # This is a full-color map with high-detail street names/regions, but highly desaturated
+    # so that data overlays (like your rings and dots) pop perfectly without visual noise.
+    folium.TileLayer(
+        tiles='https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
+        attr='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+        name='Modern Streets (Default)'
+    ).add_to(m)
     
-    # Inject Custom CSS to force large, highly readable tooltips globally
+    # 2. CartoDB Positron (Clean light gray alternative)
+    folium.TileLayer('CartoDB positron', name='Clean Grayscale').add_to(m)
+    
+    # 3. CartoDB Dark Matter (The dark dashboard view)
+    folium.TileLayer('CartoDB dark_matter', name='Dark Canvas').add_to(m)
+    
+    # Inject Custom CSS to overhaul the tooltips and completely redesign the Layers Control Menu
     custom_css = """
     <style>
+    /* Global Tooltip Styling */
     .leaflet-tooltip {
         font-size: 16px !important;
         font-weight: bold !important;
@@ -66,12 +78,149 @@ def generate_map():
         box-shadow: 0 4px 10px rgba(0,0,0,0.5) !important;
     }
     .leaflet-popup-content { font-size: 15px !important; line-height: 1.4 !important; }
+
+    /* ====================================================
+       OVERHAUL: CUSTOM BRANDED TRANSLUCENT LAYERS MENU
+       ==================================================== */
+    
+    /* 1. Replace the layers icon with the Acer Academy Logo */
+    .leaflet-touch .leaflet-control-layers-toggle,
+    .leaflet-retina .leaflet-control-layers-toggle,
+    .leaflet-control-layers-toggle {
+        background-image: url('https://i.imgur.com/YhyOq9V.png') !important;
+        background-size: 65% !important;
+        background-repeat: no-repeat !important;
+        background-position: center !important;
+        background-color: rgba(25, 25, 25, 0.85) !important;
+        backdrop-filter: blur(10px) !important;
+        -webkit-backdrop-filter: blur(10px) !important;
+        border-radius: 14px !important;
+        width: 55px !important;
+        height: 55px !important;
+        box-shadow: 0 6px 20px rgba(0,0,0,0.5) !important;
+        border: 1px solid rgba(255,255,255,0.2) !important;
+        transition: all 0.3s ease !important;
+    }
+    
+    .leaflet-control-layers-toggle:hover {
+        background-color: rgba(40, 40, 40, 0.95) !important;
+        transform: scale(1.05) !important;
+        border-color: #00E5FF !important;
+    }
+
+    /* Hide Leaflet's default empty span */
+    .leaflet-control-layers-toggle span {
+        display: none !important;
+    }
+
+    /* 2. Frosted Glassmorphism Expanded Menu */
+    .leaflet-control-layers-expanded {
+        background: rgba(20, 20, 20, 0.8) !important;
+        backdrop-filter: blur(16px) !important;
+        -webkit-backdrop-filter: blur(16px) !important;
+        color: #ffffff !important;
+        border: 1px solid rgba(255,255,255,0.15) !important;
+        border-radius: 18px !important;
+        padding: 22px 28px !important;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif !important;
+        box-shadow: 0 15px 40px rgba(0,0,0,0.7) !important;
+        min-width: 230px !important;
+    }
+
+    /* Menu Title */
+    .leaflet-control-layers-list::before {
+        content: "Map Display Settings";
+        display: block;
+        font-size: 16px;
+        font-weight: 700;
+        color: #00E5FF; /* Glowing Cyan */
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        margin-bottom: 15px;
+        border-bottom: 1px solid rgba(255,255,255,0.15);
+        padding-bottom: 10px;
+    }
+
+    /* 3. Text & Spacing */
+    .leaflet-control-layers-list {
+        font-size: 15px !important;
+        margin-bottom: 0 !important;
+    }
+    
+    .leaflet-control-layers-base label,
+    .leaflet-control-layers-overlays label {
+        display: flex !important;
+        align-items: center !important;
+        margin: 14px 0 !important;
+        cursor: pointer !important;
+        font-weight: 500 !important;
+        transition: color 0.2s !important;
+    }
+
+    .leaflet-control-layers-base label:hover,
+    .leaflet-control-layers-overlays label:hover {
+        color: #FFD700 !important; /* Gold hover effect */
+    }
+
+    /* 4. Separator */
+    .leaflet-control-layers-separator {
+        border-top: 1px solid rgba(255,255,255,0.15) !important;
+        margin: 18px 0 !important;
+    }
+
+    /* 5. Custom Checkboxes & Radio Buttons */
+    input[type="checkbox"].leaflet-control-layers-selector,
+    input[type="radio"].leaflet-control-layers-selector {
+        appearance: none;
+        -webkit-appearance: none;
+        width: 18px !important;
+        height: 18px !important;
+        border: 2px solid #888 !important;
+        border-radius: 4px;
+        margin-right: 12px !important;
+        cursor: pointer !important;
+        position: relative;
+        background: rgba(255,255,255,0.1);
+        transition: all 0.2s;
+    }
+
+    input[type="radio"].leaflet-control-layers-selector {
+        border-radius: 50%;
+    }
+
+    input[type="checkbox"].leaflet-control-layers-selector:checked,
+    input[type="radio"].leaflet-control-layers-selector:checked {
+        background: #00E5FF !important;
+        border-color: #00E5FF !important;
+    }
+
+    input[type="checkbox"].leaflet-control-layers-selector:checked::after {
+        content: "✔";
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        color: #000;
+        font-size: 12px;
+        font-weight: bold;
+    }
+
+    input[type="radio"].leaflet-control-layers-selector:checked::after {
+        content: "";
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 8px;
+        height: 8px;
+        background: #000;
+        border-radius: 50%;
+    }
     </style>
     """
     m.get_root().header.add_child(Element(custom_css))
 
-    # --- NEW: INJECT SVG GRADIENT FOR THE 1.5KM RINGS ---
-    # This allows Folium vector shapes (circles) to use true multi-color CSS-style gradients!
+    # --- INJECT SVG GRADIENT FOR THE 1.5KM RINGS ---
     svg_gradient = """
     <svg style="width:0; height:0; position:absolute;" aria-hidden="true" focusable="false">
       <defs>
@@ -97,7 +246,7 @@ def generate_map():
                 name="Singapore Mainland Border",
                 style_function=lambda feature: {
                     'fillColor': 'none',
-                    'color': '#9E9E9E', # Subtle grey outline that works on both light/dark mode
+                    'color': '#9E9E9E', # Subtle grey outline that works on all modes
                     'weight': 2,
                     'dashArray': '6, 6'
                 }
@@ -119,7 +268,7 @@ def generate_map():
         lon = school["lon"]
         name = school["name"]
         
-        # We use high-contrast vivid colors so they pop on BOTH light and dark mode
+        # We use high-contrast vivid colors so they pop on all backgrounds
         if "PRIMARY" in level:
             fill_color = "#1E88E5" # Vivid Blue
             group = primary_group
@@ -176,101 +325,64 @@ def generate_map():
             icon=folium.DivIcon(html=icon_html, icon_size=(28, 28), icon_anchor=(14, 14))
         ).add_to(branch_group)
         
-        # Plot the 1.5km Radius Ring (Now using the SVG Gradient!)
+        # Plot the 1.5km Radius Ring using the SVG Gradient
         folium.Circle(
             location=[lat, lon],
             radius=1500, # 1.5km in meters
             popup=f"1.5km Radius Ring for {name}",
             color="url(#ringGradient)", # Targets the custom injected SVG block
-            weight=2,
+            weight=2.5,
             fill_color="url(#ringGradient)",
-            fill_opacity=0.15 # Still beautifully transparent
+            fill_opacity=0.15 # Beautifully transparent
         ).add_to(branch_group)
         
     branch_group.add_to(m)
     
-    # Dynamic Floating Legend that automatically swaps colors if Light Mode is turned on
+    # Legend is locked into the dark frosted glass aesthetic to match the new toggle menu
     legend_html = '''
     <div id="legend-box" style="
         position: fixed; 
         bottom: 50px; left: 50px; width: 260px; height: auto; 
-        background-color: rgba(30, 30, 30, 0.85); z-index:9999; font-size:14px;
-        border: 1px solid #555; border-radius: 12px; padding: 15px; color: #E0E0E0;
-        box-shadow: 0 8px 16px rgba(0,0,0,0.6); font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        backdrop-filter: blur(5px); transition: all 0.3s ease;
+        background-color: rgba(20, 20, 20, 0.85); z-index:9999; font-size:14px;
+        border: 1px solid rgba(255,255,255,0.15); border-radius: 16px; padding: 20px; color: #E0E0E0;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.6); font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
         ">
-        <h4 style="margin-top:0; border-bottom:1px solid #555; padding-bottom:10px; color: white; font-weight: bold;">Acer Expansion Map</h4>
+        <h4 style="margin-top:0; border-bottom:1px solid rgba(255,255,255,0.15); padding-bottom:12px; color: #00E5FF; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; font-size: 15px;">Expansion Map</h4>
         
-        <div style="display: flex; align-items: center; margin-bottom: 12px;">
-            <div style="background: linear-gradient(135deg, #FFD700, #00E5FF, #00FF00, #FF3D00); width: 20px; height: 20px; border-radius: 50%; border: 1px solid white; margin-right: 12px; display: flex; justify-content: center; align-items: center; overflow: hidden;">
+        <div style="display: flex; align-items: center; margin-bottom: 14px; margin-top: 15px;">
+            <div style="background: linear-gradient(135deg, #FFD700, #00E5FF, #00FF00, #FF3D00); width: 22px; height: 22px; border-radius: 50%; border: 1px solid white; margin-right: 14px; display: flex; justify-content: center; align-items: center; overflow: hidden; box-shadow: 0 0 5px rgba(0,0,0,0.5);">
                 <img src="https://i.imgur.com/YhyOq9V.png" style="width: 100%;">
             </div>
-            <span class="legend-text" style="font-weight: bold; color: white;">Acer Academy Branch</span>
+            <span class="legend-text" style="font-weight: bold; color: white;">Acer Academy</span>
         </div>
         
-        <div style="display: flex; align-items: center; margin-bottom: 15px;">
-            <div style="width: 20px; height: 20px; border-radius: 50%; padding: 2px; background: linear-gradient(135deg, #FFD700, #00E5FF, #00FF00, #FF3D00); margin-right: 12px; display: flex; align-items: center; justify-content: center;">
-                <div id="legend-ring-inner" style="width: 100%; height: 100%; border-radius: 50%; background: rgba(30, 30, 30, 0.85);"></div>
+        <div style="display: flex; align-items: center; margin-bottom: 18px;">
+            <div style="width: 22px; height: 22px; border-radius: 50%; padding: 2px; background: linear-gradient(135deg, #FFD700, #00E5FF, #00FF00, #FF3D00); margin-right: 14px; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 5px rgba(0,0,0,0.5);">
+                <div id="legend-ring-inner" style="width: 100%; height: 100%; border-radius: 50%; background: rgba(20, 20, 20, 0.85);"></div>
             </div>
             <span class="legend-text" style="color: white;">1.5km Radius Ring</span>
         </div>
         
-        <div style="display: flex; align-items: center; margin-bottom: 10px;">
-            <div style="background: #1E88E5; width: 14px; height: 14px; border-radius: 50%; border: 1px solid white; margin-right: 15px; margin-left: 3px;"></div>
-            <span class="legend-text" style="color: white;">Primary School</span>
+        <div style="display: flex; align-items: center; margin-bottom: 12px;">
+            <div style="background: #1E88E5; width: 14px; height: 14px; border-radius: 50%; border: 1px solid white; margin-right: 18px; margin-left: 4px;"></div>
+            <span class="legend-text" style="color: white; font-weight: 500;">Primary School</span>
         </div>
         
-        <div style="display: flex; align-items: center; margin-bottom: 10px;">
-            <div style="background: #43A047; width: 14px; height: 14px; border-radius: 50%; border: 1px solid white; margin-right: 15px; margin-left: 3px;"></div>
-            <span class="legend-text" style="color: white;">Secondary School</span>
+        <div style="display: flex; align-items: center; margin-bottom: 12px;">
+            <div style="background: #43A047; width: 14px; height: 14px; border-radius: 50%; border: 1px solid white; margin-right: 18px; margin-left: 4px;"></div>
+            <span class="legend-text" style="color: white; font-weight: 500;">Secondary School</span>
         </div>
         
         <div style="display: flex; align-items: center; margin-bottom: 5px;">
-            <div style="background: #8E24AA; width: 14px; height: 14px; border-radius: 50%; border: 1px solid white; margin-right: 15px; margin-left: 3px;"></div>
-            <span class="legend-text" style="color: white;">International School</span>
+            <div style="background: #8E24AA; width: 14px; height: 14px; border-radius: 50%; border: 1px solid white; margin-right: 18px; margin-left: 4px;"></div>
+            <span class="legend-text" style="color: white; font-weight: 500;">International School</span>
         </div>
     </div>
-    
-    <script>
-    // This script listens for the user clicking the layer control in the top right.
-    // If they switch to Light Mode, it automatically flips the colors of the legend!
-    document.addEventListener("DOMContentLoaded", function() {
-        var map = null;
-        for (var key in window) {
-            if (key.startsWith('map_')) { map = window[key]; break; }
-        }
-        if (map) {
-            map.on('baselayerchange', function(e) {
-                var legend = document.getElementById('legend-box');
-                if (legend) {
-                    var spans = legend.querySelectorAll('span.legend-text');
-                    var title = legend.querySelector('h4');
-                    var innerRing = document.getElementById('legend-ring-inner');
-                    
-                    if (e.name === 'Light Mode') {
-                        legend.style.backgroundColor = 'rgba(255, 255, 255, 0.9)';
-                        legend.style.borderColor = '#ccc';
-                        title.style.color = '#111';
-                        title.style.borderBottom = '1px solid #ccc';
-                        spans.forEach(s => s.style.color = '#333');
-                        if (innerRing) innerRing.style.backgroundColor = 'rgba(255, 255, 255, 0.8)';
-                    } else {
-                        legend.style.backgroundColor = 'rgba(30, 30, 30, 0.85)';
-                        legend.style.borderColor = '#555';
-                        title.style.color = 'white';
-                        title.style.borderBottom = '1px solid #555';
-                        spans.forEach(s => s.style.color = 'white');
-                        if (innerRing) innerRing.style.backgroundColor = 'rgba(30, 30, 30, 0.85)';
-                    }
-                }
-            });
-        }
-    });
-    </script>
     '''
     m.get_root().html.add_child(Element(legend_html))
     
-    # Add a Layer Control panel so you can toggle Light/Dark mode and school types on/off
+    # Add a Layer Control panel so you can toggle maps and school types on/off
     folium.LayerControl(position='topright').add_to(m)
     
     # Save the map to an HTML file
