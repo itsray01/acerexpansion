@@ -48,20 +48,11 @@ def generate_map():
     # Initialize the map with 'tiles=None' so we can explicitly order our base maps
     m = folium.Map(location=[1.3521, 103.8198], zoom_start=13, tiles=None)
     
-    # 1. CartoDB Voyager (Added FIRST as Default)
-    # This is a full-color map with high-detail street names/regions, but highly desaturated
-    # so that data overlays (like your rings and dots) pop perfectly without visual noise.
-    folium.TileLayer(
-        tiles='https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
-        attr='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
-        name='Modern Streets (Default)'
-    ).add_to(m)
+    # 1. OpenStreetMap (Added FIRST and explicitly shown so it's the absolute default)
+    folium.TileLayer('OpenStreetMap', name='Detailed Streets (Default)', show=True).add_to(m)
     
-    # 2. CartoDB Positron (Clean light gray alternative)
-    folium.TileLayer('CartoDB positron', name='Clean Grayscale').add_to(m)
-    
-    # 3. CartoDB Dark Matter (The dark dashboard view)
-    folium.TileLayer('CartoDB dark_matter', name='Dark Canvas').add_to(m)
+    # 2. Dark Canvas (Added SECOND and explicitly HIDDEN so it doesn't hijack the load screen)
+    folium.TileLayer('CartoDB dark_matter', name='Dark Canvas', show=False).add_to(m)
     
     # Inject Custom CSS to overhaul the tooltips and completely redesign the Layers Control Menu
     custom_css = """
@@ -79,11 +70,23 @@ def generate_map():
     }
     .leaflet-popup-content { font-size: 15px !important; line-height: 1.4 !important; }
 
+    /* Mute OSM's distracting colors (yellow roads, bright green parks) but KEEP the text perfectly readable! */
+    .leaflet-tile-pane {
+        filter: grayscale(35%) brightness(0.95) contrast(1.05);
+    }
+
     /* ====================================================
        OVERHAUL: CUSTOM BRANDED TRANSLUCENT LAYERS MENU
        ==================================================== */
     
-    /* 1. Replace the layers icon with the Acer Academy Logo */
+    /* 1. Kill the ugly default white box behind the icon */
+    .leaflet-control-layers {
+        border: none !important;
+        background: transparent !important;
+        box-shadow: none !important;
+    }
+
+    /* 2. Replace the layers icon with the Acer Academy Logo */
     .leaflet-touch .leaflet-control-layers-toggle,
     .leaflet-retina .leaflet-control-layers-toggle,
     .leaflet-control-layers-toggle {
@@ -113,9 +116,9 @@ def generate_map():
         display: none !important;
     }
 
-    /* 2. Frosted Glassmorphism Expanded Menu */
-    .leaflet-control-layers-expanded {
-        background: rgba(20, 20, 20, 0.8) !important;
+    /* 3. Frosted Glassmorphism Expanded Menu */
+    .leaflet-control-layers.leaflet-control-layers-expanded {
+        background: rgba(20, 20, 20, 0.85) !important;
         backdrop-filter: blur(16px) !important;
         -webkit-backdrop-filter: blur(16px) !important;
         color: #ffffff !important;
@@ -141,7 +144,7 @@ def generate_map():
         padding-bottom: 10px;
     }
 
-    /* 3. Text & Spacing */
+    /* Text & Spacing */
     .leaflet-control-layers-list {
         font-size: 15px !important;
         margin-bottom: 0 !important;
@@ -162,13 +165,13 @@ def generate_map():
         color: #FFD700 !important; /* Gold hover effect */
     }
 
-    /* 4. Separator */
+    /* Separator */
     .leaflet-control-layers-separator {
         border-top: 1px solid rgba(255,255,255,0.15) !important;
         margin: 18px 0 !important;
     }
 
-    /* 5. Custom Checkboxes & Radio Buttons */
+    /* Custom Checkboxes & Radio Buttons */
     input[type="checkbox"].leaflet-control-layers-selector,
     input[type="radio"].leaflet-control-layers-selector {
         appearance: none;
@@ -220,21 +223,6 @@ def generate_map():
     """
     m.get_root().header.add_child(Element(custom_css))
 
-    # --- INJECT SVG GRADIENT FOR THE 1.5KM RINGS ---
-    svg_gradient = """
-    <svg style="width:0; height:0; position:absolute;" aria-hidden="true" focusable="false">
-      <defs>
-        <linearGradient id="ringGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stop-color="#FFD700" />
-          <stop offset="33%" stop-color="#00E5FF" />
-          <stop offset="66%" stop-color="#00FF00" />
-          <stop offset="100%" stop-color="#FF3D00" />
-        </linearGradient>
-      </defs>
-    </svg>
-    """
-    m.get_root().html.add_child(Element(svg_gradient))
-
     # Safely draw a subtle dashed border around the mainland of Singapore
     sg_border_url = "https://raw.githubusercontent.com/johan/world.geo.json/master/countries/SGP.geo.json"
     try:
@@ -257,9 +245,9 @@ def generate_map():
         print(f"[!] Warning: Network error fetching borders ({e}). Skipping boundary layer.")
     
     print(f"[*] Plotting {len(schools)} schools...")
-    primary_group = folium.FeatureGroup(name="Primary Schools (Blue)")
-    secondary_group = folium.FeatureGroup(name="Secondary Schools (Green)")
-    intl_group = folium.FeatureGroup(name="International Schools (Purple)")
+    primary_group = folium.FeatureGroup(name="Primary Schools (Sky Blue)")
+    secondary_group = folium.FeatureGroup(name="Secondary Schools (Violet)")
+    intl_group = folium.FeatureGroup(name="International Schools (Rose Pink)")
     other_group = folium.FeatureGroup(name="Other Institutes (Gray)")
     
     for school in schools:
@@ -268,30 +256,30 @@ def generate_map():
         lon = school["lon"]
         name = school["name"]
         
-        # We use high-contrast vivid colors so they pop on all backgrounds
+        # Beautiful, modern soft-neon palette that pops nicely
         if "PRIMARY" in level:
-            fill_color = "#1E88E5" # Vivid Blue
+            fill_color = "#38BDF8" # Sky Blue
             group = primary_group
         elif "SECONDARY" in level:
-            fill_color = "#43A047" # Vivid Green
+            fill_color = "#A78BFA" # Soft Violet
             group = secondary_group
         elif "INTERNATIONAL" in level:
-            fill_color = "#8E24AA" # Vivid Purple
+            fill_color = "#F472B6" # Rose Pink
             group = intl_group
         else:
-            fill_color = "#757575" # Gray
+            fill_color = "#9CA3AF" # Cool Gray
             group = other_group
             
         folium.CircleMarker(
             location=[lat, lon],
-            radius=7, # Larger dots
+            radius=7, 
             popup=f"<b style='color: {fill_color}'>{name}</b><br>{level.title()}",
             tooltip=f"<span style='font-size: 15px;'>{name}</span>",
             color="white", # Crisp white outline
             weight=1,
             fill_color=fill_color,
             fill=True,
-            fill_opacity=0.9
+            fill_opacity=0.85
         ).add_to(group)
         
     primary_group.add_to(m)
@@ -304,7 +292,7 @@ def generate_map():
     
     for name, (lat, lon) in EXISTING_BRANCHES.items():
         
-        # New Gradient (Yellow -> Blue -> Green -> Red)
+        # Premium Brand Dot for the actual store location
         gradient_style = (
             "background: linear-gradient(135deg, #FFD700, #00E5FF, #00FF00, #FF3D00); "
             "border-radius: 50%; width: 28px; height: 28px; display: flex; "
@@ -313,11 +301,9 @@ def generate_map():
             "border: 2px solid white; overflow: hidden;"
         )
         
-        # Pulls your transparent logo and wraps it perfectly inside the gradient circle
         logo_url = "https://i.imgur.com/YhyOq9V.png"
         icon_html = f'<div style="{gradient_style}"><img src="{logo_url}" style="width: 100%; object-fit: contain;"></div>'
         
-        # Plot the Branch Marker (Perfectly centered using icon_anchor)
         folium.Marker(
             location=[lat, lon],
             popup=f"<b style='color: #FF9800;'>ACER ACADEMY</b><br>{name}",
@@ -325,60 +311,97 @@ def generate_map():
             icon=folium.DivIcon(html=icon_html, icon_size=(28, 28), icon_anchor=(14, 14))
         ).add_to(branch_group)
         
-        # Plot the 1.5km Radius Ring using the SVG Gradient
+        # 1.5km Catchment Ring - Upgraded to Electric Cyan
         folium.Circle(
             location=[lat, lon],
             radius=1500, # 1.5km in meters
             popup=f"1.5km Radius Ring for {name}",
-            color="url(#ringGradient)", # Targets the custom injected SVG block
-            weight=2.5,
-            fill_color="url(#ringGradient)",
-            fill_opacity=0.15 # Beautifully transparent
+            color="#00C9FF", # Premium Glowing Electric Cyan
+            weight=2,
+            fill_color="#00C9FF",
+            fill_opacity=0.18 # Highly translucent but still very clearly visible
         ).add_to(branch_group)
         
     branch_group.add_to(m)
     
-    # Legend is locked into the dark frosted glass aesthetic to match the new toggle menu
+    # Legend is updated to reflect the new Electric Cyan rings
     legend_html = '''
     <div id="legend-box" style="
         position: fixed; 
         bottom: 50px; left: 50px; width: 260px; height: auto; 
-        background-color: rgba(20, 20, 20, 0.85); z-index:9999; font-size:14px;
-        border: 1px solid rgba(255,255,255,0.15); border-radius: 16px; padding: 20px; color: #E0E0E0;
+        background-color: rgba(255, 255, 255, 0.9); z-index:9999; font-size:14px;
+        border: 1px solid #ccc; border-radius: 16px; padding: 20px; color: #333;
         box-shadow: 0 10px 30px rgba(0,0,0,0.6); font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+        transition: all 0.3s ease;
         ">
-        <h4 style="margin-top:0; border-bottom:1px solid rgba(255,255,255,0.15); padding-bottom:12px; color: #00E5FF; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; font-size: 15px;">Expansion Map</h4>
+        <h4 style="margin-top:0; border-bottom:1px solid #ccc; padding-bottom:12px; color: #111; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; font-size: 15px;">Expansion Map</h4>
         
         <div style="display: flex; align-items: center; margin-bottom: 14px; margin-top: 15px;">
             <div style="background: linear-gradient(135deg, #FFD700, #00E5FF, #00FF00, #FF3D00); width: 22px; height: 22px; border-radius: 50%; border: 1px solid white; margin-right: 14px; display: flex; justify-content: center; align-items: center; overflow: hidden; box-shadow: 0 0 5px rgba(0,0,0,0.5);">
                 <img src="https://i.imgur.com/YhyOq9V.png" style="width: 100%;">
             </div>
-            <span class="legend-text" style="font-weight: bold; color: white;">Acer Academy</span>
+            <span class="legend-text" style="font-weight: bold; color: #333;">Acer Academy</span>
         </div>
         
         <div style="display: flex; align-items: center; margin-bottom: 18px;">
-            <div style="width: 22px; height: 22px; border-radius: 50%; padding: 2px; background: linear-gradient(135deg, #FFD700, #00E5FF, #00FF00, #FF3D00); margin-right: 14px; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 5px rgba(0,0,0,0.5);">
-                <div id="legend-ring-inner" style="width: 100%; height: 100%; border-radius: 50%; background: rgba(20, 20, 20, 0.85);"></div>
+            <div style="width: 22px; height: 22px; border-radius: 50%; padding: 2px; background: #00C9FF; margin-right: 14px; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 5px rgba(0,0,0,0.5);">
+                <div id="legend-ring-inner" style="width: 100%; height: 100%; border-radius: 50%; background: rgba(255, 255, 255, 0.8);"></div>
             </div>
-            <span class="legend-text" style="color: white;">1.5km Radius Ring</span>
+            <span class="legend-text" style="color: #333;">1.5km Radius Ring</span>
         </div>
         
         <div style="display: flex; align-items: center; margin-bottom: 12px;">
-            <div style="background: #1E88E5; width: 14px; height: 14px; border-radius: 50%; border: 1px solid white; margin-right: 18px; margin-left: 4px;"></div>
-            <span class="legend-text" style="color: white; font-weight: 500;">Primary School</span>
+            <div style="background: #38BDF8; width: 14px; height: 14px; border-radius: 50%; border: 1px solid white; margin-right: 18px; margin-left: 4px;"></div>
+            <span class="legend-text" style="color: #333; font-weight: 500;">Primary School</span>
         </div>
         
         <div style="display: flex; align-items: center; margin-bottom: 12px;">
-            <div style="background: #43A047; width: 14px; height: 14px; border-radius: 50%; border: 1px solid white; margin-right: 18px; margin-left: 4px;"></div>
-            <span class="legend-text" style="color: white; font-weight: 500;">Secondary School</span>
+            <div style="background: #A78BFA; width: 14px; height: 14px; border-radius: 50%; border: 1px solid white; margin-right: 18px; margin-left: 4px;"></div>
+            <span class="legend-text" style="color: #333; font-weight: 500;">Secondary School</span>
         </div>
         
         <div style="display: flex; align-items: center; margin-bottom: 5px;">
-            <div style="background: #8E24AA; width: 14px; height: 14px; border-radius: 50%; border: 1px solid white; margin-right: 18px; margin-left: 4px;"></div>
-            <span class="legend-text" style="color: white; font-weight: 500;">International School</span>
+            <div style="background: #F472B6; width: 14px; height: 14px; border-radius: 50%; border: 1px solid white; margin-right: 18px; margin-left: 4px;"></div>
+            <span class="legend-text" style="color: #333; font-weight: 500;">International School</span>
         </div>
     </div>
+    
+    <script>
+    // Automatically swap Legend colors based on Light/Dark map
+    document.addEventListener("DOMContentLoaded", function() {
+        var map = null;
+        for (var key in window) {
+            if (key.startsWith('map_')) { map = window[key]; break; }
+        }
+        if (map) {
+            map.on('baselayerchange', function(e) {
+                var legend = document.getElementById('legend-box');
+                if (legend) {
+                    var spans = legend.querySelectorAll('span.legend-text');
+                    var title = legend.querySelector('h4');
+                    var innerRing = document.getElementById('legend-ring-inner');
+                    
+                    if (e.name === 'Detailed Streets (Default)') {
+                        legend.style.backgroundColor = 'rgba(255, 255, 255, 0.9)';
+                        legend.style.borderColor = '#ccc';
+                        title.style.color = '#111';
+                        title.style.borderBottom = '1px solid #ccc';
+                        spans.forEach(s => s.style.color = '#333');
+                        if (innerRing) innerRing.style.backgroundColor = 'rgba(255, 255, 255, 0.8)';
+                    } else {
+                        legend.style.backgroundColor = 'rgba(20, 20, 20, 0.85)';
+                        legend.style.borderColor = 'rgba(255,255,255,0.15)';
+                        title.style.color = '#00E5FF';
+                        title.style.borderBottom = '1px solid rgba(255,255,255,0.15)';
+                        spans.forEach(s => s.style.color = 'white');
+                        if (innerRing) innerRing.style.backgroundColor = 'rgba(20, 20, 20, 0.85)';
+                    }
+                }
+            });
+        }
+    });
+    </script>
     '''
     m.get_root().html.add_child(Element(legend_html))
     
