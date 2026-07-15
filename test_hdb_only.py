@@ -396,8 +396,8 @@ def extract_starting_bid(item_id):
     
     try:
         html_res = requests.get(page_url, headers=headers, proxies=proxies, timeout=15)
-        # Search the raw HTML for the specific 'text-start bold' class containing the bid amount
-        match = re.search(r'class=["\'][^"\']*text-start\s+bold[^"\']*["\'][^>]*>\s*(?:S\$|\$)?\s*([0-9,]+(?:\.\d{2})?)\s*<', html_res.text, re.IGNORECASE)
+        # Resilient regex: searches for 'text-start bold', skips hidden tags or spaces, grabs the number.
+        match = re.search(r'class=["\'][^"\']*text-start\s+bold[^"\']*["\'][^>]*>(?:<[^>]+>|\s|S\$|\$|&nbsp;)*([0-9]{1,3}(?:,[0-9]{3})*(?:\.\d{2})?)', html_res.text, re.IGNORECASE)
         
         if match:
             clean_val = match.group(1).replace(',', '')
@@ -494,7 +494,9 @@ def scrape_hdb_place2lease():
                 # Fetch Current/Highest Price
                 price = float(item.get("currentBid") or item.get("highestBid") or item.get("tenderPrice") or item.get("price") or 0.0)
                 tender_type = str(item.get("tenderType", "")).lower()
-                is_sealed = ("price only" in tender_type or "sealed" in tender_type or price == 0.0)
+                
+                # FIX: Explicitly check for sealed/price only. E-bidding units (even with $0 bids) are NOT sealed!
+                is_sealed = ("price only" in tender_type or "sealed" in tender_type)
                 
                 # CONDITIONAL SCRAPING: Only grab starting bid if E-Bidding
                 starting_bid = 0.0
@@ -596,10 +598,10 @@ def main():
         est_monthly = hdb_psf_bid * unit['sqft']
 
         # Determine Display Price (Sealed vs E-bidding w/ Starting Bid vs Price Only)
-        if unit["is_sealed"] or (unit["price"] == 0 and unit.get("starting_bid", 0) == 0):
+        if unit["is_sealed"]:
             price_status = "🔒 Sealed Tender"
         else:
-            display_price = unit["price"] if unit["price"] > 0 else unit["starting_bid"]
+            display_price = unit["price"] if unit["price"] > 0 else unit.get("starting_bid", 0)
             psf = round(display_price / unit["sqft"], 2) if unit["sqft"] > 0 else 0.0
             psf_flag = " ⚠️ (Above Market)" if psf > MAX_PSF_THRESHOLD else ""
             
@@ -609,8 +611,10 @@ def main():
                     price_status = f"${unit['price']:,.0f}/mo (Starts at ${unit['starting_bid']:,.0f}) (${psf:.2f} psf){psf_flag}"
                 else:
                     price_status = f"${unit['starting_bid']:,.0f}/mo (Starting Bid) (${psf:.2f} psf){psf_flag}"
+            elif display_price > 0:
+                price_status = f"${display_price:,.0f}/mo (${psf:.2f} psf){psf_flag}"
             else:
-                price_status = f"${unit['price']:,.0f}/mo (${psf:.2f} psf){psf_flag}"
+                price_status = "TBA (Check Listing for Price)"
 
         lat, lon = get_robust_gps(unit["address"], cluster_key=unit["cluster_key"])
         display_address = format_display_address(unit['address'])
