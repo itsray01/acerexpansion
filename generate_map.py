@@ -57,7 +57,8 @@ def generate_map():
     # Inject Custom CSS to overhaul the tooltips and completely redesign the Layers Control Menu
     custom_css = """
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600&display=swap');
+    /* Pulled lighter weights (300, 400) for the elegant, glowing text */
+    @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap');
 
     /* Global Tooltip Styling */
     .leaflet-tooltip {
@@ -77,14 +78,12 @@ def generate_map():
        OVERHAUL: CUSTOM BRANDED TRANSLUCENT LAYERS MENU
        ==================================================== */
     
-    /* 1. Kill the ugly default white box behind the icon */
     .leaflet-control-layers {
         border: none !important;
         background: transparent !important;
         box-shadow: none !important;
     }
 
-    /* 2. Replace the layers icon with the Acer Academy Logo */
     .leaflet-touch .leaflet-control-layers-toggle,
     .leaflet-retina .leaflet-control-layers-toggle,
     .leaflet-control-layers-toggle {
@@ -109,12 +108,8 @@ def generate_map():
         border-color: #00E5FF !important;
     }
 
-    /* Hide Leaflet's default empty span */
-    .leaflet-control-layers-toggle span {
-        display: none !important;
-    }
+    .leaflet-control-layers-toggle span { display: none !important; }
 
-    /* 3. Frosted Glassmorphism Expanded Menu */
     .leaflet-control-layers.leaflet-control-layers-expanded {
         background: rgba(20, 20, 20, 0.85) !important;
         backdrop-filter: blur(16px) !important;
@@ -128,13 +123,12 @@ def generate_map():
         min-width: 230px !important;
     }
 
-    /* Menu Title */
     .leaflet-control-layers-list::before {
         content: "Map Display Settings";
         display: block;
         font-size: 15px;
         font-weight: 700;
-        color: #00E5FF; /* Glowing Cyan */
+        color: #00E5FF;
         text-transform: uppercase;
         letter-spacing: 1px;
         margin-bottom: 15px;
@@ -142,11 +136,7 @@ def generate_map():
         padding-bottom: 10px;
     }
 
-    /* Text & Spacing */
-    .leaflet-control-layers-list {
-        font-size: 14px !important;
-        margin-bottom: 0 !important;
-    }
+    .leaflet-control-layers-list { font-size: 14px !important; margin-bottom: 0 !important; }
     
     .leaflet-control-layers-base label,
     .leaflet-control-layers-overlays label {
@@ -159,80 +149,107 @@ def generate_map():
     }
 
     .leaflet-control-layers-base label:hover,
-    .leaflet-control-layers-overlays label:hover {
-        color: #FFD700 !important; /* Gold hover effect */
-    }
+    .leaflet-control-layers-overlays label:hover { color: #FFD700 !important; }
+    .leaflet-control-layers-separator { border-top: 1px solid rgba(255,255,255,0.15) !important; margin: 18px 0 !important; }
 
-    /* Separator */
-    .leaflet-control-layers-separator {
-        border-top: 1px solid rgba(255,255,255,0.15) !important;
-        margin: 18px 0 !important;
-    }
-
-    /* Custom Checkboxes & Radio Buttons */
     input[type="checkbox"].leaflet-control-layers-selector,
     input[type="radio"].leaflet-control-layers-selector {
-        appearance: none;
-        -webkit-appearance: none;
-        width: 18px !important;
-        height: 18px !important;
-        border: 2px solid #888 !important;
-        border-radius: 4px;
-        margin-right: 12px !important;
-        cursor: pointer !important;
-        position: relative;
-        background: rgba(255,255,255,0.1);
-        transition: all 0.2s;
+        appearance: none; -webkit-appearance: none;
+        width: 18px !important; height: 18px !important;
+        border: 2px solid #888 !important; border-radius: 4px;
+        margin-right: 12px !important; cursor: pointer !important;
+        position: relative; background: rgba(255,255,255,0.1); transition: all 0.2s;
     }
-
-    input[type="radio"].leaflet-control-layers-selector {
-        border-radius: 50%;
-    }
-
+    input[type="radio"].leaflet-control-layers-selector { border-radius: 50%; }
     input[type="checkbox"].leaflet-control-layers-selector:checked,
-    input[type="radio"].leaflet-control-layers-selector:checked {
-        background: #00E5FF !important;
-        border-color: #00E5FF !important;
-    }
-
+    input[type="radio"].leaflet-control-layers-selector:checked { background: #00E5FF !important; border-color: #00E5FF !important; }
+    
     input[type="checkbox"].leaflet-control-layers-selector:checked::after {
-        content: "✔";
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        color: #000;
-        font-size: 12px;
-        font-weight: bold;
+        content: "✔"; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #000; font-size: 12px; font-weight: bold;
     }
-
     input[type="radio"].leaflet-control-layers-selector:checked::after {
-        content: "";
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        width: 8px;
-        height: 8px;
-        background: #000;
-        border-radius: 50%;
+        content: ""; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 8px; height: 8px; background: #000; border-radius: 50%;
     }
 
-    /* Sleek Glowing Region Labels */
+    /* ====================================================
+       SLEEK, GLOWING REGION LABELS
+       ==================================================== */
     .region-label {
         font-family: 'Montserrat', sans-serif !important;
-        font-size: 13px !important;
-        font-weight: 500 !important;
-        color: rgba(255, 255, 255, 0.8) !important;
+        font-size: 12px !important;
+        font-weight: 300 !important; /* Elegant Light Weight instead of bold */
+        color: rgba(255, 255, 255, 0.95) !important;
         text-transform: uppercase !important;
         letter-spacing: 3.5px !important;
-        /* Ethereal white glow paired with a grounding dark shadow */
-        text-shadow: 0px 0px 8px rgba(255,255,255,0.4), 0px 0px 15px rgba(0,0,0,0.9) !important;
+        /* Replaced dark shadow with a pure, ethereal glowing halo */
+        text-shadow: 0px 0px 8px rgba(255,255,255,0.7), 0px 0px 18px rgba(255,255,255,0.4) !important;
         white-space: nowrap !important;
-        pointer-events: none !important; /* Acts like a ghost, doesn't block clicking pins underneath */
+        pointer-events: none !important; 
         transform: translate(-50%, -50%) !important;
         transition: all 0.4s ease !important;
     }
+    
+    /* ====================================================
+       SLIDE-OUT DIRECTORY SIDEBAR
+       ==================================================== */
+    #directory-btn {
+        position: fixed;
+        top: 90px;
+        right: 12px;
+        z-index: 9998;
+        background-color: rgba(25, 25, 25, 0.85);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        border: 1px solid rgba(255,255,255,0.2);
+        color: white;
+        padding: 10px 14px;
+        border-radius: 8px;
+        font-family: 'Montserrat', sans-serif;
+        font-weight: 600;
+        font-size: 13px;
+        cursor: pointer;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+        transition: all 0.3s;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    #directory-btn:hover { background-color: rgba(40,40,40,0.95); border-color: #00E5FF; color: #00E5FF; }
+    
+    #side-panel {
+        position: fixed;
+        top: 0; right: -400px; /* Hidden off-screen by default */
+        width: 320px; height: 100vh;
+        background-color: rgba(20, 20, 20, 0.90);
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        border-left: 1px solid rgba(255,255,255,0.1);
+        z-index: 99999;
+        transition: right 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+        color: white;
+        font-family: 'Montserrat', sans-serif;
+        display: flex; flex-direction: column;
+        box-shadow: -5px 0 30px rgba(0,0,0,0.6);
+    }
+    #side-panel.open { right: 0; }
+    
+    .panel-header {
+        display: flex; justify-content: space-between; align-items: center;
+        padding: 20px 25px; border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+    .panel-header h2 { margin: 0; font-size: 16px; color: #00E5FF; text-transform: uppercase; letter-spacing: 1px; font-weight: 700; }
+    #close-panel { background: none; border: none; color: white; font-size: 28px; cursor: pointer; transition: color 0.2s; }
+    #close-panel:hover { color: #FF3D00; }
+    
+    .panel-content { padding: 20px 25px; overflow-y: auto; flex: 1; }
+    .panel-content::-webkit-scrollbar { width: 6px; }
+    .panel-content::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 4px; }
+    
+    .panel-content h3 { font-size: 15px; color: #FFD700; margin: 0 0 10px 0; padding-bottom: 8px; border-bottom: 1px dashed rgba(255,255,255,0.2); }
+    .panel-content h4 { font-size: 13px; color: #38BDF8; margin: 20px 0 8px 0; text-transform: uppercase; letter-spacing: 1px; }
+    .panel-content ul { list-style: none; padding: 0; margin: 0 0 20px 0; }
+    .panel-content li { font-size: 12px; padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.05); color: rgba(255,255,255,0.8); transition: color 0.2s; cursor: default; }
+    .panel-content li:hover { color: white; background: rgba(255,255,255,0.05); padding-left: 5px; }
     </style>
     """
     m.get_root().header.add_child(Element(custom_css))
@@ -248,102 +265,57 @@ def generate_map():
                 name="Singapore Mainland Border",
                 style_function=lambda feature: {
                     'fillColor': 'none',
-                    'color': '#9E9E9E', # Subtle grey outline that works on all modes
+                    'color': '#9E9E9E',
                     'weight': 2,
                     'dashArray': '6, 6'
                 }
             ).add_to(m)
-        else:
-            print(f"[!] Warning: Could not fetch borders (HTTP {res.status_code}). Skipping boundary layer.")
     except Exception as e:
         print(f"[!] Warning: Network error fetching borders ({e}). Skipping boundary layer.")
 
     # ==========================================
-    # INJECT SLEEK REGION WATERMARKS (Massive Deep Dive)
+    # INJECT SLEEK REGION WATERMARKS
     # ==========================================
-    print(f"[*] Injecting Extended Region Watermarks...")
     region_group = folium.FeatureGroup(name="Town & Region Labels", show=True)
     
     REGIONS = {
-        # NORTH
-        "Woodlands": (1.436, 103.786),
-        "Sembawang": (1.449, 103.818),
-        "Yishun": (1.430, 103.835),
-        "Mandai": (1.424, 103.811),
-        "Simpang": (1.444, 103.844),
-        "Lim Chu Kang": (1.433, 103.714),
-        "Sungei Kadut": (1.414, 103.754),
-        
-        # NORTHEAST
-        "Ang Mo Kio": (1.369, 103.845),
-        "Hougang": (1.371, 103.892),
-        "Sengkang": (1.392, 103.894),
-        "Punggol": (1.405, 103.902),
-        "Seletar": (1.408, 103.874),
-        "Buangkok": (1.382, 103.893),
-        "Serangoon": (1.355, 103.867),
-        
-        # EAST
-        "Pasir Ris": (1.372, 103.947),
-        "Tampines": (1.349, 103.943),
-        "Bedok": (1.323, 103.927),
-        "Changi": (1.365, 103.988),
-        "Paya Lebar": (1.334, 103.888),
-        "MacPherson": (1.326, 103.889),
-        "Kembangan": (1.321, 103.912),
-        "Simei": (1.343, 103.953),
-        
-        # CENTRAL
-        "Bishan": (1.352, 103.848),
-        "Toa Payoh": (1.334, 103.856),
-        "Central Area": (1.286, 103.854),
-        "Kallang": (1.310, 103.865),
-        "Geylang": (1.318, 103.887),
-        "Marine Parade": (1.302, 103.904),
-        "Bukit Timah": (1.329, 103.793),
-        "Thomson": (1.361, 103.829),
-        "Novena": (1.320, 103.843),
-        "Newton": (1.312, 103.838),
-        "Orchard": (1.303, 103.832),
-        "River Valley": (1.297, 103.831),
-        "Outram": (1.282, 103.839),
-        "Marina Bay": (1.281, 103.856),
-        "Mountbatten": (1.304, 103.884),
-        "Balestier": (1.326, 103.851),
-        "Potong Pasir": (1.331, 103.868),
-        
-        # SOUTH
-        "Queenstown": (1.294, 103.806),
-        "Bukit Merah": (1.281, 103.823),
-        "Telok Blangah": (1.272, 103.809),
-        "Sentosa": (1.249, 103.830),
-        
-        # WEST
-        "Jurong West": (1.345, 103.705),
-        "Jurong East": (1.333, 103.742),
-        "Bukit Batok": (1.349, 103.749),
-        "Bukit Panjang": (1.377, 103.771),
-        "Choa Chu Kang": (1.385, 103.744),
-        "Tengah": (1.364, 103.729),
-        "Clementi": (1.316, 103.764),
-        "West Coast": (1.303, 103.765),
-        "Boon Lay": (1.338, 103.705),
-        "Pioneer": (1.318, 103.697),
-        "Tuas": (1.329, 103.636)
+        "Woodlands": (1.436, 103.786), "Sembawang": (1.449, 103.818), "Yishun": (1.430, 103.835),
+        "Mandai": (1.424, 103.811), "Simpang": (1.444, 103.844), "Lim Chu Kang": (1.433, 103.714),
+        "Sungei Kadut": (1.414, 103.754), "Ang Mo Kio": (1.369, 103.845), "Hougang": (1.371, 103.892),
+        "Sengkang": (1.392, 103.894), "Punggol": (1.405, 103.902), "Seletar": (1.408, 103.874),
+        "Buangkok": (1.382, 103.893), "Serangoon": (1.355, 103.867), "Pasir Ris": (1.372, 103.947),
+        "Tampines": (1.349, 103.943), "Bedok": (1.323, 103.927), "Changi": (1.365, 103.988),
+        "Paya Lebar": (1.334, 103.888), "MacPherson": (1.326, 103.889), "Kembangan": (1.321, 103.912),
+        "Simei": (1.343, 103.953), "Bishan": (1.352, 103.848), "Toa Payoh": (1.334, 103.856),
+        "Central Area": (1.286, 103.854), "Kallang": (1.310, 103.865), "Geylang": (1.318, 103.887),
+        "Marine Parade": (1.302, 103.904), "Bukit Timah": (1.329, 103.793), "Thomson": (1.361, 103.829),
+        "Novena": (1.320, 103.843), "Newton": (1.312, 103.838), "Orchard": (1.303, 103.832),
+        "River Valley": (1.297, 103.831), "Outram": (1.282, 103.839), "Marina Bay": (1.281, 103.856),
+        "Mountbatten": (1.304, 103.884), "Balestier": (1.326, 103.851), "Potong Pasir": (1.331, 103.868),
+        "Queenstown": (1.294, 103.806), "Bukit Merah": (1.281, 103.823), "Telok Blangah": (1.272, 103.809),
+        "Sentosa": (1.249, 103.830), "Jurong West": (1.345, 103.705), "Jurong East": (1.333, 103.742),
+        "Bukit Batok": (1.349, 103.749), "Bukit Panjang": (1.377, 103.771), "Choa Chu Kang": (1.385, 103.744),
+        "Tengah": (1.364, 103.729), "Clementi": (1.316, 103.764), "West Coast": (1.303, 103.765),
+        "Boon Lay": (1.338, 103.705), "Pioneer": (1.318, 103.697), "Tuas": (1.329, 103.636)
     }
 
     for region, (lat, lon) in REGIONS.items():
         folium.Marker(
             location=[lat, lon],
             icon=folium.DivIcon(html=f'<div class="region-label">{region}</div>'),
-            interactive=False # Keeps it from blocking clicks on schools beneath it
+            interactive=False
         ).add_to(region_group)
-        
     region_group.add_to(m)
+
+    # ==========================================
+    # DIRECTORY DATA STRUCTURE (For Side Panel)
+    # ==========================================
+    schools_dir = {"PRIMARY": [], "SECONDARY": [], "JUNIOR COLLEGE": [], "INTERNATIONAL": []}
 
     print(f"[*] Plotting {len(schools)} schools...")
     primary_group = folium.FeatureGroup(name="Primary Schools (Sky Blue)")
     secondary_group = folium.FeatureGroup(name="Secondary Schools (Violet)")
+    jc_group = folium.FeatureGroup(name="Junior Colleges (Amber)")
     intl_group = folium.FeatureGroup(name="International Schools (Rose Pink)")
     other_group = folium.FeatureGroup(name="Other Institutes (Gray)")
     
@@ -353,16 +325,23 @@ def generate_map():
         lon = school["lon"]
         name = school["name"]
         
-        # Beautiful, modern soft-neon palette that pops nicely
+        # Categorize for the map pins AND the directory panel
         if "PRIMARY" in level:
             fill_color = "#38BDF8" # Sky Blue
             group = primary_group
+            schools_dir["PRIMARY"].append(name)
         elif "SECONDARY" in level:
             fill_color = "#A78BFA" # Soft Violet
             group = secondary_group
+            schools_dir["SECONDARY"].append(name)
+        elif "JUNIOR COLLEGE" in level:
+            fill_color = "#FBBF24" # Golden Amber
+            group = jc_group
+            schools_dir["JUNIOR COLLEGE"].append(name)
         elif "INTERNATIONAL" in level:
             fill_color = "#F472B6" # Rose Pink
             group = intl_group
+            schools_dir["INTERNATIONAL"].append(name)
         else:
             fill_color = "#9CA3AF" # Cool Gray
             group = other_group
@@ -381,6 +360,7 @@ def generate_map():
         
     primary_group.add_to(m)
     secondary_group.add_to(m)
+    jc_group.add_to(m)
     intl_group.add_to(m)
     other_group.add_to(m)
 
@@ -388,8 +368,6 @@ def generate_map():
     branch_group = folium.FeatureGroup(name="Acer Academy Branches", show=True)
     
     for name, (lat, lon) in EXISTING_BRANCHES.items():
-        
-        # Premium Brand Dot for the actual store location
         gradient_style = (
             "background: linear-gradient(135deg, #FFD700, #00E5FF, #00FF00, #FF3D00); "
             "border-radius: 50%; width: 28px; height: 28px; display: flex; "
@@ -397,7 +375,6 @@ def generate_map():
             "font-size: 14px; box-shadow: 0 0 12px rgba(0,0,0,0.5); "
             "border: 2px solid white; overflow: hidden;"
         )
-        
         logo_url = "https://i.imgur.com/YhyOq9V.png"
         icon_html = f'<div style="{gradient_style}"><img src="{logo_url}" style="width: 100%; object-fit: contain;"></div>'
         
@@ -408,7 +385,6 @@ def generate_map():
             icon=folium.DivIcon(html=icon_html, icon_size=(28, 28), icon_anchor=(14, 14))
         ).add_to(branch_group)
         
-        # 1.5km Catchment Ring - Electric Cyan
         folium.Circle(
             location=[lat, lon],
             radius=1500, # 1.5km in meters
@@ -416,11 +392,56 @@ def generate_map():
             color="#00C9FF", # Premium Glowing Electric Cyan
             weight=2,
             fill_color="#00C9FF",
-            fill_opacity=0.18 # Highly translucent but clearly visible
+            fill_opacity=0.18
         ).add_to(branch_group)
-        
     branch_group.add_to(m)
     
+    # ==========================================
+    # BUILD DYNAMIC DIRECTORY SIDEBAR HTML
+    # ==========================================
+    sidebar_html = """
+    <button id="directory-btn">&#9776; Directory</button>
+    <div id="side-panel">
+        <div class="panel-header">
+            <h2>Locations</h2>
+            <button id="close-panel">&times;</button>
+        </div>
+        <div class="panel-content">
+            <h3>Acer Academy Centers</h3>
+            <ul>
+    """
+    for name in sorted(EXISTING_BRANCHES.keys()):
+        sidebar_html += f"<li>{name}</li>"
+    sidebar_html += "</ul><h3>Institutions</h3>"
+    
+    # Iterate dynamically through categories and lists
+    category_colors = {"PRIMARY": "#38BDF8", "SECONDARY": "#A78BFA", "JUNIOR COLLEGE": "#FBBF24", "INTERNATIONAL": "#F472B6"}
+    for category, cat_color in category_colors.items():
+        if schools_dir[category]:
+            sidebar_html += f"<h4 style='color: {cat_color};'>{category.title()} ({len(schools_dir[category])})</h4><ul>"
+            for school_name in sorted(schools_dir[category]):
+                sidebar_html += f"<li>{school_name}</li>"
+            sidebar_html += "</ul>"
+            
+    sidebar_html += """
+        </div>
+    </div>
+    <script>
+        // Toggle Sidebar Script
+        document.getElementById('directory-btn').addEventListener('click', function() {
+            document.getElementById('side-panel').classList.add('open');
+            this.style.opacity = '0';
+            this.style.pointerEvents = 'none';
+        });
+        document.getElementById('close-panel').addEventListener('click', function() {
+            document.getElementById('side-panel').classList.remove('open');
+            document.getElementById('directory-btn').style.opacity = '1';
+            document.getElementById('directory-btn').style.pointerEvents = 'auto';
+        });
+    </script>
+    """
+    m.get_root().html.add_child(Element(sidebar_html))
+
     # Live Dark Mode JS Engine + Legend HTML
     legend_html = '''
     <div id="legend-box" style="
@@ -457,6 +478,11 @@ def generate_map():
             <div style="background: #A78BFA; width: 14px; height: 14px; border-radius: 50%; border: 1px solid white; margin-right: 18px; margin-left: 4px;"></div>
             <span class="legend-text" style="color: white; font-weight: 500;">Secondary School</span>
         </div>
+
+        <div style="display: flex; align-items: center; margin-bottom: 12px;">
+            <div style="background: #FBBF24; width: 14px; height: 14px; border-radius: 50%; border: 1px solid white; margin-right: 18px; margin-left: 4px;"></div>
+            <span class="legend-text" style="color: white; font-weight: 500;">Junior College</span>
+        </div>
         
         <div style="display: flex; align-items: center; margin-bottom: 5px;">
             <div style="background: #F472B6; width: 14px; height: 14px; border-radius: 50%; border: 1px solid white; margin-right: 18px; margin-left: 4px;"></div>
@@ -465,10 +491,6 @@ def generate_map():
     </div>
     
     <script>
-    // The "Invert Trick" Engine
-    // This script takes the ultra-detailed OpenStreetMap base layer and inverts its colors.
-    // We apply a 100% grayscale filter first to completely strip out the ugly red/yellow highways,
-    // resulting in a perfectly clean, high-contrast monochrome Dark Mode!
     document.addEventListener("DOMContentLoaded", function() {
         var map = null;
         for (var key in window) {
@@ -476,19 +498,18 @@ def generate_map():
         }
         if (map) {
             var tilePane = document.querySelector('.leaflet-tile-pane');
-            
-            // Apply the custom Monochrome Dark Mode filter
             tilePane.style.filter = 'grayscale(100%) invert(100%) brightness(95%) contrast(115%)';
 
             map.on('baselayerchange', function(e) {
                 var legend = document.getElementById('legend-box');
+                var sidePanel = document.getElementById('side-panel');
                 var title = legend ? legend.querySelector('h4') : null;
                 var innerRing = document.getElementById('legend-ring-inner');
                 var spans = legend ? legend.querySelectorAll('span.legend-text') : [];
                 var regionLabels = document.querySelectorAll('.region-label');
                 
                 if (e.name === 'Light Canvas') {
-                    // Clean Grayscale Light Mode
+                    // Light Mode
                     tilePane.style.filter = 'grayscale(100%) brightness(1) contrast(1.05)';
                     if (legend) {
                         legend.style.backgroundColor = 'rgba(255, 255, 255, 0.9)';
@@ -498,13 +519,20 @@ def generate_map():
                         spans.forEach(s => s.style.color = '#333');
                         if (innerRing) innerRing.style.backgroundColor = 'rgba(255, 255, 255, 0.8)';
                     }
+                    if (sidePanel) {
+                        sidePanel.style.backgroundColor = 'rgba(255, 255, 255, 0.95)';
+                        var spTitle = sidePanel.querySelector('.panel-header h2');
+                        if (spTitle) spTitle.style.color = '#111';
+                        var spListItems = sidePanel.querySelectorAll('li');
+                        spListItems.forEach(li => li.style.color = '#333');
+                    }
                     regionLabels.forEach(lbl => {
-                        lbl.style.color = 'rgba(50, 50, 50, 0.85)';
-                        lbl.style.textShadow = '0px 0px 8px rgba(0,0,0,0.1), 0px 0px 15px rgba(255,255,255,1)';
-                        lbl.style.fontWeight = '600';
+                        lbl.style.color = 'rgba(50, 50, 50, 0.9)';
+                        lbl.style.textShadow = '0px 0px 8px rgba(255,255,255,1), 0px 0px 15px rgba(255,255,255,0.8)';
+                        lbl.style.fontWeight = '400';
                     });
                 } else {
-                    // Re-apply the magical Monochrome Dark Mode filter
+                    // Dark Mode
                     tilePane.style.filter = 'grayscale(100%) invert(100%) brightness(95%) contrast(115%)';
                     if (legend) {
                         legend.style.backgroundColor = 'rgba(20, 20, 20, 0.85)';
@@ -514,10 +542,17 @@ def generate_map():
                         spans.forEach(s => s.style.color = 'white');
                         if (innerRing) innerRing.style.backgroundColor = 'rgba(20, 20, 20, 0.85)';
                     }
+                    if (sidePanel) {
+                        sidePanel.style.backgroundColor = 'rgba(20, 20, 20, 0.90)';
+                        var spTitle = sidePanel.querySelector('.panel-header h2');
+                        if (spTitle) spTitle.style.color = '#00E5FF';
+                        var spListItems = sidePanel.querySelectorAll('li');
+                        spListItems.forEach(li => li.style.color = 'rgba(255,255,255,0.8)');
+                    }
                     regionLabels.forEach(lbl => {
-                        lbl.style.color = 'rgba(255, 255, 255, 0.8)';
-                        lbl.style.textShadow = '0px 0px 8px rgba(255,255,255,0.4), 0px 0px 15px rgba(0,0,0,0.9)';
-                        lbl.style.fontWeight = '500';
+                        lbl.style.color = 'rgba(255, 255, 255, 0.95)';
+                        lbl.style.textShadow = '0px 0px 8px rgba(255,255,255,0.7), 0px 0px 18px rgba(255,255,255,0.4)';
+                        lbl.style.fontWeight = '300';
                     });
                 }
             });
