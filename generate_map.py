@@ -365,8 +365,8 @@ def generate_map():
     <script>
     // The "Invert Trick" Engine
     // This script takes the ultra-detailed OpenStreetMap base layer and inverts its colors.
-    // White background -> Black. Black text -> Glowing White. 
-    // The hue rotation ensures water stays blue and parks stay green!
+    // We apply a 100% grayscale filter first to completely strip out the ugly red/yellow highways,
+    // resulting in a perfectly clean, high-contrast monochrome Dark Mode!
     document.addEventListener("DOMContentLoaded", function() {
         var map = null;
         for (var key in window) {
@@ -375,8 +375,8 @@ def generate_map():
         if (map) {
             var tilePane = document.querySelector('.leaflet-tile-pane');
             
-            // Apply the custom Dark Mode Inversion filter to the default map on load
-            tilePane.style.filter = 'invert(100%) hue-rotate(180deg) brightness(95%) contrast(105%)';
+            // Apply the custom Monochrome Dark Mode filter
+            tilePane.style.filter = 'grayscale(100%) invert(100%) brightness(95%) contrast(115%)';
 
             map.on('baselayerchange', function(e) {
                 var legend = document.getElementById('legend-box');
@@ -385,8 +385,8 @@ def generate_map():
                 var spans = legend ? legend.querySelectorAll('span.legend-text') : [];
                 
                 if (e.name === 'Light Canvas') {
-                    // Standard Light Mode styling
-                    tilePane.style.filter = 'grayscale(15%) brightness(1)';
+                    // Clean Grayscale Light Mode
+                    tilePane.style.filter = 'grayscale(100%) brightness(1) contrast(1.05)';
                     if (legend) {
                         legend.style.backgroundColor = 'rgba(255, 255, 255, 0.9)';
                         legend.style.borderColor = '#ccc';
@@ -396,8 +396,8 @@ def generate_map():
                         if (innerRing) innerRing.style.backgroundColor = 'rgba(255, 255, 255, 0.8)';
                     }
                 } else {
-                    // Re-apply the magical Dark Mode Inversion filter
-                    tilePane.style.filter = 'invert(100%) hue-rotate(180deg) brightness(95%) contrast(105%)';
+                    // Re-apply the magical Monochrome Dark Mode filter
+                    tilePane.style.filter = 'grayscale(100%) invert(100%) brightness(95%) contrast(115%)';
                     if (legend) {
                         legend.style.backgroundColor = 'rgba(20, 20, 20, 0.85)';
                         legend.style.borderColor = 'rgba(255,255,255,0.15)';
