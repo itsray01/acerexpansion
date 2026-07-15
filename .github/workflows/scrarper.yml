@@ -19,9 +19,10 @@ jobs:
           python-version: '3.10'
 
       - name: Install Dependencies
-        # Added pandas to support your new CSV fetching function
+        # Added pandas for CSV fetching and playwright for E-Bidding DOM scraping
         run: |
-          pip install requests pandas
+          pip install requests pandas playwright
+          python -m playwright install chromium
 
       - name: Run HDB Bidding Bot
         env:
