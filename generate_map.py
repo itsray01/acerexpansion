@@ -57,10 +57,13 @@ def generate_map():
     # Inject Custom CSS to overhaul the tooltips and completely redesign the Layers Control Menu
     custom_css = """
     <style>
+    @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600&display=swap');
+
     /* Global Tooltip Styling */
     .leaflet-tooltip {
-        font-size: 16px !important;
-        font-weight: bold !important;
+        font-family: 'Montserrat', sans-serif !important;
+        font-size: 15px !important;
+        font-weight: 600 !important;
         padding: 10px 14px !important;
         background-color: rgba(20, 20, 20, 0.95) !important;
         color: white !important;
@@ -68,7 +71,7 @@ def generate_map():
         border-radius: 8px !important;
         box-shadow: 0 4px 10px rgba(0,0,0,0.5) !important;
     }
-    .leaflet-popup-content { font-size: 15px !important; line-height: 1.4 !important; }
+    .leaflet-popup-content { font-family: 'Montserrat', sans-serif !important; font-size: 14px !important; line-height: 1.4 !important; }
 
     /* ====================================================
        OVERHAUL: CUSTOM BRANDED TRANSLUCENT LAYERS MENU
@@ -120,7 +123,7 @@ def generate_map():
         border: 1px solid rgba(255,255,255,0.15) !important;
         border-radius: 18px !important;
         padding: 22px 28px !important;
-        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif !important;
+        font-family: 'Montserrat', sans-serif !important;
         box-shadow: 0 15px 40px rgba(0,0,0,0.7) !important;
         min-width: 230px !important;
     }
@@ -129,7 +132,7 @@ def generate_map():
     .leaflet-control-layers-list::before {
         content: "Map Display Settings";
         display: block;
-        font-size: 16px;
+        font-size: 15px;
         font-weight: 700;
         color: #00E5FF; /* Glowing Cyan */
         text-transform: uppercase;
@@ -141,7 +144,7 @@ def generate_map():
 
     /* Text & Spacing */
     .leaflet-control-layers-list {
-        font-size: 15px !important;
+        font-size: 14px !important;
         margin-bottom: 0 !important;
     }
     
@@ -215,19 +218,20 @@ def generate_map():
         border-radius: 50%;
     }
 
-    /* Prominent Region Labels */
+    /* Sleek Glowing Region Labels */
     .region-label {
-        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif !important;
-        font-size: 15px !important;
-        font-weight: 900 !important;
+        font-family: 'Montserrat', sans-serif !important;
+        font-size: 13px !important;
+        font-weight: 500 !important;
         color: rgba(255, 255, 255, 0.8) !important;
         text-transform: uppercase !important;
-        letter-spacing: 2.5px !important;
-        text-shadow: 0px 0px 12px rgba(0,0,0,1), 0px 0px 5px rgba(0,0,0,1) !important;
+        letter-spacing: 3.5px !important;
+        /* Ethereal white glow paired with a grounding dark shadow */
+        text-shadow: 0px 0px 8px rgba(255,255,255,0.4), 0px 0px 15px rgba(0,0,0,0.9) !important;
         white-space: nowrap !important;
         pointer-events: none !important; /* Acts like a ghost, doesn't block clicking pins underneath */
         transform: translate(-50%, -50%) !important;
-        transition: all 0.3s ease !important;
+        transition: all 0.4s ease !important;
     }
     </style>
     """
@@ -255,40 +259,77 @@ def generate_map():
         print(f"[!] Warning: Network error fetching borders ({e}). Skipping boundary layer.")
 
     # ==========================================
-    # INJECT PROMINENT REGION WATERMARKS
+    # INJECT SLEEK REGION WATERMARKS (Massive Deep Dive)
     # ==========================================
-    print(f"[*] Injecting Prominent Region Watermarks...")
+    print(f"[*] Injecting Extended Region Watermarks...")
     region_group = folium.FeatureGroup(name="Town & Region Labels", show=True)
     
     REGIONS = {
+        # NORTH
+        "Woodlands": (1.436, 103.786),
+        "Sembawang": (1.449, 103.818),
+        "Yishun": (1.430, 103.835),
+        "Mandai": (1.424, 103.811),
+        "Simpang": (1.444, 103.844),
+        "Lim Chu Kang": (1.433, 103.714),
+        "Sungei Kadut": (1.414, 103.754),
+        
+        # NORTHEAST
+        "Ang Mo Kio": (1.369, 103.845),
+        "Hougang": (1.371, 103.892),
+        "Sengkang": (1.392, 103.894),
+        "Punggol": (1.405, 103.902),
+        "Seletar": (1.408, 103.874),
+        "Buangkok": (1.382, 103.893),
+        "Serangoon": (1.355, 103.867),
+        
+        # EAST
+        "Pasir Ris": (1.372, 103.947),
+        "Tampines": (1.349, 103.943),
+        "Bedok": (1.323, 103.927),
+        "Changi": (1.365, 103.988),
+        "Paya Lebar": (1.334, 103.888),
+        "MacPherson": (1.326, 103.889),
+        "Kembangan": (1.321, 103.912),
+        "Simei": (1.343, 103.953),
+        
+        # CENTRAL
+        "Bishan": (1.352, 103.848),
+        "Toa Payoh": (1.334, 103.856),
+        "Central Area": (1.286, 103.854),
+        "Kallang": (1.310, 103.865),
+        "Geylang": (1.318, 103.887),
+        "Marine Parade": (1.302, 103.904),
+        "Bukit Timah": (1.329, 103.793),
+        "Thomson": (1.361, 103.829),
+        "Novena": (1.320, 103.843),
+        "Newton": (1.312, 103.838),
+        "Orchard": (1.303, 103.832),
+        "River Valley": (1.297, 103.831),
+        "Outram": (1.282, 103.839),
+        "Marina Bay": (1.281, 103.856),
+        "Mountbatten": (1.304, 103.884),
+        "Balestier": (1.326, 103.851),
+        "Potong Pasir": (1.331, 103.868),
+        
+        # SOUTH
+        "Queenstown": (1.294, 103.806),
+        "Bukit Merah": (1.281, 103.823),
+        "Telok Blangah": (1.272, 103.809),
+        "Sentosa": (1.249, 103.830),
+        
+        # WEST
         "Jurong West": (1.345, 103.705),
         "Jurong East": (1.333, 103.742),
         "Bukit Batok": (1.349, 103.749),
         "Bukit Panjang": (1.377, 103.771),
         "Choa Chu Kang": (1.385, 103.744),
         "Tengah": (1.364, 103.729),
-        "Woodlands": (1.436, 103.786),
-        "Sembawang": (1.449, 103.818),
-        "Yishun": (1.430, 103.835),
-        "Ang Mo Kio": (1.369, 103.845),
-        "Bishan": (1.352, 103.848),
-        "Toa Payoh": (1.334, 103.856),
         "Clementi": (1.316, 103.764),
-        "Queenstown": (1.294, 103.806),
-        "Bukit Merah": (1.281, 103.823),
-        "Central Area": (1.286, 103.854),
-        "Kallang": (1.310, 103.865),
-        "Geylang": (1.318, 103.887),
-        "Hougang": (1.371, 103.892),
-        "Sengkang": (1.392, 103.894),
-        "Buangkok": (1.382, 103.893),
-        "Punggol": (1.405, 103.902),
-        "Pasir Ris": (1.372, 103.947),
-        "Tampines": (1.349, 103.943),
-        "Bedok": (1.323, 103.927),
-        "Marine Parade": (1.302, 103.904),
-        "Bukit Timah": (1.329, 103.793),
-        "Serangoon": (1.355, 103.867)
+        "West Coast": (1.303, 103.765),
+        "Boon Lay": (1.338, 103.705),
+        "Pioneer": (1.318, 103.697),
+        "Tuas": (1.329, 103.636)
     }
 
     for region, (lat, lon) in REGIONS.items():
@@ -330,7 +371,7 @@ def generate_map():
             location=[lat, lon],
             radius=7, 
             popup=f"<b style='color: {fill_color}'>{name}</b><br>{level.title()}",
-            tooltip=f"<span style='font-size: 15px;'>{name}</span>",
+            tooltip=f"<span style='font-size: 14px;'>{name}</span>",
             color="white", # Crisp white outline
             weight=1,
             fill_color=fill_color,
@@ -363,7 +404,7 @@ def generate_map():
         folium.Marker(
             location=[lat, lon],
             popup=f"<b style='color: #FF9800;'>ACER ACADEMY</b><br>{name}",
-            tooltip=f"<span style='font-size: 18px; font-weight: bold; white-space: nowrap;'>★ {name}</span>",
+            tooltip=f"<span style='font-size: 16px; font-weight: bold; white-space: nowrap;'>★ {name}</span>",
             icon=folium.DivIcon(html=icon_html, icon_size=(28, 28), icon_anchor=(14, 14))
         ).add_to(branch_group)
         
@@ -387,24 +428,24 @@ def generate_map():
         bottom: 50px; left: 50px; width: 260px; height: auto; 
         background-color: rgba(20, 20, 20, 0.85); z-index:9999; font-size:14px;
         border: 1px solid rgba(255,255,255,0.15); border-radius: 16px; padding: 20px; color: #E0E0E0;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.6); font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.6); font-family: 'Montserrat', sans-serif;
         backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
         transition: all 0.3s ease;
         ">
-        <h4 style="margin-top:0; border-bottom:1px solid rgba(255,255,255,0.15); padding-bottom:12px; color: #00E5FF; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; font-size: 15px;">Expansion Map</h4>
+        <h4 style="margin-top:0; border-bottom:1px solid rgba(255,255,255,0.15); padding-bottom:12px; color: #00E5FF; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; font-size: 14px;">Expansion Map</h4>
         
         <div style="display: flex; align-items: center; margin-bottom: 14px; margin-top: 15px;">
             <div style="background: linear-gradient(135deg, #FFD700, #00E5FF, #00FF00, #FF3D00); width: 22px; height: 22px; border-radius: 50%; border: 1px solid white; margin-right: 14px; display: flex; justify-content: center; align-items: center; overflow: hidden; box-shadow: 0 0 5px rgba(0,0,0,0.5);">
                 <img src="https://i.imgur.com/YhyOq9V.png" style="width: 100%;">
             </div>
-            <span class="legend-text" style="font-weight: bold; color: white;">Acer Academy</span>
+            <span class="legend-text" style="font-weight: 600; color: white;">Acer Academy</span>
         </div>
         
         <div style="display: flex; align-items: center; margin-bottom: 18px;">
             <div style="width: 22px; height: 22px; border-radius: 50%; padding: 2px; background: #00C9FF; margin-right: 14px; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 5px rgba(0,0,0,0.5);">
                 <div id="legend-ring-inner" style="width: 100%; height: 100%; border-radius: 50%; background: rgba(20, 20, 20, 0.85);"></div>
             </div>
-            <span class="legend-text" style="color: white;">1.5km Radius Ring</span>
+            <span class="legend-text" style="color: white; font-weight: 500;">1.5km Radius Ring</span>
         </div>
         
         <div style="display: flex; align-items: center; margin-bottom: 12px;">
@@ -458,8 +499,9 @@ def generate_map():
                         if (innerRing) innerRing.style.backgroundColor = 'rgba(255, 255, 255, 0.8)';
                     }
                     regionLabels.forEach(lbl => {
-                        lbl.style.color = 'rgba(0, 0, 0, 0.75)';
-                        lbl.style.textShadow = '0px 0px 12px rgba(255,255,255,1), 0px 0px 5px rgba(255,255,255,1)';
+                        lbl.style.color = 'rgba(50, 50, 50, 0.85)';
+                        lbl.style.textShadow = '0px 0px 8px rgba(0,0,0,0.1), 0px 0px 15px rgba(255,255,255,1)';
+                        lbl.style.fontWeight = '600';
                     });
                 } else {
                     // Re-apply the magical Monochrome Dark Mode filter
@@ -474,7 +516,8 @@ def generate_map():
                     }
                     regionLabels.forEach(lbl => {
                         lbl.style.color = 'rgba(255, 255, 255, 0.8)';
-                        lbl.style.textShadow = '0px 0px 12px rgba(0,0,0,1), 0px 0px 5px rgba(0,0,0,1)';
+                        lbl.style.textShadow = '0px 0px 8px rgba(255,255,255,0.4), 0px 0px 15px rgba(0,0,0,0.9)';
+                        lbl.style.fontWeight = '500';
                     });
                 }
             });
