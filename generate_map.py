@@ -172,17 +172,17 @@ def generate_map():
     }
 
     /* ====================================================
-       SLEEK, GLOWING REGION LABELS
+       SLEEK, BRIGHT GLOWING REGION LABELS
        ==================================================== */
     .region-label {
         font-family: 'Montserrat', sans-serif !important;
-        font-size: 12px !important;
-        font-weight: 300 !important; /* Elegant Light Weight instead of bold */
-        color: rgba(255, 255, 255, 0.95) !important;
+        font-size: 13px !important;
+        font-weight: 300 !important; /* Elegant Light Weight */
+        color: #ffffff !important; /* Pure white for max brightness */
         text-transform: uppercase !important;
         letter-spacing: 3.5px !important;
-        /* Replaced dark shadow with a pure, ethereal glowing halo */
-        text-shadow: 0px 0px 8px rgba(255,255,255,0.7), 0px 0px 18px rgba(255,255,255,0.4) !important;
+        /* Stacked bright white glow with a grounding dark drop shadow for max legibility */
+        text-shadow: 0px 0px 4px rgba(255,255,255,1), 0px 0px 10px rgba(255,255,255,0.8), 0px 0px 20px rgba(255,255,255,0.5), 0px 2px 5px rgba(0,0,0,0.8) !important;
         white-space: nowrap !important;
         pointer-events: none !important; 
         transform: translate(-50%, -50%) !important;
@@ -527,9 +527,9 @@ def generate_map():
                         spListItems.forEach(li => li.style.color = '#333');
                     }
                     regionLabels.forEach(lbl => {
-                        lbl.style.color = 'rgba(50, 50, 50, 0.9)';
-                        lbl.style.textShadow = '0px 0px 8px rgba(255,255,255,1), 0px 0px 15px rgba(255,255,255,0.8)';
-                        lbl.style.fontWeight = '400';
+                        lbl.style.color = '#333';
+                        lbl.style.textShadow = '0px 0px 6px rgba(255,255,255,1), 0px 0px 12px rgba(255,255,255,1), 0px 0px 18px rgba(255,255,255,0.8)';
+                        lbl.style.fontWeight = '500';
                     });
                 } else {
                     // Dark Mode
@@ -550,8 +550,8 @@ def generate_map():
                         spListItems.forEach(li => li.style.color = 'rgba(255,255,255,0.8)');
                     }
                     regionLabels.forEach(lbl => {
-                        lbl.style.color = 'rgba(255, 255, 255, 0.95)';
-                        lbl.style.textShadow = '0px 0px 8px rgba(255,255,255,0.7), 0px 0px 18px rgba(255,255,255,0.4)';
+                        lbl.style.color = '#ffffff';
+                        lbl.style.textShadow = '0px 0px 4px rgba(255,255,255,1), 0px 0px 10px rgba(255,255,255,0.8), 0px 0px 20px rgba(255,255,255,0.5), 0px 2px 5px rgba(0,0,0,0.8)';
                         lbl.style.fontWeight = '300';
                     });
                 }
