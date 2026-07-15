@@ -360,7 +360,7 @@ def extract_closing_date(item, item_id, link_path):
     if item_id:
         debug_log(f"[*] Date hidden in API. Hard-scraping frontend UI for unit {item_id}...")
         try:
-            page_url = f"https://place2lease.hdb.gov.sg/public/view-properties/true/{link_path}/{item_id}"
+            page_url = f"https://place2lease.hdb.gov.sg/public/view-properties/true/ebid-unit-details/{item_id}"
             headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
             proxies = get_proxies()
             
@@ -380,6 +380,32 @@ def extract_closing_date(item, item_id, link_path):
             debug_log(f"[*] Fallback date scrape failed: {e}")
             
     return "TBA"
+
+def extract_starting_bid(item_id):
+    """
+    Scrapes the starting bid directly from the Place2Lease detail page
+    for E-Bidding listings using the specific class 'text-start bold'.
+    """
+    if not item_id:
+        return 0.0
+        
+    debug_log(f"[*] E-Bidding unit detected. Fetching Starting Bid for ID: {item_id}...")
+    page_url = f"https://place2lease.hdb.gov.sg/public/view-properties/true/ebid-unit-details/{item_id}"
+    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
+    proxies = get_proxies()
+    
+    try:
+        html_res = requests.get(page_url, headers=headers, proxies=proxies, timeout=15)
+        # Search the raw HTML for the specific 'text-start bold' class containing the bid amount
+        match = re.search(r'class=["\'][^"\']*text-start\s+bold[^"\']*["\'][^>]*>\s*(?:S\$|\$)?\s*([0-9,]+(?:\.\d{2})?)\s*<', html_res.text, re.IGNORECASE)
+        
+        if match:
+            clean_val = match.group(1).replace(',', '')
+            return float(clean_val)
+    except Exception as e:
+        debug_log(f"[!] Failed to extract starting bid for {item_id}: {e}")
+        
+    return 0.0
 
 def scrape_hdb_place2lease():
     debug_log("[*] Intercepting internal HDB JSON feed...")
@@ -465,9 +491,15 @@ def scrape_hdb_place2lease():
 
                 matched_key = item.get("hdbTown", "Unmapped Region").title()
                 
+                # Fetch Current/Highest Price
                 price = float(item.get("currentBid") or item.get("highestBid") or item.get("tenderPrice") or item.get("price") or 0.0)
                 tender_type = str(item.get("tenderType", "")).lower()
                 is_sealed = ("price only" in tender_type or "sealed" in tender_type or price == 0.0)
+                
+                # CONDITIONAL SCRAPING: Only grab starting bid if E-Bidding
+                starting_bid = 0.0
+                if "e-bidding" in tender_type:
+                    starting_bid = extract_starting_bid(item_id)
                 
                 # End Date directly from JSON
                 closing_date = item.get("bidClosingDate", "TBA")
@@ -493,7 +525,9 @@ def scrape_hdb_place2lease():
                     "sqft": sqft,
                     "sqm": round(sqm),
                     "price": price,
+                    "starting_bid": starting_bid,
                     "is_sealed": is_sealed,
+                    "tender_type": tender_type,
                     "trade_type": trade_type,
                     "closing_date": closing_date,
                     "link": direct_link,
@@ -561,12 +595,22 @@ def main():
         hdb_psf_bid = est_private_psf * 0.65 
         est_monthly = hdb_psf_bid * unit['sqft']
 
-        if unit["is_sealed"] or unit["price"] == 0:
+        # Determine Display Price (Sealed vs E-bidding w/ Starting Bid vs Price Only)
+        if unit["is_sealed"] or (unit["price"] == 0 and unit.get("starting_bid", 0) == 0):
             price_status = "🔒 Sealed Tender"
         else:
-            psf = round(unit["price"] / unit["sqft"], 2)
+            display_price = unit["price"] if unit["price"] > 0 else unit["starting_bid"]
+            psf = round(display_price / unit["sqft"], 2) if unit["sqft"] > 0 else 0.0
             psf_flag = " ⚠️ (Above Market)" if psf > MAX_PSF_THRESHOLD else ""
-            price_status = f"${unit['price']:,.0f}/mo (${psf:.2f} psf){psf_flag}"
+            
+            # Format display based on whether E-Bidding Starting Bid exists
+            if "e-bidding" in unit["tender_type"] and unit.get("starting_bid", 0) > 0:
+                if unit["price"] > 0 and unit["price"] > unit["starting_bid"]:
+                    price_status = f"${unit['price']:,.0f}/mo (Starts at ${unit['starting_bid']:,.0f}) (${psf:.2f} psf){psf_flag}"
+                else:
+                    price_status = f"${unit['starting_bid']:,.0f}/mo (Starting Bid) (${psf:.2f} psf){psf_flag}"
+            else:
+                price_status = f"${unit['price']:,.0f}/mo (${psf:.2f} psf){psf_flag}"
 
         lat, lon = get_robust_gps(unit["address"], cluster_key=unit["cluster_key"])
         display_address = format_display_address(unit['address'])
