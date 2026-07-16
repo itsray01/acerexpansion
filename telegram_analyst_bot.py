@@ -317,6 +317,10 @@ if __name__ == '__main__':
         print("[!] CRITICAL: TELEGRAM_BOT_TOKEN is missing from your .env file!")
         exit(1)
         
+    print("[*] Verifying Playwright Browser Binaries for Cloud Environment...")
+    # This automatically reinstalls Chromium if Render deletes the cache folder!
+    subprocess.run([sys.executable, "-m", "playwright", "install", "chromium"])
+        
     print("[*] Initializing Acer Command Center Bot...")
     app = ApplicationBuilder().token(TOKEN).build()
     
