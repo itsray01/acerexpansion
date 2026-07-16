@@ -607,46 +607,63 @@ def generate_map():
             });
 
             // ==========================================
-            // SIMULATION CLICK ENGINE
+            // SIMULATION CLICK ENGINE (UPGRADED)
             // ==========================================
             var simActive = false;
             var simLayer = null;
 
             map.on('overlayadd', function(e) {
-                if (e.name === 'Simulate New Branch (Click Map)') {
+                if (e.name && e.name.includes('Simulate New Branch')) {
                     simActive = true;
                     simLayer = e.layer;
+                    // Provide visual feedback that the tool is active
+                    map.getContainer().style.cursor = 'crosshair'; 
+                    // Prevent accidental zooming when double clicking
+                    map.doubleClickZoom.disable(); 
                 }
             });
 
             map.on('overlayremove', function(e) {
-                if (e.name === 'Simulate New Branch (Click Map)') {
+                if (e.name && e.name.includes('Simulate New Branch')) {
                     simActive = false;
+                    map.getContainer().style.cursor = '';
+                    map.doubleClickZoom.enable();
                 }
             });
 
-            map.on('click', function(e) {
+            // "Capture Phase" click listener bypasses the school dots eating the clicks!
+            map.getContainer().addEventListener('click', function(e) {
                 if (!simActive || !simLayer) return;
                 
-                // Draw new simulated neon green radius ring
-                var circle = L.circle(e.latlng, {
+                // Ignore clicks on UI elements, tooltips, or popups
+                if (e.target.closest && e.target.closest('.leaflet-control-container')) return;
+                if (e.target.closest && e.target.closest('.leaflet-popup')) return;
+                
+                // Ignore if they are clicking a simulation circle to remove it
+                if (e.target.classList && e.target.classList.contains('sim-circle')) return;
+                
+                // Convert mouse position to map coordinates
+                var latlng = map.mouseEventToLatLng(e);
+                
+                var circle = L.circle(latlng, {
                     radius: 1500, // 1.5km
                     color: '#39FF14', // Neon Green
                     weight: 2.5,
                     fillColor: '#39FF14',
                     fillOpacity: 0.18,
                     interactive: true,
-                    bubblingMouseEvents: false // Prevents the map click from firing when clicking the circle to remove it
+                    className: 'sim-circle'
                 });
                 
                 circle.bindTooltip("<span style='font-size: 14px; font-weight: bold;'>Simulated Zone<br>👆 Click to remove</span>", {direction: 'top'});
                 
                 circle.on('click', function(ev) {
-                    simLayer.removeLayer(circle); // Remove self on click
+                    L.DomEvent.stopPropagation(ev); // Prevent circle deletion from triggering a new drop
+                    simLayer.removeLayer(circle); 
                 });
                 
                 simLayer.addLayer(circle);
-            });
+            }, true); // `true` forces it to run before the school dot can stop the click!
 
             // ==========================================
             // BASE LAYER THEME MANAGER
