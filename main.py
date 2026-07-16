@@ -9,9 +9,7 @@ from playwright.sync_api import sync_playwright
 # ==========================================
 # 1. CONFIGURATION & TARGET METRICS
 # ==========================================
-TELEGRAM_BOT_TOKEN = "8891294738:AAGOuTbxEhZe0Y0wBX0cOFFonFp5m_1bvdA"
-TELEGRAM_CHAT_ID = "-1004306469919"
-STATE_FILE = "seen_listings.json"
+
 
 # Maximum floor area in square meters (~1,200 sqft)
 MAX_AREA_SQM = 111.5 
