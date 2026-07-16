@@ -34,17 +34,20 @@ def get_map_screenshot(png_file="map_preview.png", enable_heatmap=False):
                 args=[
                     "--no-sandbox",
                     "--disable-setuid-sandbox",
-                    "--disable-dev-shm-usage"
+                    "--disable-dev-shm-usage",
+                    "--single-process" # Prevents out-of-memory crashes on free cloud tiers
                 ]
             )
             page = browser.new_page(viewport={"width": 1280, "height": 800})
             
             # Point directly to your hosted live map to bypass local file restrictions
             url = "https://itsray01.github.io/acerexpansion/acer_expansion_map.html"
-            page.goto(url, wait_until="networkidle", timeout=20000)
+            
+            # Changed from 'networkidle' to 'load' because map tiles cause networkidle to time out
+            page.goto(url, wait_until="load", timeout=30000)
             
             # Wait for Leaflet UI to exist before injecting JS
-            page.wait_for_selector('.leaflet-control-zoom-out', timeout=10000)
+            page.wait_for_selector('.leaflet-control-zoom-out', timeout=15000)
             
             # Inject JS to click buttons like a real human
             js_code = """
@@ -241,7 +244,8 @@ async def report(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Sends the analytical mobile summary embedded as a photo caption with HEATMAP screenshot!"""
     await update.message.reply_text("📊 *Calculating coverage & snapping heatmap...*", parse_mode="Markdown")
     
-    # 1. Generate clean text intelligence
+    # 1. Generate clean text intelligence (RESTORED LINE)
+    intel_summary = generate_intelligence_report()
     
     try:
         loop = asyncio.get_running_loop()
