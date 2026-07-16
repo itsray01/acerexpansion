@@ -144,7 +144,7 @@ def generate_map():
         padding: 22px 28px !important;
         font-family: 'Montserrat', sans-serif !important;
         box-shadow: 0 15px 40px rgba(0,0,0,0.7) !important;
-        min-width: 250px !important;
+        min-width: 280px !important;
     }
 
     .leaflet-control-layers-list::before {
@@ -400,6 +400,13 @@ def generate_map():
     heatmap_group.add_to(m)
 
     # ==========================================
+    # INJECT INTERACTIVE SIMULATION LAYER
+    # ==========================================
+    print(f"[*] Injecting Interactive Branch Simulation Engine...")
+    sim_group = folium.FeatureGroup(name="Simulate New Branch (Click Map)", show=False)
+    sim_group.add_to(m)
+
+    # ==========================================
     # PLOT ACER BRANCHES
     # ==========================================
     print(f"[*] Plotting {len(EXISTING_BRANCHES)} Acer Academy Branches & 1.5km Radius Rings...")
@@ -522,7 +529,7 @@ def generate_map():
     """
     m.get_root().html.add_child(Element(sidebar_html))
 
-    # Live Dark Mode JS Engine + Legend HTML
+    # Live Dark Mode JS Engine, Legend HTML & Simulation Interaction Logic
     legend_html = '''
     <div id="legend-box" style="
         position: fixed; 
@@ -552,6 +559,13 @@ def generate_map():
         <div style="display: flex; align-items: center; margin-bottom: 18px;">
             <div style="background: linear-gradient(90deg, #00C9FF, #A78BFA, #F472B6); width: 22px; height: 12px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.5); margin-right: 14px;"></div>
             <span class="legend-text" style="color: white; font-weight: 500;">Expansion Heatmap</span>
+        </div>
+
+        <div style="display: flex; align-items: center; margin-bottom: 18px;">
+            <div style="width: 22px; height: 22px; border-radius: 50%; padding: 2px; background: #39FF14; margin-right: 14px; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 5px rgba(0,0,0,0.5);">
+                <div id="legend-ring-inner-sim" style="width: 100%; height: 100%; border-radius: 50%; background: rgba(20, 20, 20, 0.85);"></div>
+            </div>
+            <span class="legend-text" style="color: white; font-weight: 500;">Simulated Zone (Click)</span>
         </div>
         
         <div style="display: flex; align-items: center; margin-bottom: 12px;">
@@ -592,11 +606,57 @@ def generate_map():
                 lbl.style.fontWeight = '700';
             });
 
+            // ==========================================
+            // SIMULATION CLICK ENGINE
+            // ==========================================
+            var simActive = false;
+            var simLayer = null;
+
+            map.on('overlayadd', function(e) {
+                if (e.name === 'Simulate New Branch (Click Map)') {
+                    simActive = true;
+                    simLayer = e.layer;
+                }
+            });
+
+            map.on('overlayremove', function(e) {
+                if (e.name === 'Simulate New Branch (Click Map)') {
+                    simActive = false;
+                }
+            });
+
+            map.on('click', function(e) {
+                if (!simActive || !simLayer) return;
+                
+                // Draw new simulated neon green radius ring
+                var circle = L.circle(e.latlng, {
+                    radius: 1500, // 1.5km
+                    color: '#39FF14', // Neon Green
+                    weight: 2.5,
+                    fillColor: '#39FF14',
+                    fillOpacity: 0.18,
+                    interactive: true,
+                    bubblingMouseEvents: false // Prevents the map click from firing when clicking the circle to remove it
+                });
+                
+                circle.bindTooltip("<span style='font-size: 14px; font-weight: bold;'>Simulated Zone<br>👆 Click to remove</span>", {direction: 'top'});
+                
+                circle.on('click', function(ev) {
+                    simLayer.removeLayer(circle); // Remove self on click
+                });
+                
+                simLayer.addLayer(circle);
+            });
+
+            // ==========================================
+            // BASE LAYER THEME MANAGER
+            // ==========================================
             map.on('baselayerchange', function(e) {
                 var legend = document.getElementById('legend-box');
                 var sidePanel = document.getElementById('side-panel');
                 var title = legend ? legend.querySelector('h4') : null;
                 var innerRing = document.getElementById('legend-ring-inner');
+                var innerRingSim = document.getElementById('legend-ring-inner-sim');
                 var spans = legend ? legend.querySelectorAll('span.legend-text') : [];
                 var regionLabels = document.querySelectorAll('.region-label');
                 
@@ -612,6 +672,7 @@ def generate_map():
                         title.style.borderBottom = '1px solid rgba(255,255,255,0.15)';
                         spans.forEach(s => s.style.color = 'white');
                         if (innerRing) innerRing.style.backgroundColor = 'rgba(20, 20, 20, 0.85)';
+                        if (innerRingSim) innerRingSim.style.backgroundColor = 'rgba(20, 20, 20, 0.85)';
                     }
                     if (sidePanel) {
                         sidePanel.style.backgroundColor = 'rgba(20, 20, 20, 0.90)';
@@ -637,6 +698,7 @@ def generate_map():
                         title.style.borderBottom = '1px solid #ccc';
                         spans.forEach(s => s.style.color = '#333');
                         if (innerRing) innerRing.style.backgroundColor = 'rgba(255, 255, 255, 0.8)';
+                        if (innerRingSim) innerRingSim.style.backgroundColor = 'rgba(255, 255, 255, 0.8)';
                     }
                     if (sidePanel) {
                         sidePanel.style.backgroundColor = 'rgba(255, 255, 255, 0.95)';
