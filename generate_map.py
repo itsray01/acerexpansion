@@ -1,6 +1,7 @@
 import json
 import os
 import requests
+import math
 import folium
 from folium import plugins
 from folium import Element
@@ -33,6 +34,18 @@ EXISTING_BRANCHES = {
     "Hong Kah (West)": (1.3496, 103.7210)
 }
 
+# ==========================================
+# 2. SPATIAL MATH ENGINE
+# ==========================================
+def haversine(lat1, lon1, lat2, lon2):
+    """Calculate the great-circle distance between two GPS points in meters."""
+    R = 6371000 # Radius of Earth in meters
+    phi1, phi2 = math.radians(lat1), math.radians(lat2)
+    dphi = math.radians(lat2 - lat1)
+    dlambda = math.radians(lon2 - lon1)
+    a = math.sin(dphi/2)**2 + math.cos(phi1)*math.cos(phi2)*math.sin(dlambda/2)**2
+    return 2 * R * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+
 def load_schools():
     if not os.path.exists(SCHOOL_DB_PATH):
         print(f"[!] Cannot find {SCHOOL_DB_PATH}. Run build_school_db.py first!")
@@ -40,6 +53,9 @@ def load_schools():
     with open(SCHOOL_DB_PATH, 'r', encoding='utf-8') as f:
         return json.load(f)
 
+# ==========================================
+# 3. MAP BUILDER
+# ==========================================
 def generate_map():
     print("[*] Booting up Map Engine...")
     schools = load_schools()
@@ -57,7 +73,7 @@ def generate_map():
     # 3. Standard OpenStreetMap (Full original colors)
     folium.TileLayer('OpenStreetMap', name='Standard OpenStreetMap', show=False).add_to(m)
     
-    # Inject Custom CSS to overhaul the tooltips and completely redesign the Layers Control Menu
+    # Inject Custom CSS
     custom_css = """
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap');
@@ -128,7 +144,7 @@ def generate_map():
         padding: 22px 28px !important;
         font-family: 'Montserrat', sans-serif !important;
         box-shadow: 0 15px 40px rgba(0,0,0,0.7) !important;
-        min-width: 230px !important;
+        min-width: 250px !important;
     }
 
     .leaflet-control-layers-list::before {
@@ -301,11 +317,13 @@ def generate_map():
         print(f"[!] Warning: Network error fetching borders ({e}). Skipping boundary layer.")
 
     # ==========================================
-    # DIRECTORY DATA STRUCTURE (For Side Panel)
+    # SPATIAL ANALYSIS: POTENTIAL EXPANSION
     # ==========================================
+    # We will automatically calculate which schools are outside the 1.5km radius of ALL branches
+    potential_expansion_coords = []
     schools_dir = {"PRIMARY": [], "SECONDARY": [], "JUNIOR COLLEGE": [], "INTERNATIONAL": []}
 
-    print(f"[*] Plotting {len(schools)} schools...")
+    print(f"[*] Plotting {len(schools)} schools & running spatial analysis...")
     primary_group = folium.FeatureGroup(name="Primary Schools (Sky Blue)")
     secondary_group = folium.FeatureGroup(name="Secondary Schools (Violet)")
     jc_group = folium.FeatureGroup(name="Junior Colleges (Amber)")
@@ -316,6 +334,16 @@ def generate_map():
         lat = school["lat"]
         lon = school["lon"]
         name = school["name"]
+        
+        # Spatial Check: Is this school within 1.5km of ANY branch?
+        is_covered = False
+        for b_name, (b_lat, b_lon) in EXISTING_BRANCHES.items():
+            if haversine(lat, lon, b_lat, b_lon) <= 1500:
+                is_covered = True
+                break
+        
+        if not is_covered:
+            potential_expansion_coords.append([lat, lon])
         
         # Categorize for the map pins AND the directory panel
         if "PRIMARY" in level:
@@ -354,6 +382,26 @@ def generate_map():
     jc_group.add_to(m)
     intl_group.add_to(m)
 
+    # ==========================================
+    # INJECT AUTOMATED HEATMAP (NEON GRADIENT)
+    # ==========================================
+    # Instead of red/orange, we use a sleek Cyan -> Violet -> Pink gradient to match the modern UI
+    print(f"[*] Generating Heatmap for {len(potential_expansion_coords)} Potential Expansion Targets...")
+    heatmap_group = folium.FeatureGroup(name="Expansion Heatmap (Untapped)", show=False)
+    
+    plugins.HeatMap(
+        potential_expansion_coords,
+        name="Potential Expansion Zones",
+        radius=25,
+        blur=20,
+        gradient={0.4: '#00C9FF', 0.65: '#A78BFA', 1.0: '#F472B6'}
+    ).add_to(heatmap_group)
+    
+    heatmap_group.add_to(m)
+
+    # ==========================================
+    # PLOT ACER BRANCHES
+    # ==========================================
     print(f"[*] Plotting {len(EXISTING_BRANCHES)} Acer Academy Branches & 1.5km Radius Rings...")
     branch_group = folium.FeatureGroup(name="Acer Academy Branches", show=True)
     
@@ -499,6 +547,11 @@ def generate_map():
                 <div id="legend-ring-inner" style="width: 100%; height: 100%; border-radius: 50%; background: rgba(20, 20, 20, 0.85);"></div>
             </div>
             <span class="legend-text" style="color: white; font-weight: 500;">1.5km Radius Ring</span>
+        </div>
+
+        <div style="display: flex; align-items: center; margin-bottom: 18px;">
+            <div style="background: linear-gradient(90deg, #00C9FF, #A78BFA, #F472B6); width: 22px; height: 12px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.5); margin-right: 14px;"></div>
+            <span class="legend-text" style="color: white; font-weight: 500;">Expansion Heatmap</span>
         </div>
         
         <div style="display: flex; align-items: center; margin-bottom: 12px;">
