@@ -48,17 +48,19 @@ def generate_map():
     # Initialize the map with 'tiles=None' so we can explicitly order our base maps
     m = folium.Map(location=[1.3521, 103.8198], zoom_start=13, tiles=None)
     
-    # 1. Dark Streets (This uses OpenStreetMap for maximum detail, but is inverted to Dark Mode via JS below)
+    # 1. Dark Streets (Default)
     folium.TileLayer('OpenStreetMap', name='Dark Streets (Default)', show=True).add_to(m)
     
     # 2. Light Canvas
     folium.TileLayer('CartoDB positron', name='Light Canvas', show=False).add_to(m)
+
+    # 3. Standard OpenStreetMap (Full original colors)
+    folium.TileLayer('OpenStreetMap', name='Standard OpenStreetMap', show=False).add_to(m)
     
     # Inject Custom CSS to overhaul the tooltips and completely redesign the Layers Control Menu
     custom_css = """
     <style>
-    /* Pulled lighter weights (300, 400) for the elegant, glowing text */
-    @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap');
 
     /* Global Tooltip Styling */
     .leaflet-tooltip {
@@ -82,11 +84,16 @@ def generate_map():
         border: none !important;
         background: transparent !important;
         box-shadow: none !important;
+        /* Padding added to create a seamless hover bridge so the menu doesn't drop! */
+        padding: 15px !important;
+        margin-top: -15px !important;
+        margin-right: -15px !important;
     }
 
     .leaflet-touch .leaflet-control-layers-toggle,
     .leaflet-retina .leaflet-control-layers-toggle,
     .leaflet-control-layers-toggle {
+        margin-left: auto !important; /* Push icon to the right inside the new padding */
         background-image: url('https://i.imgur.com/YhyOq9V.png') !important;
         background-size: 65% !important;
         background-repeat: no-repeat !important;
@@ -111,6 +118,7 @@ def generate_map():
     .leaflet-control-layers-toggle span { display: none !important; }
 
     .leaflet-control-layers.leaflet-control-layers-expanded {
+        margin-top: 5px !important;
         background: rgba(20, 20, 20, 0.85) !important;
         backdrop-filter: blur(16px) !important;
         -webkit-backdrop-filter: blur(16px) !important;
@@ -172,33 +180,44 @@ def generate_map():
     }
 
     /* ====================================================
-       SLEEK, BRIGHT GLOWING REGION LABELS
+       HIGH-CONTRAST REGION LABELS
        ==================================================== */
     .region-label {
         position: relative !important;
-        z-index: 9999 !important; /* Force text to render absolutely on top of all circles/markers */
+        z-index: 9999 !important; /* Force text on top of all circles/markers */
         font-family: 'Montserrat', sans-serif !important;
         font-size: 13px !important;
-        font-weight: 300 !important; /* Elegant Light Weight */
-        color: #ffffff !important; /* Pure white for max brightness */
         text-transform: uppercase !important;
         letter-spacing: 3.5px !important;
-        /* Stacked bright white glow with a grounding dark drop shadow for max legibility */
-        text-shadow: 0px 0px 4px rgba(255,255,255,1), 0px 0px 10px rgba(255,255,255,0.8), 0px 0px 20px rgba(255,255,255,0.5), 0px 2px 5px rgba(0,0,0,0.8) !important;
         white-space: nowrap !important;
         pointer-events: none !important; 
         transform: translate(-50%, -50%) !important;
-        transition: all 0.4s ease !important;
+        transition: all 0.2s ease !important;
+        /* Dynamic text/shadow colors handled by JS based on map layer */
     }
     
     /* ====================================================
-       SLIDE-OUT DIRECTORY SIDEBAR
+       SLIDE-OUT DIRECTORY SIDEBAR & BACKDROP
        ==================================================== */
+    #sidebar-backdrop {
+        position: fixed;
+        top: 0; left: 0; width: 100vw; height: 100vh;
+        background: rgba(0,0,0,0.5);
+        z-index: 99998;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.3s;
+    }
+    #sidebar-backdrop.open {
+        opacity: 1;
+        pointer-events: auto;
+    }
+    
     #directory-btn {
         position: fixed;
-        top: 90px;
+        top: 100px;
         right: 12px;
-        z-index: 9998;
+        z-index: 9997;
         background-color: rgba(25, 25, 25, 0.85);
         backdrop-filter: blur(10px);
         -webkit-backdrop-filter: blur(10px);
@@ -232,18 +251,24 @@ def generate_map():
         font-family: 'Montserrat', sans-serif;
         display: flex; flex-direction: column;
         box-shadow: -5px 0 30px rgba(0,0,0,0.6);
+        overflow: hidden; /* Stop full-panel scrolling */
     }
     #side-panel.open { right: 0; }
     
     .panel-header {
         display: flex; justify-content: space-between; align-items: center;
         padding: 20px 25px; border-bottom: 1px solid rgba(255,255,255,0.1);
+        flex-shrink: 0; /* Keep header pinned to top */
     }
     .panel-header h2 { margin: 0; font-size: 16px; color: #00E5FF; text-transform: uppercase; letter-spacing: 1px; font-weight: 700; }
     #close-panel { background: none; border: none; color: white; font-size: 28px; cursor: pointer; transition: color 0.2s; }
     #close-panel:hover { color: #FF3D00; }
     
-    .panel-content { padding: 20px 25px; overflow-y: auto; flex: 1; }
+    .panel-content { 
+        padding: 20px 25px; 
+        overflow-y: auto; /* Only content scrolls */
+        flex-grow: 1; 
+    }
     .panel-content::-webkit-scrollbar { width: 6px; }
     .panel-content::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 4px; }
     
@@ -285,7 +310,6 @@ def generate_map():
     secondary_group = folium.FeatureGroup(name="Secondary Schools (Violet)")
     jc_group = folium.FeatureGroup(name="Junior Colleges (Amber)")
     intl_group = folium.FeatureGroup(name="International Schools (Rose Pink)")
-    other_group = folium.FeatureGroup(name="Other Institutes (Gray)")
     
     for school in schools:
         level = school.get("level", "").upper()
@@ -311,8 +335,7 @@ def generate_map():
             group = intl_group
             schools_dir["INTERNATIONAL"].append(name)
         else:
-            fill_color = "#9CA3AF" # Cool Gray
-            group = other_group
+            continue # Skip "Other Institutes" entirely!
             
         folium.CircleMarker(
             location=[lat, lon],
@@ -330,7 +353,6 @@ def generate_map():
     secondary_group.add_to(m)
     jc_group.add_to(m)
     intl_group.add_to(m)
-    other_group.add_to(m)
 
     print(f"[*] Plotting {len(EXISTING_BRANCHES)} Acer Academy Branches & 1.5km Radius Rings...")
     branch_group = folium.FeatureGroup(name="Acer Academy Branches", show=True)
@@ -365,7 +387,7 @@ def generate_map():
     branch_group.add_to(m)
 
     # ==========================================
-    # INJECT SLEEK REGION WATERMARKS (Added Last to Render on Top)
+    # INJECT REGION WATERMARKS (Last so it floats above everything)
     # ==========================================
     print(f"[*] Injecting Extended Region Watermarks...")
     region_group = folium.FeatureGroup(name="Town & Region Labels", show=True)
@@ -403,6 +425,7 @@ def generate_map():
     # BUILD DYNAMIC DIRECTORY SIDEBAR HTML
     # ==========================================
     sidebar_html = """
+    <div id="sidebar-backdrop"></div>
     <button id="directory-btn">&#9776; Directory</button>
     <div id="side-panel">
         <div class="panel-header">
@@ -430,17 +453,23 @@ def generate_map():
         </div>
     </div>
     <script>
-        // Toggle Sidebar Script
+        // Toggle Sidebar Script with Backdrop clicking
+        function closePanel() {
+            document.getElementById('side-panel').classList.remove('open');
+            document.getElementById('sidebar-backdrop').classList.remove('open');
+            document.getElementById('directory-btn').style.opacity = '1';
+            document.getElementById('directory-btn').style.pointerEvents = 'auto';
+        }
+        
         document.getElementById('directory-btn').addEventListener('click', function() {
             document.getElementById('side-panel').classList.add('open');
+            document.getElementById('sidebar-backdrop').classList.add('open');
             this.style.opacity = '0';
             this.style.pointerEvents = 'none';
         });
-        document.getElementById('close-panel').addEventListener('click', function() {
-            document.getElementById('side-panel').classList.remove('open');
-            document.getElementById('directory-btn').style.opacity = '1';
-            document.getElementById('directory-btn').style.pointerEvents = 'auto';
-        });
+        
+        document.getElementById('close-panel').addEventListener('click', closePanel);
+        document.getElementById('sidebar-backdrop').addEventListener('click', closePanel);
     </script>
     """
     m.get_root().html.add_child(Element(sidebar_html))
@@ -501,7 +530,14 @@ def generate_map():
         }
         if (map) {
             var tilePane = document.querySelector('.leaflet-tile-pane');
+            
+            // Set default styling on initial load (Dark Mode)
             tilePane.style.filter = 'grayscale(100%) invert(100%) brightness(95%) contrast(115%)';
+            document.querySelectorAll('.region-label').forEach(lbl => {
+                lbl.style.color = '#ffffff';
+                lbl.style.textShadow = '-1px -1px 3px #000, 1px -1px 3px #000, -1px 1px 3px #000, 1px 1px 3px #000, 0px 0px 15px rgba(0,0,0,0.8)';
+                lbl.style.fontWeight = '700';
+            });
 
             map.on('baselayerchange', function(e) {
                 var legend = document.getElementById('legend-box');
@@ -511,31 +547,10 @@ def generate_map():
                 var spans = legend ? legend.querySelectorAll('span.legend-text') : [];
                 var regionLabels = document.querySelectorAll('.region-label');
                 
-                if (e.name === 'Light Canvas') {
-                    // Light Mode
-                    tilePane.style.filter = 'grayscale(100%) brightness(1) contrast(1.05)';
-                    if (legend) {
-                        legend.style.backgroundColor = 'rgba(255, 255, 255, 0.9)';
-                        legend.style.borderColor = '#ccc';
-                        title.style.color = '#111';
-                        title.style.borderBottom = '1px solid #ccc';
-                        spans.forEach(s => s.style.color = '#333');
-                        if (innerRing) innerRing.style.backgroundColor = 'rgba(255, 255, 255, 0.8)';
-                    }
-                    if (sidePanel) {
-                        sidePanel.style.backgroundColor = 'rgba(255, 255, 255, 0.95)';
-                        var spTitle = sidePanel.querySelector('.panel-header h2');
-                        if (spTitle) spTitle.style.color = '#111';
-                        var spListItems = sidePanel.querySelectorAll('li');
-                        spListItems.forEach(li => li.style.color = '#333');
-                    }
-                    regionLabels.forEach(lbl => {
-                        lbl.style.color = '#333';
-                        lbl.style.textShadow = '0px 0px 6px rgba(255,255,255,1), 0px 0px 12px rgba(255,255,255,1), 0px 0px 18px rgba(255,255,255,0.8)';
-                        lbl.style.fontWeight = '500';
-                    });
-                } else {
-                    // Dark Mode
+                var isDark = (e.name === 'Dark Streets (Default)');
+
+                if (isDark) {
+                    // Dark Mode Logic
                     tilePane.style.filter = 'grayscale(100%) invert(100%) brightness(95%) contrast(115%)';
                     if (legend) {
                         legend.style.backgroundColor = 'rgba(20, 20, 20, 0.85)';
@@ -552,10 +567,36 @@ def generate_map():
                         var spListItems = sidePanel.querySelectorAll('li');
                         spListItems.forEach(li => li.style.color = 'rgba(255,255,255,0.8)');
                     }
+                    // Dark Mode Labels: Bright White with Bold Black Outline/Shadow
                     regionLabels.forEach(lbl => {
                         lbl.style.color = '#ffffff';
-                        lbl.style.textShadow = '0px 0px 4px rgba(255,255,255,1), 0px 0px 10px rgba(255,255,255,0.8), 0px 0px 20px rgba(255,255,255,0.5), 0px 2px 5px rgba(0,0,0,0.8)';
-                        lbl.style.fontWeight = '300';
+                        lbl.style.textShadow = '-1px -1px 3px #000, 1px -1px 3px #000, -1px 1px 3px #000, 1px 1px 3px #000, 0px 0px 15px rgba(0,0,0,0.8)';
+                        lbl.style.fontWeight = '700';
+                    });
+                } else {
+                    // Light Mode / Standard OSM Logic
+                    tilePane.style.filter = 'none'; // Strips filters for full color OpenStreetMap!
+                    
+                    if (legend) {
+                        legend.style.backgroundColor = 'rgba(255, 255, 255, 0.9)';
+                        legend.style.borderColor = '#ccc';
+                        title.style.color = '#111';
+                        title.style.borderBottom = '1px solid #ccc';
+                        spans.forEach(s => s.style.color = '#333');
+                        if (innerRing) innerRing.style.backgroundColor = 'rgba(255, 255, 255, 0.8)';
+                    }
+                    if (sidePanel) {
+                        sidePanel.style.backgroundColor = 'rgba(255, 255, 255, 0.95)';
+                        var spTitle = sidePanel.querySelector('.panel-header h2');
+                        if (spTitle) spTitle.style.color = '#111';
+                        var spListItems = sidePanel.querySelectorAll('li');
+                        spListItems.forEach(li => li.style.color = '#333');
+                    }
+                    // Light Mode Labels: Bold Black with Thick White Outline/Shadow
+                    regionLabels.forEach(lbl => {
+                        lbl.style.color = '#111111';
+                        lbl.style.textShadow = '-1px -1px 3px #fff, 1px -1px 3px #fff, -1px 1px 3px #fff, 1px 1px 3px #fff, 0px 0px 15px rgba(255,255,255,0.8)';
+                        lbl.style.fontWeight = '800';
                     });
                 }
             });
