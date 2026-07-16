@@ -28,34 +28,40 @@ def get_map_screenshot(png_file="map_preview.png", enable_heatmap=False):
     try:
         from playwright.sync_api import sync_playwright
         with sync_playwright() as p:
-            # CRITICAL CLOUD FIX: Added args to prevent Chromium from crashing inside Render's restricted Linux containers
+            # CRITICAL CLOUD FIX: Added maximum-compatibility args for Render's free Linux containers
             browser = p.chromium.launch(
                 headless=True,
                 args=[
                     "--no-sandbox",
                     "--disable-setuid-sandbox",
                     "--disable-dev-shm-usage",
-                    "--single-process" # Prevents out-of-memory crashes on free cloud tiers
+                    "--single-process",
+                    "--disable-gpu",               # Bypasses missing Linux graphics cards
+                    "--no-zygote",
+                    "--disable-software-rasterizer"
                 ]
             )
-            page = browser.new_page(viewport={"width": 1280, "height": 800})
+            context = browser.new_context(viewport={"width": 1280, "height": 800})
+            page = context.new_page()
             
-            # Point directly to your hosted live map to bypass local file restrictions
             url = "https://itsray01.github.io/acerexpansion/acer_expansion_map.html"
             
-            # Changed from 'networkidle' to 'load' because map tiles cause networkidle to time out
-            page.goto(url, wait_until="load", timeout=30000)
+            # Use domcontentloaded instead of load to prevent infinite timeouts from map tiles
+            page.goto(url, wait_until="domcontentloaded", timeout=60000)
             
-            # Wait for Leaflet UI to exist before injecting JS
-            page.wait_for_selector('.leaflet-control-zoom-out', timeout=15000)
+            # Wait for Leaflet UI to exist before injecting JS (extended timeout for cloud)
+            page.wait_for_selector('.leaflet-control-zoom-out', timeout=30000)
+            
+            # Give base map tiles a few seconds to visually populate
+            page.wait_for_timeout(4000)
             
             # Inject JS to click buttons like a real human
             js_code = """
             (enableHeatmap) => {
-                // 1. Human-like Zoom Out (Click the '-' button on the map)
+                // 1. Human-like Zoom Out
                 const zoomOutBtn = document.querySelector('.leaflet-control-zoom-out');
                 if (zoomOutBtn) {
-                    zoomOutBtn.click(); // Zooms out to capture the whole island perfectly
+                    zoomOutBtn.click();
                 }
 
                 // 2. Hide unwanted items from the Legend Box safely
@@ -83,16 +89,16 @@ def get_map_screenshot(png_file="map_preview.png", enable_heatmap=False):
             """
             page.evaluate(js_code, enable_heatmap)
             
-            # Wait 3 seconds for zoom animation and heatmap tiles to finish rendering
-            page.wait_for_timeout(3000)
+            # Wait 4 seconds for zoom animation and heatmap tiles to finish rendering
+            page.wait_for_timeout(4000)
                 
             page.screenshot(path=png_file)
             browser.close()
             
-        return png_file if os.path.exists(png_file) else None
+        return png_file, None
     except Exception as e:
         logging.error(f"Playwright map screenshot failed: {e}")
-        return None
+        return None, str(e)
 
 # ==========================================
 # REPORT ANALYTICS ENGINE
@@ -210,22 +216,13 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def tenders(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Runs the HDB scraper via a safe background subprocess."""
-    # 1. Grab the ID of the chat where the command was just typed
     chat_id = str(update.effective_chat.id)
-    
     await update.message.reply_text("⏳ *Scraping HDB Place2Lease...* This will take 15-30 seconds. Please wait.", parse_mode="Markdown")
     
     def run_script():
-        # 2. Copy the environment variables and temporarily overwrite the Chat ID
         custom_env = os.environ.copy()
         custom_env["TELEGRAM_CHAT_ID"] = chat_id
-        
-        return subprocess.run(
-            [sys.executable, "test_hdb_only.py"], 
-            capture_output=True, 
-            text=True,
-            env=custom_env # 3. Pass the custom environment to the scraper
-        )
+        return subprocess.run([sys.executable, "test_hdb_only.py"], capture_output=True, text=True, env=custom_env)
 
     try:
         loop = asyncio.get_running_loop()
@@ -244,50 +241,57 @@ async def report(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Sends the analytical mobile summary embedded as a photo caption with HEATMAP screenshot!"""
     await update.message.reply_text("📊 *Calculating coverage & snapping heatmap...*", parse_mode="Markdown")
     
-    # 1. Generate clean text intelligence (RESTORED LINE)
     intel_summary = generate_intelligence_report()
+    err = None
     
     try:
         loop = asyncio.get_running_loop()
-        # Note: enable_heatmap=True triggers the JS to click the map layer
-        img_path = await loop.run_in_executor(None, get_map_screenshot, "report_preview.png", True)
+        img_path, err = await loop.run_in_executor(None, get_map_screenshot, "report_preview.png", True)
         
         if img_path and os.path.exists(img_path):
             with open(img_path, 'rb') as photo:
                 await update.message.reply_photo(photo=photo, caption=intel_summary, parse_mode="Markdown")
             return
     except Exception as e:
+        err = str(e)
         logging.error(f"Failed to send photo report: {e}")
         
-    # Fallback to text if screenshot fails
+    # Fallback to text if screenshot fails, now appending the exact error!
+    if err:
+        intel_summary += f"\n\n⚠️ *Debug - Screenshot Error:*\n`{err[:250]}`"
+        
     await update.message.reply_text(intel_summary, parse_mode="Markdown")
 
 async def map_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Sends an HD map screenshot (Standard) and provides web link."""
     await update.message.reply_text("🗺️ *Loading live interactive map snapshot...*", parse_mode="Markdown")
     
+    err = None
+    caption_text = (
+        "🗺️ *LIVE EXPANSION MAP PREVIEW*\n"
+        "━━━━━━━━━━━━━━━━━━━━━━━━\n"
+        "Visualizing 17 Acer Academy branches & 331 school zones across Singapore.\n\n"
+        "🌐 *Live Interactive Web Map:*\n"
+        "[👉 Click Here to Open Interactive Map](https://itsray01.github.io/acerexpansion/acer_expansion_map.html)"
+    )
+    
     try:
         loop = asyncio.get_running_loop()
-        # Standard map view (enable_heatmap=False)
-        img_path = await loop.run_in_executor(None, get_map_screenshot, "map_preview.png", False)
-        
-        caption_text = (
-            "🗺️ *LIVE EXPANSION MAP PREVIEW*\n"
-            "━━━━━━━━━━━━━━━━━━━━━━━━\n"
-            "Visualizing 17 Acer Academy branches & 331 school zones across Singapore.\n\n"
-            "🌐 *Live Interactive Web Map:*\n"
-            "[👉 Click Here to Open Interactive Map](https://itsray01.github.io/acerexpansion/acer_expansion_map.html)"
-        )
+        img_path, err = await loop.run_in_executor(None, get_map_screenshot, "map_preview.png", False)
         
         if img_path and os.path.exists(img_path):
             with open(img_path, 'rb') as photo:
                 await update.message.reply_photo(photo=photo, caption=caption_text, parse_mode="Markdown")
-        else:
-            await update.message.reply_text(caption_text, parse_mode="Markdown", disable_web_page_preview=True)
-            
+            return
     except Exception as e:
+        err = str(e)
         logging.error(f"Error executing map command: {e}")
-        await update.message.reply_text(f"❌ *Map Error:* `{str(e)}`", parse_mode="Markdown")
+        
+    # Fallback to text if screenshot fails, now appending the exact error!
+    if err:
+        caption_text += f"\n\n⚠️ *Debug - Screenshot Error:*\n`{err[:250]}`"
+        
+    await update.message.reply_text(caption_text, parse_mode="Markdown", disable_web_page_preview=True)
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Sends a professional guide on how to read the bot's data."""
