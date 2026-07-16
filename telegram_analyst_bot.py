@@ -28,10 +28,16 @@ def get_map_screenshot(png_file="map_preview.png", enable_heatmap=False):
     try:
         from playwright.sync_api import sync_playwright
         with sync_playwright() as p:
-            browser = p.chromium.launch(headless=True)
-            
-            # CRITICAL FIX: device_scale_factor=1 prevents Windows 150% scaling from zooming the map in!
-            page = browser.new_page(viewport={"width": 1280, "height": 800}, device_scale_factor=1)
+            # CRITICAL CLOUD FIX: Added args to prevent Chromium from crashing inside Render's restricted Linux containers
+            browser = p.chromium.launch(
+                headless=True,
+                args=[
+                    "--no-sandbox",
+                    "--disable-setuid-sandbox",
+                    "--disable-dev-shm-usage"
+                ]
+            )
+            page = browser.new_page(viewport={"width": 1280, "height": 800})
             
             # Point directly to your hosted live map to bypass local file restrictions
             url = "https://itsray01.github.io/acerexpansion/acer_expansion_map.html"
