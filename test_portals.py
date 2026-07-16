@@ -9,9 +9,6 @@ from bs4 import BeautifulSoup
 # ==========================================
 # 1. CONFIGURATION & TEST CREDENTIALS
 # ==========================================
-TELEGRAM_BOT_TOKEN = "8891294738:AAGOuTbxEhZe0Y0wBX0cOFFonFp5m_1bvdA"
-TELEGRAM_CHAT_ID = "-1004306469919"
-ZENROWS_API_KEY = "0a72b44b388084523647e4dce2f6787701a1fbd6"
 
 STATE_FILE = "seen_listings.json"
 MAX_SQFT_LIMIT = 1200.0
