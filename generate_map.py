@@ -215,19 +215,19 @@ def generate_map():
     
     #directory-btn {
         position: fixed;
-        top: 100px;
-        right: 12px;
+        bottom: 30px; /* Moved to bottom right to avoid overlap with layers menu */
+        right: 20px;
         z-index: 9997;
         background-color: rgba(25, 25, 25, 0.85);
         backdrop-filter: blur(10px);
         -webkit-backdrop-filter: blur(10px);
         border: 1px solid rgba(255,255,255,0.2);
         color: white;
-        padding: 10px 14px;
+        padding: 12px 18px;
         border-radius: 8px;
         font-family: 'Montserrat', sans-serif;
         font-weight: 600;
-        font-size: 13px;
+        font-size: 14px;
         cursor: pointer;
         box-shadow: 0 4px 15px rgba(0,0,0,0.5);
         transition: all 0.3s;
@@ -235,7 +235,7 @@ def generate_map():
         align-items: center;
         gap: 8px;
     }
-    #directory-btn:hover { background-color: rgba(40,40,40,0.95); border-color: #00E5FF; color: #00E5FF; }
+    #directory-btn:hover { background-color: rgba(40,40,40,0.95); border-color: #00E5FF; color: #00E5FF; transform: translateY(-2px); }
     
     #side-panel {
         position: fixed;
