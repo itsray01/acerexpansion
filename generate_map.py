@@ -175,6 +175,8 @@ def generate_map():
        SLEEK, BRIGHT GLOWING REGION LABELS
        ==================================================== */
     .region-label {
+        position: relative !important;
+        z-index: 9999 !important; /* Force text to render absolutely on top of all circles/markers */
         font-family: 'Montserrat', sans-serif !important;
         font-size: 13px !important;
         font-weight: 300 !important; /* Elegant Light Weight */
@@ -274,40 +276,6 @@ def generate_map():
         print(f"[!] Warning: Network error fetching borders ({e}). Skipping boundary layer.")
 
     # ==========================================
-    # INJECT SLEEK REGION WATERMARKS
-    # ==========================================
-    region_group = folium.FeatureGroup(name="Town & Region Labels", show=True)
-    
-    REGIONS = {
-        "Woodlands": (1.436, 103.786), "Sembawang": (1.449, 103.818), "Yishun": (1.430, 103.835),
-        "Mandai": (1.424, 103.811), "Simpang": (1.444, 103.844), "Lim Chu Kang": (1.433, 103.714),
-        "Sungei Kadut": (1.414, 103.754), "Ang Mo Kio": (1.369, 103.845), "Hougang": (1.371, 103.892),
-        "Sengkang": (1.392, 103.894), "Punggol": (1.405, 103.902), "Seletar": (1.408, 103.874),
-        "Buangkok": (1.382, 103.893), "Serangoon": (1.355, 103.867), "Pasir Ris": (1.372, 103.947),
-        "Tampines": (1.349, 103.943), "Bedok": (1.323, 103.927), "Changi": (1.365, 103.988),
-        "Paya Lebar": (1.334, 103.888), "MacPherson": (1.326, 103.889), "Kembangan": (1.321, 103.912),
-        "Simei": (1.343, 103.953), "Bishan": (1.352, 103.848), "Toa Payoh": (1.334, 103.856),
-        "Central Area": (1.286, 103.854), "Kallang": (1.310, 103.865), "Geylang": (1.318, 103.887),
-        "Marine Parade": (1.302, 103.904), "Bukit Timah": (1.329, 103.793), "Thomson": (1.361, 103.829),
-        "Novena": (1.320, 103.843), "Newton": (1.312, 103.838), "Orchard": (1.303, 103.832),
-        "River Valley": (1.297, 103.831), "Outram": (1.282, 103.839), "Marina Bay": (1.281, 103.856),
-        "Mountbatten": (1.304, 103.884), "Balestier": (1.326, 103.851), "Potong Pasir": (1.331, 103.868),
-        "Queenstown": (1.294, 103.806), "Bukit Merah": (1.281, 103.823), "Telok Blangah": (1.272, 103.809),
-        "Sentosa": (1.249, 103.830), "Jurong West": (1.345, 103.705), "Jurong East": (1.333, 103.742),
-        "Bukit Batok": (1.349, 103.749), "Bukit Panjang": (1.377, 103.771), "Choa Chu Kang": (1.385, 103.744),
-        "Tengah": (1.364, 103.729), "Clementi": (1.316, 103.764), "West Coast": (1.303, 103.765),
-        "Boon Lay": (1.338, 103.705), "Pioneer": (1.318, 103.697), "Tuas": (1.329, 103.636)
-    }
-
-    for region, (lat, lon) in REGIONS.items():
-        folium.Marker(
-            location=[lat, lon],
-            icon=folium.DivIcon(html=f'<div class="region-label">{region}</div>'),
-            interactive=False
-        ).add_to(region_group)
-    region_group.add_to(m)
-
-    # ==========================================
     # DIRECTORY DATA STRUCTURE (For Side Panel)
     # ==========================================
     schools_dir = {"PRIMARY": [], "SECONDARY": [], "JUNIOR COLLEGE": [], "INTERNATIONAL": []}
@@ -395,6 +363,41 @@ def generate_map():
             fill_opacity=0.18
         ).add_to(branch_group)
     branch_group.add_to(m)
+
+    # ==========================================
+    # INJECT SLEEK REGION WATERMARKS (Added Last to Render on Top)
+    # ==========================================
+    print(f"[*] Injecting Extended Region Watermarks...")
+    region_group = folium.FeatureGroup(name="Town & Region Labels", show=True)
+    
+    REGIONS = {
+        "Woodlands": (1.436, 103.786), "Sembawang": (1.449, 103.818), "Yishun": (1.430, 103.835),
+        "Mandai": (1.424, 103.811), "Simpang": (1.444, 103.844), "Lim Chu Kang": (1.433, 103.714),
+        "Sungei Kadut": (1.414, 103.754), "Ang Mo Kio": (1.369, 103.845), "Hougang": (1.371, 103.892),
+        "Sengkang": (1.392, 103.894), "Punggol": (1.405, 103.902), "Seletar": (1.408, 103.874),
+        "Buangkok": (1.382, 103.893), "Serangoon": (1.355, 103.867), "Pasir Ris": (1.372, 103.947),
+        "Tampines": (1.349, 103.943), "Bedok": (1.323, 103.927), "Changi": (1.365, 103.988),
+        "Paya Lebar": (1.334, 103.888), "MacPherson": (1.326, 103.889), "Kembangan": (1.321, 103.912),
+        "Simei": (1.343, 103.953), "Bishan": (1.352, 103.848), "Toa Payoh": (1.334, 103.856),
+        "Central Area": (1.286, 103.854), "Kallang": (1.310, 103.865), "Geylang": (1.318, 103.887),
+        "Marine Parade": (1.302, 103.904), "Bukit Timah": (1.329, 103.793), "Thomson": (1.361, 103.829),
+        "Novena": (1.320, 103.843), "Newton": (1.312, 103.838), "Orchard": (1.303, 103.832),
+        "River Valley": (1.297, 103.831), "Outram": (1.282, 103.839), "Marina Bay": (1.281, 103.856),
+        "Mountbatten": (1.304, 103.884), "Balestier": (1.326, 103.851), "Potong Pasir": (1.331, 103.868),
+        "Queenstown": (1.294, 103.806), "Bukit Merah": (1.281, 103.823), "Telok Blangah": (1.272, 103.809),
+        "Sentosa": (1.249, 103.830), "Jurong West": (1.345, 103.705), "Jurong East": (1.333, 103.742),
+        "Bukit Batok": (1.349, 103.749), "Bukit Panjang": (1.377, 103.771), "Choa Chu Kang": (1.385, 103.744),
+        "Tengah": (1.364, 103.729), "Clementi": (1.316, 103.764), "West Coast": (1.303, 103.765),
+        "Boon Lay": (1.338, 103.705), "Pioneer": (1.318, 103.697), "Tuas": (1.329, 103.636)
+    }
+
+    for region, (lat, lon) in REGIONS.items():
+        folium.Marker(
+            location=[lat, lon],
+            icon=folium.DivIcon(html=f'<div class="region-label">{region}</div>'),
+            interactive=False
+        ).add_to(region_group)
+    region_group.add_to(m)
     
     # ==========================================
     # BUILD DYNAMIC DIRECTORY SIDEBAR HTML
