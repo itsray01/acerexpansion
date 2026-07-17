@@ -9,6 +9,7 @@ import subprocess
 import json
 import math
 import threading
+import time # Added time module for cache checking
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from telegram import ReplyKeyboardMarkup, KeyboardButton, Update
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
@@ -51,6 +52,14 @@ def keep_awake():
 # ==========================================
 def get_map_screenshot(png_file="map_preview.png", enable_heatmap=False):
     """Uses Playwright headless Chromium to take an HD screenshot of the LIVE GitHub map."""
+    
+    # SMART CACHE SYSTEM: Instantly return the image if it's less than 12 hours old
+    if os.path.exists(png_file):
+        file_age_seconds = time.time() - os.path.getmtime(png_file)
+        if file_age_seconds < 43200: # 12 hours in seconds
+            logging.info(f"[*] Serving cached {png_file} (Age: {int(file_age_seconds/60)} mins)")
+            return png_file, None
+
     try:
         from playwright.sync_api import sync_playwright
         with sync_playwright() as p:
