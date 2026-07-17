@@ -398,5 +398,4 @@ if __name__ == '__main__':
     app.add_handler(CommandHandler("map", map_command))
     app.add_handler(CommandHandler("help", help_command))
     
-    print("[*] Bot is running and polling... Press Ctrl+C to stop.")
     app.run_polling()
