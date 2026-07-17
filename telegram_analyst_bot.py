@@ -50,11 +50,12 @@ def keep_awake():
 # ==========================================
 # MAP SCREENSHOT ENGINE (VIA PLAYWRIGHT)
 # ==========================================
-def get_map_screenshot(png_file="map_preview.png", enable_heatmap=False):
+def get_map_screenshot(png_file="map_preview.png", enable_heatmap=False, force_refresh=False):
     """Uses Playwright headless Chromium to take an HD screenshot of the LIVE GitHub map."""
     
     # SMART CACHE SYSTEM: Instantly return the image if it's less than 12 hours old
-    if os.path.exists(png_file):
+    # Added force_refresh to allow the background task to overwrite the cache
+    if not force_refresh and os.path.exists(png_file):
         file_age_seconds = time.time() - os.path.getmtime(png_file)
         if file_age_seconds < 43200: # 12 hours in seconds
             logging.info(f"[*] Serving cached {png_file} (Age: {int(file_age_seconds/60)} mins)")
@@ -347,6 +348,41 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     await update.message.reply_text(help_text, parse_mode="Markdown")
 
+# ==========================================
+# BACKGROUND GHOST TASK
+# ==========================================
+async def auto_cache_maps_background():
+    """Runs forever in the background, updating the map caches every 12 hours."""
+    logging.info("[*] GHOST TASK: Verifying Playwright Browser Binaries in background...")
+    loop = asyncio.get_running_loop()
+    
+    try:
+        # Move the heavy 90-second download here so it doesn't block the bot from starting!
+        await loop.run_in_executor(
+            None, 
+            subprocess.run, 
+            [sys.executable, "-m", "playwright", "install", "chromium"]
+        )
+    except Exception as e:
+        logging.error(f"[!] Browser install failed: {e}")
+
+    while True:
+        logging.info("[*] GHOST TASK: Generating fresh map caches in the background...")
+        try:
+            # force_refresh=True makes it bypass the 12-hour read rule and take a new picture
+            await loop.run_in_executor(None, get_map_screenshot, "map_preview.png", False, True)
+            await loop.run_in_executor(None, get_map_screenshot, "report_preview.png", True, True)
+            logging.info("[*] GHOST TASK: Map caches successfully updated! Sleeping for 12 hours.")
+        except Exception as e:
+            logging.error(f"[!] GHOST TASK FAILED: {e}")
+            
+        # Sleep for 12 hours (43200 seconds) before taking new pictures
+        await asyncio.sleep(43200)
+
+async def post_init(application: ApplicationBuilder):
+    """Fires automatically the exact second the bot connects to Telegram."""
+    # Spawn the ghost task in the background so it doesn't block the bot from responding to commands
+    asyncio.create_task(auto_cache_maps_background())
 
 if __name__ == '__main__':
     # CRITICAL FIX: Start the web server immediately BEFORE installing heavy Playwright files
@@ -358,11 +394,9 @@ if __name__ == '__main__':
         print("[!] CRITICAL: TELEGRAM_BOT_TOKEN is missing from your .env file!")
         exit(1)
         
-    print("[*] Verifying Playwright Browser Binaries for Cloud Environment...")
-    subprocess.run([sys.executable, "-m", "playwright", "install", "chromium"])
-        
     print("[*] Initializing Acer Command Center Bot...")
-    app = ApplicationBuilder().token(TOKEN).build()
+    # Add the post_init hook to trigger our background caching task
+    app = ApplicationBuilder().token(TOKEN).post_init(post_init).build()
     
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("tenders", tenders))
