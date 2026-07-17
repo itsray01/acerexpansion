@@ -353,6 +353,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # ==========================================
 async def auto_cache_maps_background():
     """Runs forever in the background, updating the map caches every 12 hours."""
+    global IS_INSTALLING
     logging.info("[*] GHOST TASK: Verifying Playwright Browser Binaries in background...")
     loop = asyncio.get_running_loop()
     
@@ -365,6 +366,10 @@ async def auto_cache_maps_background():
         )
     except Exception as e:
         logging.error(f"[!] Browser install failed: {e}")
+
+    IS_INSTALLING = False
+    logging.info("[*] GHOST TASK: Browser ready. Generating fresh map caches in 5 seconds...")
+    await asyncio.sleep(5) # Let the server breathe before launching Chrome
 
     while True:
         logging.info("[*] GHOST TASK: Generating fresh map caches in the background...")
