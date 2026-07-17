@@ -1,4 +1,7 @@
 import os
+# CRITICAL CLOUD FIX: Force Playwright to install in the local directory so Render doesn't delete it
+os.environ["PLAYWRIGHT_BROWSERS_PATH"] = "0" 
+
 import sys
 import logging
 import asyncio
@@ -21,6 +24,29 @@ logging.basicConfig(
 )
 
 # ==========================================
+# RENDER.COM 24/7 CLOUD SURVIVAL ENGINE
+# ==========================================
+class DummyHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.send_header('Content-type', 'text/html')
+        self.end_headers()
+        self.wfile.write(b"<html><body><h1>Acer Bot is Awake 24/7!</h1></body></html>")
+        
+    def do_HEAD(self):
+        # CRITICAL FIX: Render's health checker uses HEAD requests. 
+        # If we don't respond to this, Render thinks the bot is dead and kills it!
+        self.send_response(200)
+        self.send_header('Content-type', 'text/html')
+        self.end_headers()
+
+def keep_awake():
+    port = int(os.environ.get("PORT", 8080))
+    server = HTTPServer(('0.0.0.0', port), DummyHandler)
+    print(f"[*] Dummy web server listening on port {port}...")
+    server.serve_forever()
+
+# ==========================================
 # MAP SCREENSHOT ENGINE (VIA PLAYWRIGHT)
 # ==========================================
 def get_map_screenshot(png_file="map_preview.png", enable_heatmap=False):
@@ -28,15 +54,13 @@ def get_map_screenshot(png_file="map_preview.png", enable_heatmap=False):
     try:
         from playwright.sync_api import sync_playwright
         with sync_playwright() as p:
-            # CRITICAL CLOUD FIX: Added maximum-compatibility args for Render's free Linux containers
             browser = p.chromium.launch(
                 headless=True,
                 args=[
                     "--no-sandbox",
                     "--disable-setuid-sandbox",
                     "--disable-dev-shm-usage",
-                    "--single-process",
-                    "--disable-gpu",               # Bypasses missing Linux graphics cards
+                    "--disable-gpu",               
                     "--no-zygote",
                     "--disable-software-rasterizer"
                 ]
@@ -46,14 +70,18 @@ def get_map_screenshot(png_file="map_preview.png", enable_heatmap=False):
             
             url = "https://itsray01.github.io/acerexpansion/acer_expansion_map.html"
             
-            # Use domcontentloaded instead of load to prevent infinite timeouts from map tiles
-            page.goto(url, wait_until="domcontentloaded", timeout=60000)
+            # CRITICAL FIX: Changed from 'load' to 'domcontentloaded'. 
+            # This stops the bot from timing out if OpenStreetMap takes too long to send images.
+            page.goto(url, wait_until="domcontentloaded", timeout=45000)
             
-            # Wait for Leaflet UI to exist before injecting JS (extended timeout for cloud)
-            page.wait_for_selector('.leaflet-control-zoom-out', timeout=30000)
+            # We explicitly wait for the Leaflet UI to spawn rather than relying on network events
+            try:
+                page.wait_for_selector('.leaflet-control-zoom', timeout=15000)
+            except:
+                print("[!] Map UI took too long to load, attempting screenshot anyway...")
             
             # Give base map tiles a few seconds to visually populate
-            page.wait_for_timeout(4000)
+            page.wait_for_timeout(4500)
             
             # Inject JS to click buttons like a real human
             js_code = """
@@ -89,8 +117,8 @@ def get_map_screenshot(png_file="map_preview.png", enable_heatmap=False):
             """
             page.evaluate(js_code, enable_heatmap)
             
-            # Wait 4 seconds for zoom animation and heatmap tiles to finish rendering
-            page.wait_for_timeout(4000)
+            # Wait 3.5 seconds for zoom animation and heatmap tiles to finish rendering
+            page.wait_for_timeout(3500)
                 
             page.screenshot(path=png_file)
             browser.close()
@@ -256,7 +284,7 @@ async def report(update: Update, context: ContextTypes.DEFAULT_TYPE):
         err = str(e)
         logging.error(f"Failed to send photo report: {e}")
         
-    # Fallback to text if screenshot fails, now appending the exact error!
+    # Fallback to text if screenshot fails
     if err:
         intel_summary += f"\n\n⚠️ *Debug - Screenshot Error:*\n`{err[:250]}`"
         
@@ -287,7 +315,7 @@ async def map_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         err = str(e)
         logging.error(f"Error executing map command: {e}")
         
-    # Fallback to text if screenshot fails, now appending the exact error!
+    # Fallback to text if screenshot fails
     if err:
         caption_text += f"\n\n⚠️ *Debug - Screenshot Error:*\n`{err[:250]}`"
         
@@ -310,15 +338,18 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     await update.message.reply_text(help_text, parse_mode="Markdown")
 
+
 if __name__ == '__main__':
+    # CRITICAL FIX: Start the web server immediately BEFORE installing heavy Playwright files
+    # This prevents Render from terminating the deployment for missing the 60-second port binding window.
+    threading.Thread(target=keep_awake, daemon=True).start()
+
     TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
-    
     if not TOKEN:
         print("[!] CRITICAL: TELEGRAM_BOT_TOKEN is missing from your .env file!")
         exit(1)
         
     print("[*] Verifying Playwright Browser Binaries for Cloud Environment...")
-    # This automatically reinstalls Chromium if Render deletes the cache folder!
     subprocess.run([sys.executable, "-m", "playwright", "install", "chromium"])
         
     print("[*] Initializing Acer Command Center Bot...")
@@ -329,21 +360,6 @@ if __name__ == '__main__':
     app.add_handler(CommandHandler("report", report))
     app.add_handler(CommandHandler("map", map_command))
     app.add_handler(CommandHandler("help", help_command))
-    
-    class DummyHandler(BaseHTTPRequestHandler):
-        def do_GET(self):
-            self.send_response(200)
-            self.send_header('Content-type', 'text/html')
-            self.end_headers()
-            self.wfile.write(b"<html><body><h1>Acer Bot is Awake 24/7!</h1></body></html>")
-
-    def keep_awake():
-        port = int(os.environ.get("PORT", 8080))
-        server = HTTPServer(('0.0.0.0', port), DummyHandler)
-        print(f"[*] Dummy web server listening on port {port}...")
-        server.serve_forever()
-
-    threading.Thread(target=keep_awake, daemon=True).start()
     
     print("[*] Bot is running and polling... Press Ctrl+C to stop.")
     app.run_polling()
