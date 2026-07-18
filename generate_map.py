@@ -1,209 +1,228 @@
 import json
 import os
+import csv
 import folium
 from folium import plugins
 from folium import Element
 
-# ==========================================
-# 1. CONFIGURATION
-# ==========================================
-URA_GEOJSON_PATH = "ura_regions.json"  # The file you just created!
+URA_GEOJSON_PATH = "ura_regions.json"
+SCHOOL_DB_PATH = "school_db.json"
+MOE_DATA_PATH = "M850801_2.csv" # Updated to your new filename!
 OUTPUT_MAP_PATH = "acer_expansion_map.html"
 
-# Acer Academy 4-Region Pastel Palette
+# 1. Premium High-Contrast Executive Palette (Requirement 1)
 PALETTE = {
-    "North": "#6b8ca3",   # Slate Teal (Combines North & North-East)
-    "West": "#a2b5d4",    # Pastel Blue
-    "East": "#d96c9c",    # Dusty Rose
-    "Central": "#a6d5c6"  # Mint Green
+    "North": "#1E3A8A",   # Deep Royal Blue
+    "West": "#059669",    # Emerald Green
+    "East": "#D97706",    # Rich Amber
+    "Central": "#DC2626"  # Crimson Red
 }
 
-# Approximate visual centers to drop our DivIcon labels
-REGION_CENTERS = {
-    "North": [1.415, 103.820],
-    "West": [1.350, 103.700],
-    "East": [1.355, 103.940],
-    "Central": [1.295, 103.825]
+# 2. Calculated anchors to push the text boxes into the empty sea! (Requirement 2)
+REGIONS = {
+    "North": {
+        "color": PALETTE["North"],
+        "center": [1.415, 103.820],
+        "anchor": [1.475, 103.820] # Pushed straight UP into Johor Strait
+    },
+    "West": {
+        "color": PALETTE["West"],
+        "center": [1.350, 103.700],
+        "anchor": [1.350, 103.560] # Pushed LEFT into the ocean
+    },
+    "East": {
+        "color": PALETTE["East"],
+        "center": [1.355, 103.940],
+        "anchor": [1.355, 104.060] # Pushed RIGHT into the ocean
+    },
+    "Central": {
+        "color": PALETTE["Central"],
+        "center": [1.320, 103.825],
+        "anchor": [1.240, 103.825] # Pushed DOWN south of Sentosa
+    }
 }
 
-# ==========================================
-# 2. MAP BUILDER
-# ==========================================
+EXISTING_BRANCHES = {
+    "Junction 9 (North)": (1.4325, 103.8408),
+    "Admiralty Place (North)": (1.4404, 103.8003),
+    "The Woodgrove (North)": (1.4311, 103.7844),
+    "Vista Point (North)": (1.4315, 103.7937),
+    "Canberra Plaza (North)": (1.4431, 103.8297),
+    "Tampines West (East)": (1.3486, 103.9360),
+    "Buangkok Square (East)": (1.3837, 103.8823),
+    "Aljunied (East)": (1.3215, 103.8872),
+    "Elias Mall (East)": (1.3773, 103.9424),
+    "Dawson (Central)": (1.2941, 103.8099),
+    "Depot Heights (Central)": (1.2809, 103.8086),
+    "Tiong Bahru (Central)": (1.2861, 103.8285),
+    "Cantonment (Central)": (1.2766, 103.8413),
+    "Commonwealth (Central)": (1.3025, 103.7983),
+    "Senja Heights (West)": (1.3853, 103.7629),
+    "Greenridge (West)": (1.3856, 103.7663),
+    "Hong Kah (West)": (1.3496, 103.7210)
+}
+
 def generate_map():
-    print("[*] Booting up Infographic Map Engine...")
+    print("[*] Booting up Executive Infographic Engine...")
     
     if not os.path.exists(URA_GEOJSON_PATH):
-        print(f"[!] ERROR: Cannot find {URA_GEOJSON_PATH}. Please save the JSON data first!")
+        print(f"[!] ERROR: Cannot find {URA_GEOJSON_PATH}.")
         return
 
-    # Initialize a BLANK canvas (no Google/OSM streets)
+    branch_counts = {"North": 0, "West": 0, "East": 0, "Central": 0}
+    for name in EXISTING_BRANCHES.keys():
+        for region in branch_counts.keys():
+            if f"({region})" in name:
+                branch_counts[region] += 1
+
+    school_counts = {"North": 0, "West": 0, "East": 0, "Central": 0}
+    if os.path.exists(SCHOOL_DB_PATH):
+        try:
+            with open(SCHOOL_DB_PATH, 'r', encoding='utf-8') as f:
+                schools = json.load(f)
+                for s in schools:
+                    lat, lon = s.get('lat', 0), s.get('lon', 0)
+                    if lon < 103.75: school_counts["West"] += 1
+                    elif lon > 103.88: school_counts["East"] += 1
+                    elif lat > 1.37: school_counts["North"] += 1
+                    else: school_counts["Central"] += 1
+        except Exception as e:
+            print(f"[!] Error reading schools: {e}")
+
+    student_data = {"North": "N/A", "West": "N/A", "East": "N/A", "Central": "N/A"}
+    if os.path.exists(MOE_DATA_PATH):
+        try:
+            temp_students = {"North": 0, "West": 0, "East": 0, "Central": 0}
+            # Smart parser: Skips junk rows, looks for numbers linked to regions
+            with open(MOE_DATA_PATH, 'r', encoding='utf-8-sig') as f:
+                reader = csv.reader(f)
+                for row in reader:
+                    if not row or len(row) < 2: continue
+                    col = row[0].strip()
+                    try:
+                        # Removes commas from numbers (e.g. "12,345" -> 12345)
+                        val = int(row[1].replace(',', '').strip())
+                    except:
+                        continue 
+                    
+                    if "All Levels - Central" in col: temp_students["Central"] += val
+                    elif "All Levels - East" in col: temp_students["East"] += val
+                    elif "All Levels - North" in col and "North-East" not in col: temp_students["North"] += val
+                    elif "All Levels - North-East" in col: temp_students["North"] += val
+                    elif "All Levels - West" in col: temp_students["West"] += val
+            
+            # Only apply if data was actually found
+            if sum(temp_students.values()) > 0:
+                student_data = temp_students
+        except Exception as e:
+            print(f"[!] Error parsing MOE data: {e}")
+
     m = folium.Map(
         location=[1.3521, 103.8198], 
-        zoom_start=12, 
-        tiles=None, # Removes all roads and backgrounds
-        zoom_control=False # Hides the +/- buttons for a cleaner look
+        zoom_start=11, 
+        tiles=None, 
+        zoom_control=False 
     )
-    
-    # Add a solid off-white background color
-    m.get_root().html.add_child(Element('<div style="position:fixed; top:0; left:0; width:100vw; height:100vh; background-color:#f8f9fa; z-index:-1;"></div>'))
+    m.get_root().html.add_child(Element('<div style="position:fixed; top:0; left:0; width:100vw; height:100vh; background-color:#f4f4f8; z-index:-1;"></div>'))
 
-    # ==========================================
-    # INJECT CUSTOM CSS FOR DIVICONS
-    # ==========================================
-    custom_css = """
-    <style>
-    @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;800&display=swap');
-
-    /* The DivIcon container */
-    .info-label-container {
-        position: relative;
-        font-family: 'Montserrat', sans-serif;
-    }
-
-    /* The Text Box */
-    .info-box {
-        position: absolute;
-        background: rgba(255, 255, 255, 0.95);
-        border-radius: 8px;
-        padding: 12px 16px;
-        box-shadow: 0 10px 25px rgba(0,0,0,0.1);
-        min-width: 160px;
-        z-index: 1000;
-        backdrop-filter: blur(5px);
-        border-left: 4px solid #333; /* Dynamic color overridden in inline style */
-    }
-
-    .info-box h4 {
-        margin: 0 0 8px 0;
-        font-size: 16px;
-        font-weight: 800;
-        letter-spacing: 1px;
-        color: #1a1a1a;
-        text-transform: uppercase;
-    }
-
-    .info-box p {
-        margin: 4px 0;
-        font-size: 12px;
-        font-weight: 600;
-        color: #555;
-        display: flex;
-        justify-content: space-between;
-    }
-    
-    .info-box p span {
-        font-weight: 800;
-        color: #1a1a1a;
-    }
-
-    /* The Angled Leader Line Trick */
-    .leader-line {
-        position: absolute;
-        width: 60px;
-        height: 60px;
-        border-bottom: 2px solid #666;
-        border-right: 2px solid #666;
-        z-index: 999;
-    }
-    
-    /* Specific line routing based on region */
-    .line-north { top: 20px; left: 0px; width: 40px; height: 30px; border-bottom: none; border-right: none; border-top: 2px solid #666; border-left: 2px solid #666; }
-    .line-west  { top: -40px; left: 20px; width: 60px; height: 60px; border-top: 2px solid #666; border-left: 2px solid #666; border-bottom: none; border-right: none; }
-    .line-east  { top: -40px; right: 20px; width: 60px; height: 60px; border-top: 2px solid #666; border-right: 2px solid #666; border-bottom: none; border-left: none; }
-    .line-central{ bottom: 20px; left: 20px; width: 40px; height: 40px; border-bottom: 2px solid #666; border-left: 2px solid #666; border-top: none; border-right: none; }
-
-    </style>
-    """
-    m.get_root().header.add_child(Element(custom_css))
-
-    # ==========================================
-    # PARSE & STYLE THE GEOJSON
-    # ==========================================
     def style_function(feature):
-        # 1. Read the government region from the JSON
         ura_region = feature['properties'].get('REGION_N', '')
-        
-        # 2. Map it to Acer Academy's 4 Regions
-        if ura_region == "WEST REGION": 
-            acer_region = "West"
-        elif ura_region in ["NORTH REGION", "NORTH-EAST REGION"]: 
-            acer_region = "North"
-        elif ura_region == "EAST REGION": 
-            acer_region = "East"
-        elif ura_region == "CENTRAL REGION": 
-            acer_region = "Central"
-        else:
-            return {'fillOpacity': 0, 'weight': 0} # Hide islands/sea
+        if ura_region == "WEST REGION": acer_region = "West"
+        elif ura_region in ["NORTH REGION", "NORTH-EAST REGION"]: acer_region = "North"
+        elif ura_region == "EAST REGION": acer_region = "East"
+        elif ura_region == "CENTRAL REGION": acer_region = "Central"
+        else: return {'fillOpacity': 0, 'weight': 0}
 
         color = PALETTE[acer_region]
-
-        # 3. By making the border (color) the EXACT SAME as the fill (fillColor), 
-        # the internal neighborhood borders disappear, creating one solid puzzle piece!
         return {
             'fillColor': color,
-            'color': color,
+            'color': color, 
             'weight': 1.5,
-            'fillOpacity': 1.0
+            'fillOpacity': 0.85 
         }
 
-    print("[*] Drawing solid geometry...")
     with open(URA_GEOJSON_PATH, 'r') as f:
         geo_data = json.load(f)
 
-    folium.GeoJson(
-        geo_data,
-        name="Acer Regions",
-        style_function=style_function
-    ).add_to(m)
+    folium.GeoJson(geo_data, style_function=style_function).add_to(m)
 
-    # ==========================================
-    # PLACE THE DIVICON LABELS
-    # ==========================================
-    print("[*] Injecting DivIcon leader lines...")
-    
-    # Dummy data for now - we will connect this to your school database later!
-    metrics = {
-        "North": {"centers": 4, "unprotected": 12},
-        "West": {"centers": 3, "unprotected": 24},
-        "East": {"centers": 4, "unprotected": 8},
-        "Central": {"centers": 6, "unprotected": 3}
-    }
-
-    for region, coords in REGION_CENTERS.items():
-        color = PALETTE[region]
-        data = metrics[region]
+    # 4. Plotting the Branches as Pins (Requirement 4)
+    for name, coords in EXISTING_BRANCHES.items():
+        pin_color = "#333333"
+        if "(North)" in name: pin_color = PALETTE["North"]
+        elif "(West)" in name: pin_color = PALETTE["West"]
+        elif "(East)" in name: pin_color = PALETTE["East"]
+        elif "(Central)" in name: pin_color = PALETTE["Central"]
         
-        # Determine how to push the box away from the center point
-        if region == "North": box_pos = "top: -60px; left: -180px;"
-        elif region == "West": box_pos = "top: -90px; left: -190px;"
-        elif region == "East": box_pos = "top: -90px; left: 80px;"
-        elif region == "Central": box_pos = "top: 60px; left: -100px;"
+        folium.CircleMarker(
+            location=coords,
+            radius=6,
+            color="#ffffff", # Crisp white border
+            weight=2,
+            fill=True,
+            fill_color=pin_color,
+            fill_opacity=1.0,
+            tooltip=name
+        ).add_to(m)
 
-        # The actual HTML injected directly onto the map canvas
-        icon_html = f"""
-        <div class="info-label-container">
-            <div class="leader-line line-{region.lower()}"></div>
-            <div class="info-box" style="border-left-color: {color}; {box_pos}">
-                <h4 style="color: {color}">{region}</h4>
-                <p>Branches: <span>{data['centers']}</span></p>
-                <p>Untapped Zones: <span style="color: #FF3D00;">{data['unprotected']}</span></p>
+    for region, config in REGIONS.items():
+        color = config["color"]
+        
+        # Draw the tactical leader line connecting the text box to the region
+        folium.PolyLine(
+            locations=[config["anchor"], config["center"]],
+            color="#64748b",
+            weight=2,
+            dash_array="4, 4",
+            opacity=0.8
+        ).add_to(m)
+        
+        # Draw a tiny dot at the end of the line on the island
+        folium.CircleMarker(
+            location=config["center"], radius=4, color="#ffffff", weight=1, fill=True, fill_color=color, fill_opacity=1
+        ).add_to(m)
+
+        students = student_data[region]
+        student_str = f"{students:,}" if isinstance(students, int) else students
+
+        # 3. HTML Box logic updated (Requirement 3 - added schools, removed untapped zones)
+        html = f"""
+        <div style="
+            background: rgba(255, 255, 255, 0.98);
+            border-top: 5px solid {color};
+            border-radius: 6px;
+            padding: 12px 16px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+            width: 190px;
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+        ">
+            <h4 style="margin: 0 0 10px 0; color: #1a1a1a; font-size: 16px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px;">
+                <span style="color: {color};">&#11044;</span> {region}
+            </h4>
+            <div style="display: flex; justify-content: space-between; margin: 6px 0; font-size: 13px; color: #555;">
+                <span>Branches:</span> <strong style="color: #111; font-size: 14px;">{branch_counts[region]}</strong>
+            </div>
+            <div style="display: flex; justify-content: space-between; margin: 6px 0; font-size: 13px; color: #555;">
+                <span>Schools:</span> <strong style="color: #111; font-size: 14px;">{school_counts[region]}</strong>
+            </div>
+            <div style="display: flex; justify-content: space-between; margin: 6px 0; font-size: 13px; color: #555;">
+                <span>Est. Students:</span> <strong style="color: {color}; font-size: 14px;">{student_str}</strong>
             </div>
         </div>
         """
 
+        # Anchor the HTML Box outside the island
         folium.Marker(
-            location=coords,
+            location=config["anchor"],
             icon=folium.DivIcon(
-                html=icon_html,
-                icon_size=(0, 0), # Forces the icon to originate exactly at the GPS point
-                icon_anchor=(0, 0)
+                html=html,
+                icon_size=(190, 110),
+                icon_anchor=(95, 55)
             )
         ).add_to(m)
 
-    # Save the map
     m.save(OUTPUT_MAP_PATH)
-    print(f"\n[+] SUCCESS! Infographic map generated: {OUTPUT_MAP_PATH}")
-    print("    -> Open this file in your web browser to see the results.")
+    print(f"\n[+] SUCCESS! Premium map generated: {OUTPUT_MAP_PATH}")
 
 if __name__ == "__main__":
     generate_map()
