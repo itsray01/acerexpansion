@@ -1,0 +1,45 @@
+STREAMING_CHUNK: Defining workflow name and triggers
+
+name: Generate Infographic Map
+
+on:
+push:
+paths:
+- 'generate_map.py'
+- 'ura_regions.json'
+workflow_dispatch:
+
+STREAMING_CHUNK: Configuring the build job and permissions
+
+jobs:
+build-map:
+runs-on: ubuntu-latest
+# CRITICAL: This permission allows the bot to push the new map back to your repository
+permissions:
+contents: write
+
+steps:
+  # STREAMING_CHUNK: Checking out repository and setting up Python
+  - name: Checkout Repository
+    uses: actions/checkout@v3
+
+  - name: Set up Python
+    uses: actions/setup-python@v4
+    with:
+      python-version: '3.10'
+
+  # STREAMING_CHUNK: Installing dependencies and running the script
+  - name: Install Dependencies
+    run: pip install folium
+
+  - name: Run Map Generator
+    run: python generate_map.py
+
+  # STREAMING_CHUNK: Committing the generated map to GitHub
+  - name: Commit HTML to GitHub
+    run: |
+      git config --global user.name "github-actions[bot]"
+      git config --global user.email "github-actions[bot]@users.noreply.github.com"
+      git add acer_expansion_map.html
+      git commit -m "Auto-update infographic map" || exit 0
+      git push
