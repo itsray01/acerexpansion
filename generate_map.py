@@ -7,10 +7,10 @@ from folium import Element
 
 URA_GEOJSON_PATH = "ura_regions.json"
 SCHOOL_DB_PATH = "school_db.json"
-MOE_DATA_PATH = "M850801_2.csv" # Updated to your new filename!
+MOE_DATA_PATH = "M850801_2.csv"
 OUTPUT_MAP_PATH = "acer_expansion_map.html"
 
-# 1. Premium High-Contrast Executive Palette (Requirement 1)
+# 1. Premium High-Contrast Executive Palette
 PALETTE = {
     "North": "#1E3A8A",   # Deep Royal Blue
     "West": "#059669",    # Emerald Green
@@ -18,7 +18,7 @@ PALETTE = {
     "Central": "#DC2626"  # Crimson Red
 }
 
-# 2. Calculated anchors to push the text boxes into the empty sea! (Requirement 2)
+# 2. Calculated anchors to push the text boxes into the empty sea
 REGIONS = {
     "North": {
         "color": PALETTE["North"],
@@ -93,14 +93,12 @@ def generate_map():
     if os.path.exists(MOE_DATA_PATH):
         try:
             temp_students = {"North": 0, "West": 0, "East": 0, "Central": 0}
-            # Smart parser: Skips junk rows, looks for numbers linked to regions
             with open(MOE_DATA_PATH, 'r', encoding='utf-8-sig') as f:
                 reader = csv.reader(f)
                 for row in reader:
                     if not row or len(row) < 2: continue
                     col = row[0].strip()
                     try:
-                        # Removes commas from numbers (e.g. "12,345" -> 12345)
                         val = int(row[1].replace(',', '').strip())
                     except:
                         continue 
@@ -111,7 +109,6 @@ def generate_map():
                     elif "All Levels - North-East" in col: temp_students["North"] += val
                     elif "All Levels - West" in col: temp_students["West"] += val
             
-            # Only apply if data was actually found
             if sum(temp_students.values()) > 0:
                 student_data = temp_students
         except Exception as e:
@@ -146,7 +143,6 @@ def generate_map():
 
     folium.GeoJson(geo_data, style_function=style_function).add_to(m)
 
-    # 4. Plotting the Branches as Pins (Requirement 4)
     for name, coords in EXISTING_BRANCHES.items():
         pin_color = "#333333"
         if "(North)" in name: pin_color = PALETTE["North"]
@@ -157,7 +153,7 @@ def generate_map():
         folium.CircleMarker(
             location=coords,
             radius=6,
-            color="#ffffff", # Crisp white border
+            color="#ffffff",
             weight=2,
             fill=True,
             fill_color=pin_color,
@@ -168,7 +164,6 @@ def generate_map():
     for region, config in REGIONS.items():
         color = config["color"]
         
-        # Draw the tactical leader line connecting the text box to the region
         folium.PolyLine(
             locations=[config["anchor"], config["center"]],
             color="#64748b",
@@ -177,7 +172,6 @@ def generate_map():
             opacity=0.8
         ).add_to(m)
         
-        # Draw a tiny dot at the end of the line on the island
         folium.CircleMarker(
             location=config["center"], radius=4, color="#ffffff", weight=1, fill=True, fill_color=color, fill_opacity=1
         ).add_to(m)
@@ -185,7 +179,6 @@ def generate_map():
         students = student_data[region]
         student_str = f"{students:,}" if isinstance(students, int) else students
 
-        # 3. HTML Box logic updated (Requirement 3 - added schools, removed untapped zones)
         html = f"""
         <div style="
             background: rgba(255, 255, 255, 0.98);
@@ -211,7 +204,6 @@ def generate_map():
         </div>
         """
 
-        # Anchor the HTML Box outside the island
         folium.Marker(
             location=config["anchor"],
             icon=folium.DivIcon(
