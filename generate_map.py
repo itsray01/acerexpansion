@@ -73,7 +73,7 @@ def load_schools_from_csv():
             headers = reader.fieldnames
             if not headers: return schools
             
-            # Smart Fuzzy Matcher for robust data ingestion
+            # Smart Fuzzy Matcher
             h_map = {}
             for h in headers:
                 h_lower = str(h).strip().lower()
@@ -104,7 +104,6 @@ def load_schools_from_csv():
                 lat_str = str(row.get(h_map.get('lat', ''), '')).strip()
                 lon_str = str(row.get(h_map.get('lon', ''), '')).strip()
                 
-                # Forcefully sanitize empty blanks preventing the 0 schools crash
                 if not lat_str or not lon_str or lat_str == "" or lon_str == "": 
                     continue
                     
@@ -138,7 +137,7 @@ def load_schools_from_csv():
 def generate_map():
     print("[*] Booting up Master Infographic & Interactive Map Engine...")
     
-    # HARD BOUNDARY LOCK - Singapore Coordinates
+    # HARD BOUNDARY LOCK
     m = folium.Map(
         location=[1.3521, 103.8198], 
         zoom_start=12, 
@@ -150,8 +149,6 @@ def generate_map():
     # Base Layers
     folium.TileLayer('cartodbdark_matter', name="Dark Streets (Default)").add_to(m)
     folium.TileLayer('cartodbpositron', name="Light Canvas").add_to(m)
-    
-    # Clean Map Layer
     exec_layer = folium.TileLayer('cartodbdark_matter', name="Executive Dark Canvas (Clean)")
     exec_layer.add_to(m)
 
@@ -177,6 +174,11 @@ def generate_map():
         color: #FFFFFF !important;
     }
 
+    /* Push Leaflet controls down so the Acer Dashboard fits on top */
+    .leaflet-top.leaflet-right {
+        margin-top: 180px !important; 
+    }
+
     /* Map Display Settings Menu (Dark Mode) */
     .leaflet-control-layers {
         background: rgba(15, 15, 18, 0.95) !important;
@@ -199,7 +201,7 @@ def generate_map():
         padding-bottom: 8px;
     }
     
-    /* Safely align checkboxes and text without breaking Leaflet DOM */
+    /* Safely align checkboxes and text */
     .leaflet-control-layers-overlays label div, .leaflet-control-layers-base label div {
         display: flex;
         align-items: flex-start;
@@ -373,7 +375,6 @@ def generate_map():
             popup=folium.Popup(popup_html, max_width=300)
         ).add_to(m_group)
 
-        # Distance Calc for Heatmap
         from math import radians, cos, sin, asin, sqrt
         def haversine(lon1, lat1, lon2, lat2):
             lon1, lat1, lon2, lat2 = map(radians, [lon1, lat1, lon2, lat2])
@@ -457,7 +458,6 @@ def generate_map():
 
     infographic_group.add_to(m)
 
-    # 53 Town Labels
     for town, (t_lat, t_lon) in REGIONS_TOWNS.items():
         folium.Marker(
             location=[t_lat, t_lon],
@@ -472,6 +472,37 @@ def generate_map():
 
     folium.LayerControl(collapsed=False).add_to(m)
 
+    # Restoring the massive ACER EXPANSION Dashboard Box in the Top Right
+    total_schools = len(schools)
+    total_branches = len(EXISTING_BRANCHES)
+    
+    dashboard_html = f"""
+    <div id="acer-dashboard" style="position: absolute; top: 20px; right: 20px; z-index: 1000; background: rgba(15, 15, 18, 0.95); border: 1px solid #333; border-radius: 12px; padding: 16px; width: 250px; box-shadow: 0 8px 32px rgba(0,0,0,0.5); backdrop-filter: blur(8px); font-family: 'Montserrat', sans-serif; pointer-events: none;">
+        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+            <div style="background: #FF4B4B; width: 36px; height: 36px; border-radius: 8px; border: 2px solid #FFF; display: flex; align-items: center; justify-content: center; color: #FFF; font-weight: 900; font-size: 18px; box-shadow: 0 0 15px rgba(255,75,75,0.8);">
+                A
+            </div>
+            <div style="line-height: 1.1;">
+                <div style="color: #FFF; font-weight: 900; font-size: 18px; letter-spacing: 1px;">ACER</div>
+                <div style="color: #FF4B4B; font-weight: 800; font-size: 11px; letter-spacing: 2px;">EXPANSION</div>
+            </div>
+        </div>
+        <div style="color: #A0AEC0; font-size: 11px; line-height: 1.5; margin-bottom: 16px;">
+            Analyzing <b style="color: #FFF;">{total_schools}</b> educational zones across <b style="color: #FFF;">{total_branches}</b> active branches.
+        </div>
+        <div>
+            <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 6px;">
+                <div style="color: #718096; font-size: 9px; font-weight: 700; letter-spacing: 1px;">NETWORK STATUS</div>
+                <div style="color: #4ADE80; font-size: 11px; font-weight: 800;">Total Coverage</div>
+            </div>
+            <div style="background: #2D3748; height: 4px; border-radius: 2px; width: 100%; overflow: hidden;">
+                <div style="background: #4ADE80; height: 100%; width: 100%; box-shadow: 0 0 10px #4ADE80;"></div>
+            </div>
+        </div>
+    </div>
+    """
+    m.get_root().html.add_child(folium.Element(dashboard_html))
+
     dir_html = """
     <div id="directory-btn" style="position: absolute; bottom: 20px; right: 20px; z-index: 1000; background: rgba(15, 15, 18, 0.95); color: #FFF; padding: 10px 20px; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-weight: 800; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; cursor: pointer; border: 1px solid #333; box-shadow: 0 4px 15px rgba(0,0,0,0.5); backdrop-filter: blur(8px); display: flex; align-items: center; gap: 8px;">
         <span style="font-size: 14px;">≡</span> Directory
@@ -479,7 +510,7 @@ def generate_map():
     """
     m.get_root().html.add_child(folium.Element(dir_html))
 
-    # Recursive JS Synchronizer to fix Leaflet's DOM Teardown Checkbox Bug
+    # Recursive JS Synchronizer
     legend_html = """
     <script>
     document.addEventListener('DOMContentLoaded', function() {
@@ -492,7 +523,6 @@ def generate_map():
         }
         
         if (map) {
-            // BOUNDARY LOCK: Prevent map from sliding to Malaysia/Indonesia
             var southWest = L.latLng(1.15, 103.55);
             var northEast = L.latLng(1.55, 104.15);
             var bounds = L.latLngBounds(southWest, northEast);
@@ -501,7 +531,6 @@ def generate_map():
                 map.panInsideBounds(bounds, { animate: false });
             });
 
-            // RECURSIVE SYNCHRONIZER: Safely toggles checkboxes even when Leaflet rebuilds the DOM
             function syncLayers() {
                 var isExecClean = document.body.classList.contains('exec-mode-active');
                 var inputs = document.querySelectorAll('.leaflet-control-layers-selector');
@@ -509,8 +538,6 @@ def generate_map():
 
                 for(var i = 0; i < inputs.length; i++) {
                     var cb = inputs[i];
-                    
-                    // Safely locate the label text
                     var span = cb.nextElementSibling;
                     if(!span && cb.parentElement) span = cb.parentElement.querySelector('span');
                     if(!span) continue;
@@ -518,30 +545,28 @@ def generate_map():
                     var label = span.textContent.trim();
                     var shouldBeChecked = cb.checked;
 
-                    // Intelligent Layer Routing
+                    // Fixed logic: Exec mode shows Polygons(Choropleth), Branches, Data Boxes, Towns.
                     if (isExecClean) {
-                        if (label.includes('Schools') || label.includes('Heatmap') || label.includes('Town') || label.includes('Choropleth')) {
+                        if (label.includes('Schools') || label.includes('Heatmap')) {
                             shouldBeChecked = false;
-                        } else if (label.includes('Regional Data Boxes') || label.includes('Branches')) {
+                        } else if (label.includes('Regional Data Boxes') || label.includes('Branches') || label.includes('Choropleth') || label.includes('Town')) {
                             shouldBeChecked = true;
                         }
                     } else {
-                        if (label.includes('Schools') || label.includes('Choropleth') || label.includes('Branches')) {
+                        if (label.includes('Schools') || label.includes('Choropleth') || label.includes('Branches') || label.includes('Town')) {
                             shouldBeChecked = true;
                         } else if (label.includes('Regional Data Boxes')) {
                             shouldBeChecked = false;
                         }
                     }
 
-                    // Only trigger the click if the state is mismatched
                     if (cb.checked !== shouldBeChecked) {
                         cb.click();
                         clicked = true;
-                        break; // STOP the loop! Leaflet is tearing down the DOM.
+                        break; 
                     }
                 }
 
-                // If a click occurred, wait 50ms for Leaflet to rebuild the menu, then re-check the rest
                 if (clicked) {
                     setTimeout(syncLayers, 50);
                 }
