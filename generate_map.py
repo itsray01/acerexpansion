@@ -81,7 +81,8 @@ def load_schools_from_csv():
         # Fuzzy match headers
         for h in headers:
             h_lower = str(h).strip().lower()
-            if 'name' in h_lower or 'school' in h_lower: h_map['name'] = h
+            if 'url' in h_lower or 'website' in h_lower or 'link' in h_lower: h_map['url'] = h
+            elif 'name' in h_lower or 'school' in h_lower: h_map['name'] = h
             elif 'lat' in h_lower: h_map['lat'] = h
             elif 'lon' in h_lower or 'lng' in h_lower: h_map['lon'] = h
             elif 'level' in h_lower or 'type' in h_lower: h_map['level'] = h
@@ -102,6 +103,7 @@ def load_schools_from_csv():
             level = row.get(h_map.get('level', ''), 'Unknown').strip()
             region = row.get(h_map.get('region', ''), 'Unknown').strip()
             address = row.get(h_map.get('address', ''), 'No Address').strip()
+            url = row.get(h_map.get('url', ''), '').strip()
             tier = row.get(h_map.get('tier', ''), 'Standard').strip()
             
             schools.append({
@@ -111,6 +113,7 @@ def load_schools_from_csv():
                 "level": level,
                 "region": region,
                 "address": address,
+                "url": url,
                 "tier": tier if tier else "Standard"
             })
             
@@ -287,6 +290,7 @@ def generate_map():
         level = school.get("level", "").upper()
         lat, lon = school["lat"], school["lon"]
         name, address, tier = school["name"], school["address"], school["tier"]
+        url = school.get("url", "")
         
         # The pure GPS is used for the heatmap to guarantee density aggregates perfectly
         is_covered = any(haversine(lat, lon, b_lat, b_lon) <= 1500 for b_lat, b_lon in EXISTING_BRANCHES.values())
@@ -305,6 +309,8 @@ def generate_map():
         vis_lat = lat + random.uniform(-0.0025, 0.0025)
         vis_lon = lon + random.uniform(-0.0025, 0.0025)
         
+        url_html = f'<br><b style="color: #FFFFFF;">🌐 Web:</b> <a href="{url}" target="_blank" style="color: #38BDF8; text-decoration: none; font-weight: 600;">Visit Website ↗</a>' if url and str(url).startswith('http') else ''
+        
         # Premium Executive HTML Popup Card
         popup_html = f"""
         <div style="font-family: 'Montserrat', sans-serif; min-width: 220px; padding: 4px;">
@@ -317,7 +323,7 @@ def generate_map():
             <div style="font-size: 11px; color: #CCCCCC; line-height: 1.5;">
                 <b style="color: #FFFFFF;">Level:</b> {level.title()}<br>
                 <b style="color: #FFFFFF;">Region:</b> {school.get('region', 'N/A').title()}<br>
-                <b style="color: #FFFFFF;">📍 Addr:</b> {address}
+                <b style="color: #FFFFFF;">📍 Addr:</b> {address}{url_html}
             </div>
         </div>
         """
