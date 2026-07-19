@@ -1,0 +1,338 @@
+school_name,address,postal_code,url_address,region,education_level,lat,lon
+ADMIRALTY PRIMARY SCHOOL,11 WOODLANDS CIRCLE   ,738907,https://admiraltypri.moe.edu.sg/,North,Primary,1.436,103.786
+ADMIRALTY SECONDARY SCHOOL,31 WOODLANDS CRESCENT   ,737916,http://www.admiraltysec.moe.edu.sg,North,Secondary,1.436,103.786
+AHMAD IBRAHIM PRIMARY SCHOOL,10 YISHUN STREET 11   ,768643,http://www.ahmadibrahimpri.moe.edu.sg,North,Primary,1.428,103.837
+AHMAD IBRAHIM SECONDARY SCHOOL,751 YISHUN AVENUE 7   ,768928,http://www.ahmadibrahimsec.moe.edu.sg,North,Secondary,1.428,103.837
+AI TONG SCHOOL,100 Bright Hill Drive   ,579646,http://www.aitong.moe.edu.sg,Central,Primary,1.356,103.844
+ALEXANDRA PRIMARY SCHOOL,2A Prince Charles Crescent   ,159016,http://alexandrapri.moe.edu.sg,Central,Primary,1.286,103.818
+ANCHOR GREEN PRIMARY SCHOOL,31 Anchorvale Drive   ,544969,http://www.anchorgreenpri.moe.edu.sg,North,Primary,1.392,103.893
+ANDERSON PRIMARY SCHOOL,19 ANG MO KIO AVE 9   ,569785,http://www.andersonpri.moe.edu.sg,North,Primary,1.369,103.845
+ANDERSON SECONDARY SCHOOL,10 ANG MO KIO STREET 53   ,569206,http://www.andersonsec.moe.edu.sg,North,Secondary,1.369,103.845
+ANDERSON SERANGOON JUNIOR COLLEGE,1033 Upper Serangoon Road   ,534768,www.asrjc.moe.edu.sg,North,Junior College,1.365,103.875
+ANG MO KIO PRIMARY SCHOOL,20 ANG MO KIO AVENUE 3   ,569920,http://www.angmokiopri.moe.edu.sg,North,Primary,1.369,103.845
+ANG MO KIO SECONDARY SCHOOL,6 ANG MO KIO STREET 22   ,569362,http://www.angmokiosec.moe.edu.sg,North,Secondary,1.369,103.845
+ANGLICAN HIGH SCHOOL,600 UPPER CHANGI ROAD   ,487012,http://www.anglicanhigh.moe.edu.sg,East,Secondary,1.318,103.947
+ANGLO-CHINESE JUNIOR COLLEGE,25 DOVER CLOSE EAST   ,139745,https://acjc.moe.edu.sg,West,Junior College,1.306,103.792
+ANGLO-CHINESE SCHOOL (BARKER ROAD),60 BARKER ROAD   ,309919,http://www.acsbr.moe.edu.sg,Central,Secondary,1.325,103.841
+ANGLO-CHINESE SCHOOL (INDEPENDENT),121 DOVER ROAD   ,139650,https://www.acsindep.moe.edu.sg,West,Secondary,1.306,103.792
+ANGLO-CHINESE SCHOOL (JUNIOR),16 WINSTEDT ROAD   ,227988,www.acsj.moe.edu.sg,Central,Primary,1.302,103.837
+ANGLO-CHINESE SCHOOL (PRIMARY),50 BARKER ROAD   ,309918,http://www.acspri.moe.edu.sg/,Central,Primary,1.325,103.841
+ANGSANA PRIMARY SCHOOL,51 Tampines Street 61   ,528565,https://angsanapri.moe.edu.sg/,East,Primary,1.352,103.944
+ASSUMPTION ENGLISH SCHOOL,622 UPPER BUKIT TIMAH ROAD   ,678117,http://www.assumptionenglish.moe.edu.sg,West,Secondary,1.378,103.763
+ASSUMPTION PATHWAY SCHOOL,30 Cashew Road   ,679697,http://www.aps.edu.sg,West,Secondary,1.378,103.763
+BARTLEY SECONDARY SCHOOL,10 JALAN BUNGA RAMPAI   ,538403,http://www.bartleysec.moe.edu.sg,North,Secondary,1.365,103.875
+BEACON PRIMARY SCHOOL,36 Bukit Panjang Ring Road   ,679944,https://beaconpri.moe.edu.sg/,West,Primary,1.378,103.763
+BEATTY SECONDARY SCHOOL,1 TOA PAYOH NORTH   ,318990,http://www.beattysec.moe.edu.sg,Central,Secondary,1.332,103.848
+BEDOK GREEN PRIMARY SCHOOL,1 BEDOK SOUTH AVE 2   ,469317,http://www.bedokgreenpri.moe.edu.sg,East,Primary,1.323,103.935
+BEDOK GREEN SECONDARY SCHOOL,360 BEDOK NORTH AVE 3   ,469722,http://www.bedokgreensec.moe.edu.sg,East,Secondary,1.323,103.935
+BEDOK SOUTH SECONDARY SCHOOL,1 JALAN LANGGAR BEDOK   ,468585,https://www.bedoksouthsec.moe.edu.sg/,East,Secondary,1.323,103.935
+BEDOK VIEW SECONDARY SCHOOL,6 BEDOK SOUTH AVENUE 3   ,469293,http://www.bedokviewsec.moe.edu.sg,East,Secondary,1.323,103.935
+BENDEMEER PRIMARY SCHOOL,91 BENDEMEER ROAD   ,339948,http://www.bendemeerpri.moe.edu.sg/,Central,Primary,1.328,103.855
+BENDEMEER SECONDARY SCHOOL,1 ST WILFRED ROAD   ,327919,http://www.bendemeersec.moe.edu.sg,Central,Secondary,1.328,103.855
+BLANGAH RISE PRIMARY SCHOOL,91 TELOK BLANGAH HEIGHTS   ,109100,http://www.blangahrisepri.moe.edu.sg/,Central,Primary,1.279,103.801
+BOON LAY GARDEN PRIMARY SCHOOL,20 BOON LAY DRIVE   ,649930,www.boonlaygardenpri.moe.edu.sg,West,Primary,1.34,103.702
+BOON LAY SECONDARY SCHOOL,11 JURONG WEST STREET 65   ,648354,https://www.boonlaysec.moe.edu.sg,West,Secondary,1.34,103.702
+BOWEN SECONDARY SCHOOL,2 LORONG NAPIRI   ,547529,http://www.bowensec.moe.edu.sg,North,Secondary,1.392,103.893
+BROADRICK SECONDARY SCHOOL,61 DAKOTA CRESCENT   ,399935,http://www.broadricksec.moe.edu.sg,Central,Secondary,1.318,103.887
+BUKIT BATOK SECONDARY SCHOOL,50 BUKIT BATOK WEST AVE 8   ,658962,http://www.bukitbatoksec.moe.edu.sg,West,Secondary,1.359,103.752
+BUKIT MERAH SECONDARY SCHOOL,10 LENGKOK BAHRU   ,159050,http://www.bukitmerahsec.moe.edu.sg,Central,Secondary,1.286,103.818
+BUKIT PANJANG GOVT. HIGH SCHOOL,7 CHOA CHU KANG AVE 4   ,689809,http://www.bpghs.moe.edu.sg,West,Secondary,1.384,103.745
+BUKIT PANJANG PRIMARY SCHOOL,109 CASHEW ROAD   ,679676,http://www.bukitpanjangpri.moe.edu.sg,West,Primary,1.378,103.763
+BUKIT TIMAH PRIMARY SCHOOL,111 Lorong Kismis   ,598112,http://www.bukittimahpri.moe.edu.sg,West,Primary,1.338,103.768
+BUKIT VIEW PRIMARY SCHOOL,18 BUKIT BATOK STREET 21   ,659634,http://www.bukitviewpri.moe.edu.sg,West,Primary,1.359,103.752
+BUKIT VIEW SECONDARY SCHOOL,16 BUKIT BATOK STREET 21   ,659633,https://www.bukitviewsec.moe.edu.sg,West,Secondary,1.359,103.752
+CANBERRA PRIMARY SCHOOL,21 ADMIRALTY DRIVE   ,757714,http://www.canberrapri.moe.edu.sg,North,Primary,1.448,103.82
+CANBERRA SECONDARY SCHOOL,51 SEMBAWANG DRIVE   ,757699,https://canberrasec.moe.edu.sg,North,Secondary,1.448,103.82
+CANOSSA CATHOLIC PRIMARY SCHOOL,1 Sallim Road   ,387621,https://canossacatholicpri.moe.edu.sg/,Central,Primary,1.318,103.887
+CANTONMENT PRIMARY SCHOOL,1 CANTONMENT CLOSE   ,088256,http://www.cantonmentpri.moe.edu.sg,Central,Primary,1.274,103.843
+CASUARINA PRIMARY SCHOOL,30 PASIR RIS ST 41   ,518935,http://www.casuarinapri.moe.edu.sg/,East,Primary,1.372,103.949
+CATHOLIC HIGH SCHOOL,9 BISHAN STREET 22   ,579767,http://www.catholichigh.moe.edu.sg,Central,Mixed Level,1.356,103.844
+CATHOLIC JUNIOR COLLEGE,129 WHITLEY ROAD   ,297822,https://cjc.moe.edu.sg/,Central,Junior College,1.325,103.841
+CEDAR GIRLS' SECONDARY SCHOOL,1 CEDAR AVENUE   ,349692,http://www.cedargirlssec.moe.edu.sg,Central,Secondary,1.332,103.87
+CEDAR PRIMARY SCHOOL,15 CEDAR AVENUE   ,349700,http://www.cedarpri.moe.edu.sg,Central,Primary,1.332,103.87
+CHANGKAT CHANGI SECONDARY SCHOOL,23 SIMEI ST 3   ,529894,http://www.changkatchangisec.moe.edu.sg,East,Secondary,1.352,103.944
+CHANGKAT PRIMARY SCHOOL,11 SIMEI ST 3   ,529896,http://www.changkatpri.moe.edu.sg/,East,Primary,1.352,103.944
+CHIJ (KATONG) PRIMARY,17 MARTIA ROAD   ,424821,http://chijkcp.moe.edu.sg/,Central,Primary,1.304,103.905
+CHIJ (KELLOCK),1 Bukit Teresa Road   ,099757,http://www.chijkellock.moe.edu.sg/,Central,Primary,1.27,103.815
+CHIJ KATONG CONVENT,346 MARINE TERRACE   ,449150,http://www.chijkatongconvent.moe.edu.sg,Central,Secondary,1.304,103.905
+CHIJ OUR LADY OF GOOD COUNSEL,2C Burghley Drive   ,558979,http://www.chijourladyofgoodcounsel.moe.edu.sg,North,Primary,1.365,103.875
+CHIJ OUR LADY OF THE NATIVITY,1257 UPPER SERANGOON ROAD   ,534793,http://www.chijourladyofthenativity.moe.edu.sg/,North,Primary,1.365,103.875
+CHIJ OUR LADY QUEEN OF PEACE,4 Chestnut Drive   ,679287,http://www.chijourladyqueenofpeace.moe.edu.sg/,West,Primary,1.378,103.763
+CHIJ PRIMARY (TOA PAYOH),628 Lorong 1 Toa Payoh   ,319765,http://www.chijpritoapayoh.moe.edu.sg,Central,Primary,1.332,103.848
+CHIJ SECONDARY (TOA PAYOH),626 LORONG 1 TOA PAYOH   ,319764,http://www.chijsec.edu.sg,Central,Secondary,1.332,103.848
+CHIJ ST. JOSEPH'S CONVENT,62 SENGKANG EAST WAY   ,548595,http://www.chijstjosephsconvent.moe.edu.sg,North,Secondary,1.392,103.893
+CHIJ ST. NICHOLAS GIRLS' SCHOOL,501 ANG MO KIO STREET 13   ,569405,http://www.chijstnicholasgirls.moe.edu.sg,North,Mixed Level,1.369,103.845
+CHIJ ST. THERESA'S CONVENT,160 LOWER DELTA ROAD   ,099138,http://www.chijsttheresasconvent.moe.edu.sg,Central,Secondary,1.27,103.815
+CHONGFU SCHOOL,170 YISHUN AVENUE 6   ,768959,http://www.chongfu.moe.edu.sg/,North,Primary,1.428,103.837
+CHONGZHENG PRIMARY SCHOOL,1 TAMPINES STREET 21   ,529392,http://www.chongzhengpri.moe.edu.sg,East,Primary,1.352,103.944
+CHRIST CHURCH SECONDARY SCHOOL,20 WOODLANDS DRIVE 17   ,737924,http://www.christchurchsec.moe.edu.sg,North,Secondary,1.436,103.786
+CHUA CHU KANG PRIMARY SCHOOL,20 CHOA CHU KANG AVENUE 2   ,689905,http://www.chuachukangpri.moe.edu.sg,West,Primary,1.384,103.745
+CHUA CHU KANG SECONDARY SCHOOL,31 TECK WHYE CRESCENT   ,688848,http://www.chuachukangsec.moe.edu.sg,West,Secondary,1.384,103.745
+CHUNG CHENG HIGH SCHOOL (MAIN),50 GOODMAN ROAD   ,439012,http://www.chungchenghighmain.moe.edu.sg,Central,Secondary,1.304,103.905
+CHUNG CHENG HIGH SCHOOL (YISHUN),11 YISHUN STREET 61   ,768547,http://www.chungchenghighyishun.moe.edu.sg,North,Secondary,1.428,103.837
+CLEMENTI PRIMARY SCHOOL,8 CLEMENTI AVE 3   ,129903,http://www.clementipri.moe.edu.sg,West,Primary,1.312,103.766
+CLEMENTI TOWN SECONDARY SCHOOL,10 CLEMENTI AVE 3   ,129904,http://www.clementitownsec.moe.edu.sg,West,Secondary,1.312,103.766
+COMMONWEALTH SECONDARY SCHOOL,698 WEST COAST ROAD   ,608784,http://www.commonwealthsec.moe.edu.sg,West,Secondary,1.334,103.743
+COMPASSVALE PRIMARY SCHOOL,21 COMPASSVALE ST   ,545091,http://www.compassvalepri.moe.edu.sg/,North,Primary,1.392,103.893
+COMPASSVALE SECONDARY SCHOOL,51 COMPASSVALE CRESCENT   ,545083,http://www.compassvalesec.moe.edu.sg,North,Secondary,1.392,103.893
+CONCORD PRIMARY SCHOOL,3 CHOA CHU KANG AVE 4   ,689814,http://www.concordpri.moe.edu.sg/,West,Primary,1.384,103.745
+CORPORATION PRIMARY SCHOOL,31 JURONG WEST STREET 24   ,648347,http://www.corporationpri.moe.edu.sg,West,Primary,1.34,103.702
+CRESCENT GIRLS' SCHOOL,357 TANGLIN ROAD   ,247961,http://www.crescent.edu.sg,Central,Secondary,1.315,103.81
+CREST SECONDARY SCHOOL,561 JURONG EAST STREET 24   ,609561,http://www.crestsec.edu.sg,West,Secondary,1.334,103.743
+DAMAI PRIMARY SCHOOL,52 BEDOK RESERVOIR CRESCENT   ,479226,http://www.damaipri.moe.edu.sg,East,Primary,1.329,103.921
+DAMAI SECONDARY SCHOOL,4800 BEDOK RESERVOIR ROAD   ,479229,http://www.damaisec.moe.edu.sg,East,Secondary,1.329,103.921
+DAZHONG PRIMARY SCHOOL,35 BUKIT BATOK STREET 31   ,659441,http://www.dazhongpri.moe.edu.sg,West,Primary,1.359,103.752
+DE LA SALLE SCHOOL,11 Choa Chu Kang St 52   ,689285,http://www.delasalle.moe.edu.sg,West,Primary,1.384,103.745
+DEYI SECONDARY SCHOOL,1 ANG MO KIO STREET 42   ,569277,http://www.deyisec.moe.edu.sg,North,Secondary,1.369,103.845
+DUNEARN SECONDARY SCHOOL,21 BUKIT BATOK WEST AVENUE 2   ,659204,http://www.dunearnsec.moe.edu.sg,West,Secondary,1.359,103.752
+DUNMAN HIGH SCHOOL,10 TANJONG RHU ROAD   ,436895,http://www.dunmanhigh.moe.edu.sg,Central,Secondary,1.304,103.905
+DUNMAN SECONDARY SCHOOL,21 TAMPINES STREET 45   ,529093,http://www.dunmansec.moe.edu.sg,East,Secondary,1.352,103.944
+EAST SPRING PRIMARY SCHOOL,31 TAMPINES ST 33   ,529258,http://www.eastspringpri.moe.edu.sg,East,Primary,1.352,103.944
+EAST SPRING SECONDARY SCHOOL,30 TAMPINES STREET 34   ,529231,http://www.eastspringsec.moe.edu.sg,East,Secondary,1.352,103.944
+EDGEFIELD PRIMARY SCHOOL,41 EDGEFIELD PLAINS   ,828869,http://www.edgefieldpri.moe.edu.sg,North,Primary,1.4,103.902
+EDGEFIELD SECONDARY SCHOOL,36 PUNGGOL FIELD   ,828814,http://www.edgefieldsec.moe.edu.sg,North,Secondary,1.4,103.902
+ELIAS PARK PRIMARY SCHOOL,11 PASIR RIS STREET 52   ,518866,http://www.eliasparkpri.moe.edu.sg,East,Primary,1.372,103.949
+ENDEAVOUR PRIMARY SCHOOL,10 Admiralty Link   ,757521,https://endeavourpri.moe.edu.sg/,North,Primary,1.448,103.82
+EUNOIA JUNIOR COLLEGE,2 Sin Ming Place   ,573838,http://www.eunoiajc.moe.edu.sg,Central,Junior College,1.356,103.844
+EVERGREEN PRIMARY SCHOOL,31 WOODLANDS CIRCLE   ,738908,http://www.evergreenpri.moe.edu.sg/,North,Primary,1.436,103.786
+EVERGREEN SECONDARY SCHOOL,11 WOODLANDS STREET 83   ,738489,http://www.evergreensec.moe.edu.sg,North,Secondary,1.436,103.786
+FAIRFIELD METHODIST SCHOOL (PRIMARY),100 DOVER ROAD   ,139648,http://www.fmsp.moe.edu.sg/,West,Primary,1.306,103.792
+FAIRFIELD METHODIST SCHOOL (SECONDARY),102 DOVER ROAD   ,139649,http://www.fairfieldmethodistsec.moe.edu.sg,West,Secondary,1.306,103.792
+FARRER PARK PRIMARY SCHOOL,2 FARRER PARK ROAD   ,217567,http://www.farrerparkpri.moe.edu.sg,Central,Primary,1.311,103.854
+FENGSHAN PRIMARY SCHOOL,307 BEDOK NORTH ROAD   ,469680,http://www.fengshanpri.moe.edu.sg,East,Primary,1.323,103.935
+FERN GREEN PRIMARY SCHOOL,70 Fernvale Link   Fern Green Primary School,797538,www.ferngreenpri.moe.edu.sg,North,Primary,1.395,103.88
+FERNVALE PRIMARY SCHOOL,1 Fernvale Lane   ,797701,www.fernvalepri.moe.edu.sg,North,Primary,1.395,103.88
+FIRST TOA PAYOH PRIMARY SCHOOL,7 LORONG 8 TOA PAYOH   ,319252,http://www.firsttoapayohpri.moe.edu.sg,Central,Primary,1.332,103.848
+FRONTIER PRIMARY SCHOOL,20 Jurong West Street 61   ,648200,http://www.frontierpri.moe.edu.sg,West,Primary,1.34,103.702
+FUCHUN PRIMARY SCHOOL,23 WOODLANDS AVENUE 1   ,739063,http://www.fuchunpri.moe.edu.sg,North,Primary,1.436,103.786
+FUHUA PRIMARY SCHOOL,65 JURONG EAST STREET 13   ,609647,http://www.fuhuapri.moe.edu.sg,West,Primary,1.334,103.743
+FUHUA SECONDARY SCHOOL,5 JURONG WEST STREET 41   ,649410,http://www.fuhuasec.moe.edu.sg,West,Secondary,1.34,103.702
+GAN ENG SENG PRIMARY SCHOOL,100 REDHILL CLOSE   ,158901,http://www.ganengsengpri.moe.edu.sg,Central,Primary,1.286,103.818
+GAN ENG SENG SCHOOL,1 HENDERSON ROAD   ,159561,http://www.ganengsengsch.moe.edu.sg,Central,Secondary,1.286,103.818
+GEYLANG METHODIST SCHOOL (PRIMARY),4 Geylang East Central   ,389706,www.geylangmethodistpri.moe.edu.sg,Central,Primary,1.318,103.887
+GEYLANG METHODIST SCHOOL (SECONDARY),2 GEYLANG EAST CENTRAL   ,389705,http://www.geylangmethodistsec.moe.edu.sg,Central,Secondary,1.318,103.887
+GONGSHANG PRIMARY SCHOOL,1 TAMPINES STREET 42   ,529176,http://www.gongshangpri.moe.edu.sg,East,Primary,1.352,103.944
+GREENDALE PRIMARY SCHOOL,50 Edgedale Plains   ,828848,http://www.greendalepri.moe.edu.sg,North,Primary,1.4,103.902
+GREENDALE SECONDARY SCHOOL,51 EDGEDALE PLAINS   ,828866,http://www.greendalesec.moe.edu.sg,North,Secondary,1.4,103.902
+GREENRIDGE PRIMARY SCHOOL,11 JELAPANG ROAD   ,677744,http://www.greenridgepri.moe.edu.sg,West,Primary,1.378,103.763
+GREENRIDGE SECONDARY SCHOOL,31 Gangsa Road   ,678972,http://www.greenridgesec.moe.edu.sg,West,Secondary,1.378,103.763
+GREENWOOD PRIMARY SCHOOL,11 WOODLANDS  DR  62   ,737942,http://www.greenwoodpri.moe.edu.sg,North,Primary,1.436,103.786
+GUANGYANG SECONDARY SCHOOL,8 BISHAN STREET 12   ,579807,http://guangyangsec.moe.edu.sg,Central,Secondary,1.356,103.844
+HAI SING CATHOLIC SCHOOL,9 Pasir Ris Drive 6   ,519421,http://www.haisingcatholic.moe.edu.sg,East,Secondary,1.372,103.949
+HAIG GIRLS' SCHOOL,51 Koon Seng Road   ,427072,http://www.haiggirls.moe.edu.sg,Central,Primary,1.304,103.905
+HENRY PARK PRIMARY SCHOOL,1 HOLLAND GROVE ROAD   ,278790,http://www.henryparkpri.moe.edu.sg,Central,Primary,1.315,103.81
+HILLGROVE SECONDARY SCHOOL,10 BUKIT BATOK STREET 52   ,659250,http://www.hillgrovesec.moe.edu.sg,West,Secondary,1.359,103.752
+HOLY INNOCENTS' HIGH SCHOOL,1191 UPPER SERANGOON ROAD   ,534786,http://www.holyinnocentshigh.moe.edu.sg,North,Secondary,1.365,103.875
+HOLY INNOCENTS' PRIMARY SCHOOL,5 Lorong Low Koon   ,536451,http://www.holyinnocentspri.moe.edu.sg/,North,Primary,1.365,103.875
+HONG WEN SCHOOL,30 TOWNER ROAD   ,327829,http://www.hongwen.moe.edu.sg,Central,Primary,1.328,103.855
+HORIZON PRIMARY SCHOOL,61 Edgedale Plains   ,828819,http://www.horizonpri.moe.edu.sg,North,Primary,1.4,103.902
+HOUGANG PRIMARY SCHOOL,1 HOUGANG ST 93   ,534238,http://www.hougangpri.moe.edu.sg/,North,Primary,1.365,103.875
+HOUGANG SECONDARY SCHOOL,2 HOUGANG STREET 93   ,534256,http://www.hougangsec.moe.edu.sg,North,Secondary,1.365,103.875
+HUA YI SECONDARY SCHOOL,60 JURONG WEST ST 42   ,649371,http://www.huayisec.moe.edu.sg,West,Secondary,1.34,103.702
+HUAMIN PRIMARY SCHOOL,21 YISHUN AVENUE 11   ,768857,http://www.huaminpri.moe.edu.sg,North,Primary,1.428,103.837
+HWA CHONG INSTITUTION,661 BUKIT TIMAH ROAD   ,269734,https://www.hci.edu.sg/,Central,Secondary,1.315,103.81
+INNOVA PRIMARY SCHOOL,80 Woodlands Drive 17   ,737888,http://www.innovapri.moe.edu.sg/,North,Primary,1.436,103.786
+JIEMIN PRIMARY SCHOOL,2 YISHUN STREET 71   ,768515,http://www.jieminpri.moe.edu.sg,North,Primary,1.428,103.837
+JING SHAN PRIMARY SCHOOL,5 ANG MO KIO ST 52   ,569228,http://www.jingshanpri.moe.edu.sg,North,Primary,1.369,103.845
+JUNYUAN PRIMARY SCHOOL,2 Tampines Street 91   ,528906,https://junyuanpri.moe.edu.sg,East,Primary,1.352,103.944
+JUNYUAN SECONDARY SCHOOL,11 TAMPINES STREET 84   ,528933,https://junyuansec.moe.edu.sg/,East,Secondary,1.352,103.944
+JURONG PIONEER JUNIOR COLLEGE,21 Teck Whye Walk   ,688258,http://jpjc.moe.edu.sg,West,Junior College,1.384,103.745
+JURONG PRIMARY SCHOOL,320 JURONG EAST Street 32   ,609476,http://www.jurongpri.moe.edu.sg,West,Primary,1.334,103.743
+JURONG SECONDARY SCHOOL,31 YUAN CHING ROAD   ,618652,http://www.jurongsec.moe.edu.sg,West,Secondary,1.32,103.732
+JURONG WEST PRIMARY SCHOOL,30 JURONG WEST ST 61   ,648368,http://www.jurongwestpri.moe.edu.sg,West,Primary,1.34,103.702
+JURONG WEST SECONDARY SCHOOL,61 JURONG WEST STREET 65   ,648348,https://www.jurongwestsec.moe.edu.sg,West,Secondary,1.34,103.702
+JURONGVILLE SECONDARY SCHOOL,202 JURONG EAST AVENUE 1   ,609790,http://www.jurongvillesec.moe.edu.sg,West,Secondary,1.334,103.743
+JUYING SECONDARY SCHOOL,33 JURONG WEST STREET 91   ,649038,http://juyingsec.moe.edu.sg,West,Secondary,1.34,103.702
+KEMING PRIMARY SCHOOL,90 BUKIT BATOK EAST AVENUE 6   ,659762,http://www.kemingpri.moe.edu.sg,West,Primary,1.359,103.752
+KENT RIDGE SECONDARY SCHOOL,147 WEST COAST ROAD   ,127368,http://www.kentridgesec.moe.edu.sg,West,Secondary,1.312,103.766
+KHENG CHENG SCHOOL,15 LORONG 3 TOA PAYOH   ,319580,http://www.khengcheng.moe.edu.sg/,Central,Primary,1.332,103.848
+KONG HWA SCHOOL,350 GUILLEMARD ROAD   ,399772,http://www.konghwa.moe.edu.sg,Central,Primary,1.318,103.887
+KRANJI PRIMARY SCHOOL,11 CHOA CHU KANG STREET 54   ,689189,http://kranjipri.moe.edu.sg,West,Primary,1.384,103.745
+KRANJI SECONDARY SCHOOL,61 CHOA CHU KANG STREET 51   ,689333,http://www.kranjisec.moe.edu.sg,West,Secondary,1.384,103.745
+KUO CHUAN PRESBYTERIAN PRIMARY SCHOOL,8 BISHAN STREET 13   ,579793,http://www.kuochuanpresbyterianpri.moe.edu.sg,Central,Primary,1.356,103.844
+KUO CHUAN PRESBYTERIAN SECONDARY SCHOOL,10 BISHAN STREET 13   ,579795,http://www.kuochuanpresbyteriansec.moe.edu.sg,Central,Secondary,1.356,103.844
+LAKESIDE PRIMARY SCHOOL,161 Corporation Walk   ,618310,http://www.lakesidepri.moe.edu.sg/,West,Primary,1.32,103.732
+LIANHUA PRIMARY SCHOOL,2 BUKIT BATOK STREET 52   ,659243,http://www.lianhuapri.moe.edu.sg/,West,Primary,1.359,103.752
+LOYANG VIEW SECONDARY SCHOOL,12 PASIR RIS STREET 11   ,519073,http://www.loyangviewsec.moe.edu.sg,East,Secondary,1.372,103.949
+MAHA BODHI SCHOOL,10 UBI AVENUE 1   ,408931,http://www.mahabodhi.moe.edu.sg/,Central,Primary,1.318,103.887
+MANJUSRI SECONDARY SCHOOL,20 UBI AVENUE 1   ,408940,http://www.manjusrisec.moe.edu.sg,Central,Secondary,1.318,103.887
+MARIS STELLA HIGH SCHOOL,25 MOUNT VERNON ROAD   ,368051,http://www.marisstellahigh.moe.edu.sg,Central,Mixed Level,1.332,103.87
+MARSILING PRIMARY SCHOOL,31 WOODLANDS CENTRE ROAD   ,738927,http://www.marsilingpri.moe.edu.sg,North,Primary,1.436,103.786
+MARSILING SECONDARY SCHOOL,12 MARSILING ROAD   ,739110,http://www.marsilingsec.moe.edu.sg,North,Secondary,1.436,103.786
+MARYMOUNT CONVENT SCHOOL,20 Marymount Road   ,297754,http://www.marymountconvent.moe.edu.sg,Central,Primary,1.325,103.841
+MAYFLOWER PRIMARY SCHOOL,200 Ang Mo Kio Avenue 5   ,569878,http://www.mayflowerpri.moe.edu.sg,North,Primary,1.369,103.845
+MAYFLOWER SECONDARY SCHOOL,2 ANG MO KIO STREET 21   ,569384,http://www.mayflowersec.moe.edu.sg,North,Secondary,1.369,103.845
+MEE TOH SCHOOL,21 EDGEDALE PLAINS   ,828867,http://www.meetoh.moe.edu.sg/,North,Primary,1.4,103.902
+MERIDIAN PRIMARY SCHOOL,20 PASIR RIS ST 71   ,518798,http://www.meridianpri.moe.edu.sg/,East,Primary,1.372,103.949
+MERIDIAN SECONDARY SCHOOL,31 PASIR RIS STREET 51   ,518901,http://www.meridiansec.moe.edu.sg,East,Secondary,1.372,103.949
+METHODIST GIRLS' SCHOOL (PRIMARY),11 Blackmore Drive   ,599986,https://www.mgs.moe.edu.sg/,West,Primary,1.338,103.768
+METHODIST GIRLS' SCHOOL (SECONDARY),11 BLACKMORE DRIVE   ,599986,http://www.mgs.moe.edu.sg,West,Secondary,1.338,103.768
+MILLENNIA INSTITUTE,60 Bukit Batok West Avenue 8   ,658965,http://www.millenniainstitute.moe.edu.sg,West,Others (MI),1.359,103.752
+MONTFORT JUNIOR SCHOOL,52 HOUGANG AVENUE 8   ,538786,http://www.montfortjunior.moe.edu.sg/,North,Primary,1.365,103.875
+MONTFORT SECONDARY SCHOOL,50 HOUGANG AVENUE 8   ,538785,https://montfortsec.moe.edu.sg/,North,Secondary,1.365,103.875
+NAN CHIAU HIGH SCHOOL,20 ANCHORVALE LINK   ,545079,http://www.nanchiauhigh.moe.edu.sg,North,Secondary,1.392,103.893
+NAN CHIAU PRIMARY SCHOOL,50 ANCHORVALE LINK   ,545080,http://www.ncps.moe.edu.sg,North,Primary,1.392,103.893
+NAN HUA HIGH SCHOOL,41 CLEMENTI AVENUE 1   ,129956,http://www.nanhuahigh.moe.edu.sg,West,Secondary,1.312,103.766
+NAN HUA PRIMARY SCHOOL,30 Jalan Lempeng   ,128806,http://www.nanhuapri.moe.edu.sg,West,Primary,1.312,103.766
+NANYANG GIRLS' HIGH SCHOOL,2 LINDEN DRIVE   ,288683,https://www.nygh.edu.sg,Central,Secondary,1.325,103.841
+NANYANG JUNIOR COLLEGE,128 SERANGOON AVENUE 3   ,556111,http://www.nanyangjc.moe.edu.sg/,North,Junior College,1.365,103.875
+NANYANG PRIMARY SCHOOL,52 KING'S ROAD   ,268097,http://www.nyps.moe.edu.sg,Central,Primary,1.315,103.81
+NATIONAL JUNIOR COLLEGE,37 HILLCREST ROAD   ,288913,http://www.nationaljc.moe.edu.sg,Central,Secondary,1.325,103.841
+NAVAL BASE PRIMARY SCHOOL,7 YISHUN AVE 4   ,769028,http://www.navalbasepri.moe.edu.sg/,North,Primary,1.428,103.837
+NAVAL BASE SECONDARY SCHOOL,901 YISHUN RING ROAD   ,768689,http://www.navalbasesec.moe.edu.sg,North,Secondary,1.428,103.837
+NEW TOWN PRIMARY SCHOOL,300 Tanglin Halt Road   ,148812,http://www.newtownpri.moe.edu.sg/,Central,Primary,1.321,103.885
+NEW TOWN SECONDARY SCHOOL,1020 DOVER ROAD   ,139657,http://www.newtownsec.moe.edu.sg,West,Secondary,1.306,103.792
+NGEE ANN PRIMARY SCHOOL,344 MARINE TERRACE   ,449149,http://www.ngeeannpri.moe.edu.sg,Central,Primary,1.304,103.905
+NGEE ANN SECONDARY SCHOOL,1 TAMPINES STREET 32   ,529283,http://www.ngeeannsec.moe.edu.sg,East,Secondary,1.352,103.944
+NORTH SPRING PRIMARY SCHOOL,1 RIVERVALE STREET   ,545088,http://www.northspringpri.moe.edu.sg,North,Primary,1.392,103.893
+NORTH VIEW PRIMARY SCHOOL,210 YISHUN AVENUE 6   ,768960,http://www.northviewpri.moe.edu.sg,North,Primary,1.428,103.837
+NORTH VISTA PRIMARY SCHOOL,20 Compassvale Link   ,544974,http://www.northvistapri.moe.edu.sg,North,Primary,1.392,103.893
+NORTH VISTA SECONDARY SCHOOL,11 RIVERVALE LINK   ,545081,http://www.northvistasec.moe.edu.sg,North,Secondary,1.392,103.893
+NORTHBROOKS SECONDARY SCHOOL,585 YISHUN RING ROAD   ,768692,http://www.northbrookssec.moe.edu.sg,North,Secondary,1.428,103.837
+NORTHLAND PRIMARY SCHOOL,15 YISHUN AVENUE 4   ,769026,http://www.northlandpri.moe.edu.sg,North,Primary,1.428,103.837
+NORTHLAND SECONDARY SCHOOL,3 YISHUN STREET 22   ,768578,http://www.northlandsec.moe.edu.sg,North,Secondary,1.428,103.837
+NORTHLIGHT SCHOOL,151 Towner Road   ,327830,https://www.nls.edu.sg,Central,Secondary,1.328,103.855
+NORTHOAKS PRIMARY SCHOOL,61 Sembawang Drive   ,757622,http://www.northoakspri.moe.edu.sg,North,Primary,1.448,103.82
+NORTHSHORE PRIMARY SCHOOL,30 Northshore Drive   ,828671,https://northshorepri.moe.edu.sg/,North,Primary,1.4,103.902
+NUS HIGH SCHOOL OF MATHEMATICS AND SCIENCE,20 Clementi Avenue 1   ,129957,www.nushigh.edu.sg,West,Secondary,1.312,103.766
+OASIS PRIMARY SCHOOL,71 Edgefield Plains   ,828716,http://www.oasispri.moe.edu.sg/,North,Primary,1.4,103.902
+OPERA ESTATE PRIMARY SCHOOL,48 FIDELIO STREET   ,458436,http://www.operaestatepri.moe.edu.sg,Central,Primary,1.304,103.905
+ORCHID PARK SECONDARY SCHOOL,10 YISHUN STREET 81   ,768454,http://www.orchidparksec.moe.edu.sg,North,Secondary,1.428,103.837
+OUTRAM SECONDARY SCHOOL,48 Anchorvale Crescent   ,549936,http://www.outramsec.moe.edu.sg,North,Secondary,1.392,103.893
+PALM VIEW PRIMARY SCHOOL,150 Compassvale Bow   ,544822,http://www.palmviewpri.moe.edu.sg,North,Primary,1.392,103.893
+PARK VIEW PRIMARY SCHOOL,60 PASIR RIS DRIVE 1   ,519524,http://www.parkviewpri.moe.edu.sg,East,Primary,1.372,103.949
+PASIR RIS CREST SECONDARY SCHOOL,11 PASIR RIS STREET 41   ,518934,http://www.prcss.moe.edu.sg,East,Secondary,1.372,103.949
+PASIR RIS PRIMARY SCHOOL,5 PASIR RIS STREET 21   ,518968,http://www.pasirrispri.moe.edu.sg,East,Primary,1.372,103.949
+PASIR RIS SECONDARY SCHOOL,390 TAMPINES STREET 21   ,529400,https://pasirrissec.moe.edu.sg,East,Secondary,1.352,103.944
+PAYA LEBAR METHODIST GIRLS' SCHOOL (PRIMARY),298 LORONG AH SOO   ,536741,http://www.payalebarmethodistgirlspri.moe.edu.sg/,North,Primary,1.365,103.875
+PAYA LEBAR METHODIST GIRLS' SCHOOL (SECONDARY),296 LOR AH SOO   ,536742,http://www.plmgss.moe.edu.sg,North,Secondary,1.365,103.875
+PEI CHUN PUBLIC SCHOOL,16 LORONG 7 TOA PAYOH   ,319320,http://www.peichunpublic.moe.edu.sg,Central,Primary,1.332,103.848
+PEI HWA PRESBYTERIAN PRIMARY SCHOOL,7 PEI WAH AVENUE   ,597610,http://www.peihwapresbyterianpri.moe.edu.sg/,West,Primary,1.338,103.768
+PEI HWA SECONDARY SCHOOL,21 FERNVALE LINK   ,797702,http://www.peihwasec.moe.edu.sg,North,Secondary,1.395,103.88
+PEI TONG PRIMARY SCHOOL,15 CLEMENTI AVENUE 5   ,129857,http://www.peitongpri.moe.edu.sg/,West,Primary,1.312,103.766
+PEICAI SECONDARY SCHOOL,10 SERANGOON AVENUE 4   ,556094,http://www.peicaisec.moe.edu.sg,North,Secondary,1.365,103.875
+PEIRCE SECONDARY SCHOOL,10 SIN MING WALK   ,575566,http://www.peircesec.moe.edu.sg,Central,Secondary,1.356,103.844
+PEIYING PRIMARY SCHOOL,651 YISHUN RING ROAD   ,768687,http://www.peiyingpri.moe.edu.sg,North,Primary,1.428,103.837
+PIONEER PRIMARY SCHOOL,80 TENGAH GARDEN AVENUE   ,699915,http://www.pioneerpri.moe.edu.sg,West,Primary,1.37,103.7
+POI CHING SCHOOL,21 TAMPINES STREET 71   ,529067,http://www.poiching.moe.edu.sg,East,Primary,1.352,103.944
+PRESBYTERIAN HIGH SCHOOL,5209 ANG MO KIO AVENUE 6   ,569845,http://www.presbyterian.moe.edu.sg,North,Secondary,1.369,103.845
+PRINCESS ELIZABETH PRIMARY SCHOOL,30 BUKIT BATOK WEST AVENUE 3   ,659163,http://www.princesselizabethpri.moe.edu.sg,West,Primary,1.359,103.752
+PUNGGOL COVE PRIMARY SCHOOL,52 Sumang Walk   ,828674,https://punggolcovepri.moe.edu.sg/,North,Primary,1.4,103.902
+PUNGGOL GREEN PRIMARY SCHOOL,98 Punggol Walk   ,828772,http://www.punggolgreenpri.moe.edu.sg,North,Primary,1.4,103.902
+PUNGGOL PRIMARY SCHOOL,61 HOUGANG AVENUE 8   ,538787,http://www.punggolpri.moe.edu.sg/,North,Primary,1.365,103.875
+PUNGGOL SECONDARY SCHOOL,51 EDGEFIELD PLAINS   ,828870,http://www.punggolsec.moe.edu.sg,North,Secondary,1.4,103.902
+PUNGGOL VIEW PRIMARY SCHOOL,9 Punggol Place   ,828845,http://www.punggolviewpri.moe.edu.sg,North,Primary,1.4,103.902
+QIFA PRIMARY SCHOOL,50 WEST COAST AVENUE   ,128104,http://www.qifapri.moe.edu.sg,West,Primary,1.312,103.766
+QIHUA PRIMARY SCHOOL,5 WOODLANDS STREET 81   ,738525,http://www.qihuapri.moe.edu.sg,North,Primary,1.436,103.786
+QUEENSTOWN PRIMARY SCHOOL,310 MARGARET DR   ,149303,http://www.queenstownpri.moe.edu.sg,Central,Primary,1.321,103.885
+QUEENSTOWN SECONDARY SCHOOL,1 STRATHMORE ROAD   ,148800,http://www.queenstownsec.moe.edu.sg,Central,Secondary,1.321,103.885
+QUEENSWAY SECONDARY SCHOOL,2A MARGARET DRIVE   ,149295,http://www.queenswaysec.moe.edu.sg,Central,Secondary,1.321,103.885
+RADIN MAS PRIMARY SCHOOL,1 BUKIT PURMEI AVENUE   ,099840,https://www.radinmaspri.moe.edu.sg/,Central,Primary,1.27,103.815
+RAFFLES GIRLS' PRIMARY SCHOOL,21 Hillcrest Road   ,289072,http://www.rafflesgirlspri.moe.edu.sg,Central,Primary,1.325,103.841
+RAFFLES GIRLS' SCHOOL (SECONDARY),2 BRADDELL RISE   ,318871,http://www.rgs.edu.sg,Central,Secondary,1.332,103.848
+RAFFLES INSTITUTION,1 RAFFLES INSTITUTION LANE   ,575954,http://www.ri.edu.sg,Central,Secondary,1.356,103.844
+RED SWASTIKA SCHOOL,350 BEDOK NORTH AVENUE 3   ,469719,http://www.redswastika.moe.edu.sg,East,Primary,1.323,103.935
+REGENT SECONDARY SCHOOL,50 CHOA CHU KANG NORTH 5   ,689621,http://regentsec.moe.edu.sg,West,Secondary,1.384,103.745
+RIVER VALLEY HIGH SCHOOL,6 BOON LAY AVENUE   ,649961,https://rivervalleyhigh.moe.edu.sg/,West,Secondary,1.34,103.702
+RIVER VALLEY PRIMARY SCHOOL,2 RIVER VALLEY GREEN   ,237993,http://www.rivervalleypri.moe.edu.sg,Central,Primary,1.302,103.837
+RIVERSIDE PRIMARY SCHOOL,110 Woodlands Crescent   ,737803,http://www.riversidepri.moe.edu.sg,North,Primary,1.436,103.786
+RIVERSIDE SECONDARY SCHOOL,3 WOODLANDS STREET 81   ,738524,http://www.riversidesec.moe.edu.sg,North,Secondary,1.436,103.786
+RIVERVALE PRIMARY SCHOOL,80 RIVERVALE DRIVE   ,545092,http://www.rivervalepri.moe.edu.sg/,North,Primary,1.392,103.893
+ROSYTH SCHOOL,21 Serangoon North Avenue 4   ,555855,https://www.rosyth.moe.edu.sg,North,Primary,1.365,103.875
+RULANG PRIMARY SCHOOL,6 JURONG WEST STREET 52   ,649295,http://www.rulangpri.moe.edu.sg/,West,Primary,1.34,103.702
+"SCHOOL OF SCIENCE AND TECHNOLOGY, SINGAPORE",1 Technology Drive   ,138572,http://www.sst.edu.sg,West,Secondary,1.306,103.792
+"SCHOOL OF THE ARTS, SINGAPORE",1 Zubir Said Drive 05 01 ,227968,http://www.sota.edu.sg/,Central,Secondary,1.302,103.837
+SEMBAWANG PRIMARY SCHOOL,10 SEMBAWANG DRIVE   ,757715,http://www.sembawangpri.moe.edu.sg,North,Primary,1.448,103.82
+SEMBAWANG SECONDARY SCHOOL,30 SEMBAWANG CRESCENT   ,757704,http://www.sembawangsec.moe.edu.sg,North,Secondary,1.448,103.82
+SENG KANG PRIMARY SCHOOL,21 COMPASSVALE WALK   ,545166,http://www.sengkangpri.moe.edu.sg/,North,Primary,1.392,103.893
+SENG KANG SECONDARY SCHOOL,10 COMPASSVALE LANE   ,545090,http://www.sengkangsec.moe.edu.sg,North,Secondary,1.392,103.893
+SENGKANG GREEN PRIMARY SCHOOL,15 Fernvale Road   ,797636,https://sengkanggreenpri.moe.edu.sg/,North,Primary,1.395,103.88
+SERANGOON GARDEN SECONDARY SCHOOL,21 SERANGOON NORTH AVENUE 1   ,555889,https://www.sgs.moe.edu.sg,North,Secondary,1.365,103.875
+SERANGOON SECONDARY SCHOOL,11 UPPER SERANGOON VIEW   ,534237,http://www.serangoonsec.moe.edu.sg,North,Secondary,1.365,103.875
+SHUQUN PRIMARY SCHOOL,8 JURONG WEST STREET 51   ,649332,http://www.shuqunpri.moe.edu.sg,West,Primary,1.34,103.702
+SI LING PRIMARY SCHOOL,61 WOODLANDS AVENUE 1   ,739067,http://www.silingpri.moe.edu.sg,North,Primary,1.436,103.786
+SINGAPORE CHINESE GIRLS' PRIMARY SCHOOL,190 DUNEARN ROAD   ,309437,www.scgs.moe.edu.sg,Central,Primary,1.325,103.841
+SINGAPORE CHINESE GIRLS' SCHOOL,190 DUNEARN ROAD   ,309437,http://www.scgs.moe.edu.sg,Central,Secondary,1.325,103.841
+SINGAPORE SPORTS SCHOOL,1 Champions Way   ,737913,http://www.sportsschool.edu.sg,North,Secondary,1.436,103.786
+SOUTH VIEW PRIMARY SCHOOL,6 Choa Chu Kang Central   ,689762,http://www.southviewpri.moe.edu.sg,West,Primary,1.384,103.745
+SPECTRA SECONDARY SCHOOL,1 WOODLANDS DRIVE 64   ,737758,https://www.spectra.edu.sg,North,Secondary,1.436,103.786
+SPRINGDALE PRIMARY SCHOOL,71 Anchorvale Link   ,544799,http://springdalepri.moe.edu.sg/,North,Primary,1.392,103.893
+SPRINGFIELD SECONDARY SCHOOL,30 TAMPINES AVENUE 8   ,529593,http://www.springfieldsec.moe.edu.sg,East,Secondary,1.352,103.944
+ST ANDREW'S JUNIOR COLLEGE,5 Sorby Adams Drive   ,357691,http://www.standrewsjc.moe.edu.sg/,Central,Junior College,1.332,103.87
+ST ANDREW'S SCHOOL (JUNIOR),2 FRANCIS THOMAS DRIVE   ,359337,http://www.saintandrewsjunior.moe.edu.sg,Central,Primary,1.332,103.87
+ST ANDREW'S SCHOOL (SECONDARY),15 FRANCIS THOMAS DRIVE   ,359342,http://www.standrewssec.moe.edu.sg,Central,Secondary,1.332,103.87
+ST. ANTHONY'S CANOSSIAN PRIMARY SCHOOL,1602 BEDOK NORTH AVE 4   ,469701,http://www.stanthonyscanossianpri.moe.edu.sg,East,Primary,1.323,103.935
+ST. ANTHONY'S CANOSSIAN SECONDARY SCHOOL,1600 BEDOK NORTH AVENUE 4   ,469700,https://stanthonyscanossiansec.moe.edu.sg,East,Secondary,1.323,103.935
+ST. ANTHONY'S PRIMARY SCHOOL,30 Bukit Batok St 32   ,659401,http://www.stanthonyspri.moe.edu.sg,West,Primary,1.359,103.752
+ST. GABRIEL'S PRIMARY SCHOOL,220 Lorong Chuan   ,556742,http://www.stgabrielspri.moe.edu.sg,North,Primary,1.365,103.875
+ST. GABRIEL'S SECONDARY SCHOOL,24 SERANGOON AVENUE 1   ,556140,http://www.stgabrielssec.moe.edu.sg,North,Secondary,1.365,103.875
+ST. HILDA'S PRIMARY SCHOOL,2 Tampines Ave 3   ,529706,http://www.shps.moe.edu.sg,East,Primary,1.352,103.944
+ST. HILDA'S SECONDARY SCHOOL,2 TAMPINES STREET 82   ,528986,http://www.sthildassec.moe.edu.sg,East,Secondary,1.352,103.944
+ST. JOSEPH'S INSTITUTION,38 MALCOLM ROAD   ,308274,http://www.sji.edu.sg,Central,Secondary,1.325,103.841
+ST. JOSEPH'S INSTITUTION JUNIOR,3 ESSEX ROAD   ,309331,https://sjijunior.moe.edu.sg,Central,Primary,1.325,103.841
+ST. MARGARET'S SCHOOL (PRIMARY),136 Sophia Road   ,228197,http://www.stmargaretspri.moe.edu.sg,Central,Primary,1.302,103.837
+ST. MARGARET'S SCHOOL (SECONDARY),111 FARRER ROAD   ,259240,http://www.stmargaretssec.moe.edu.sg,Central,Secondary,1.315,103.81
+ST. PATRICK'S SCHOOL,490 EAST COAST ROAD   ,429058,http://www.stpatricks.moe.edu.sg,Central,Secondary,1.304,103.905
+ST. STEPHEN'S SCHOOL,20 SIGLAP VIEW   ,455789,http://www.ststephens.moe.edu.sg,Central,Primary,1.304,103.905
+SWISS COTTAGE SECONDARY SCHOOL,3 BUKIT BATOK STREET 34   ,659322,http://www.swisscottagesec.moe.edu.sg,West,Secondary,1.359,103.752
+TAMPINES MERIDIAN JUNIOR COLLEGE,21 Pasir Ris Street 71   ,518799,http://www.tmjc.moe.edu.sg,East,Junior College,1.372,103.949
+TAMPINES NORTH PRIMARY SCHOOL,30 TAMPINES AVENUE 9   ,529565,http://www.tampinesnorthpri.moe.edu.sg,East,Primary,1.352,103.944
+TAMPINES PRIMARY SCHOOL,250 TAMPINES STREET 12   ,529426,http://www.tampinespri.moe.edu.sg,East,Primary,1.352,103.944
+TAMPINES SECONDARY SCHOOL,252 TAMPINES ST 12   ,529427,https://www.tampinessec.moe.edu.sg,East,Secondary,1.352,103.944
+TANJONG KATONG GIRLS' SCHOOL,20 Dunman Lane   ,439272,http://www.tkgs.moe.edu.sg,Central,Secondary,1.304,103.905
+TANJONG KATONG PRIMARY SCHOOL,10 Seraya Road   ,437259,http://www.tanjongkatongpri.moe.edu.sg/,Central,Primary,1.304,103.905
+TANJONG KATONG SECONDARY SCHOOL,130 HAIG ROAD   ,438796,http://www.tanjongkatongsec.moe.edu.sg,Central,Secondary,1.304,103.905
+TAO NAN SCHOOL,49 MARINE CRESCENT   ,449761,http://www.taonan.moe.edu.sg,Central,Primary,1.304,103.905
+TECK GHEE PRIMARY SCHOOL,1 ANG MO KIO STREET 32   ,569299,http://www.teckgheepri.moe.edu.sg,North,Primary,1.369,103.845
+TECK WHYE PRIMARY SCHOOL,11 TECK WHYE WALK   ,688261,http://www.teckwhyepri.moe.edu.sg,West,Primary,1.384,103.745
+TELOK KURAU PRIMARY SCHOOL,50 BEDOK RESERVOIR RD   ,479239,http://www.telokkuraupri.moe.edu.sg,East,Primary,1.329,103.921
+TEMASEK JUNIOR COLLEGE,2 Tampines Avenue 9   Temasek Junior College,529564,http://www.temasekjc.moe.edu.sg,East,Secondary,1.352,103.944
+TEMASEK PRIMARY SCHOOL,501 BEDOK SOUTH AVE 3   ,469300,http://www.temasekpri.moe.edu.sg,East,Primary,1.323,103.935
+TEMASEK SECONDARY SCHOOL,600 UPPER EAST COAST ROAD   ,465561,https://temaseksec.moe.edu.sg,East,Secondary,1.323,103.935
+TOWNSVILLE PRIMARY SCHOOL,3 ANG MO KIO AVE 10   ,569730,http://www.townsvillepri.moe.edu.sg/,North,Primary,1.369,103.845
+UNITY PRIMARY SCHOOL,21 CHOA CHU KANG CRESCENT   ,688268,http://www.unitypri.moe.edu.sg,West,Primary,1.384,103.745
+UNITY SECONDARY SCHOOL,20 CHOA CHU KANG STREET 62   ,689143,http://www.unitysec.moe.edu.sg,West,Secondary,1.384,103.745
+VALOUR PRIMARY SCHOOL,49 Punggol Central   ,828728,valourpri.moe.edu.sg,North,Primary,1.4,103.902
+VICTORIA JUNIOR COLLEGE,20 MARINE VISTA   ,449035,https://www.victoriajc.moe.edu.sg/,Central,Junior College,1.304,103.905
+VICTORIA SCHOOL,2 SIGLAP LINK   ,448880,http://www.victoria.moe.edu.sg,Central,Secondary,1.304,103.905
+WATERWAY PRIMARY SCHOOL,70 Punggol Drive   ,828802,https://waterwaypri.moe.edu.sg,North,Primary,1.4,103.902
+WELLINGTON PRIMARY SCHOOL,10 WELLINGTON CIRCLE   ,757702,http://www.wellingtonpri.moe.edu.sg,North,Primary,1.448,103.82
+WEST GROVE PRIMARY SCHOOL,1 JURONG WEST ST 72   ,649223,http://www.westgrovepri.moe.edu.sg/,West,Primary,1.34,103.702
+WEST SPRING PRIMARY SCHOOL,60 Bukit Panjang Ring Road   ,679946,http://www.westspringpri.moe.edu.sg,West,Primary,1.378,103.763
+WEST SPRING SECONDARY SCHOOL,61 SENJA  ROAD   ,677737,http://www.westspringsec.moe.edu.sg,West,Secondary,1.378,103.763
+WEST VIEW PRIMARY SCHOOL,31 SENJA ROAD   ,677742,http://www.westviewpri.moe.edu.sg,West,Primary,1.378,103.763
+WESTWOOD PRIMARY SCHOOL,1 Jurong West Street 73   ,649188,http://www.westwoodpri.moe.edu.sg,West,Primary,1.34,103.702
+WESTWOOD SECONDARY SCHOOL,11 JURONG WEST STREET 25   ,648350,https://www.westwoodsec.moe.edu.sg,West,Secondary,1.34,103.702
+WHITE SANDS PRIMARY SCHOOL,2 PASIR RIS ST 11   ,519075,http://www.whitesandspri.moe.edu.sg,East,Primary,1.372,103.949
+WHITLEY SECONDARY SCHOOL,30 BISHAN STREET 24   ,579747,http://www.whitleysec.moe.edu.sg,Central,Secondary,1.356,103.844
+WOODGROVE PRIMARY SCHOOL,2 WOODLANDS DRIVE 14   ,738079,http://www.woodgrovepri.moe.edu.sg/,North,Primary,1.436,103.786
+WOODGROVE SECONDARY SCHOOL,3 WOODLANDS AVENUE 6   ,738990,https://www.woodgrovesec.moe.edu.sg,North,Secondary,1.436,103.786
+WOODLANDS PRIMARY SCHOOL,10 WOODLANDS DRIVE 50   ,738853,http://www.woodlandspri.moe.edu.sg,North,Primary,1.436,103.786
+WOODLANDS RING PRIMARY SCHOOL,11 WOODLANDS RING ROAD   ,738240,http://www.woodlandsringpri.moe.edu.sg,North,Primary,1.436,103.786
+WOODLANDS RING SECONDARY SCHOOL,21 WOODLANDS AVENUE 1   ,739062,http://www.woodlandsringsec.moe.edu.sg,North,Secondary,1.436,103.786
+WOODLANDS SECONDARY SCHOOL,11 MARSILING ROAD   ,739111,http://www.woodlandssec.moe.edu.sg,North,Secondary,1.436,103.786
+XINGHUA PRIMARY SCHOOL,45 HOUGANG AVENUE 1   ,538882,http://www.xinghuapri.moe.edu.sg,North,Primary,1.365,103.875
+XINGNAN PRIMARY SCHOOL,5 JURONG WEST STREET 91   ,649036,http://www.xingnanpri.moe.edu.sg,West,Primary,1.34,103.702
+XINMIN PRIMARY SCHOOL,9 HOUGANG AVENUE 8   ,538784,https://xinminpri.moe.edu.sg/,North,Primary,1.365,103.875
+XINMIN SECONDARY SCHOOL,11 HOUGANG AVENUE 8   ,538789,https://www.xinminsec.moe.edu.sg/,North,Secondary,1.365,103.875
+XISHAN PRIMARY SCHOOL,8 YISHUN STREET 21   ,768611,https://www.xishanpri.moe.edu.sg/,North,Primary,1.428,103.837
+YANGZHENG PRIMARY SCHOOL,15 SERANGOON AVENUE 3   ,556108,http://www.yangzhengpri.moe.edu.sg/,North,Primary,1.365,103.875
+YEW TEE PRIMARY SCHOOL,10 CHOA CHU KANG ST 64   ,689100,http://www.yewteepri.moe.edu.sg,West,Primary,1.384,103.745
+YIO CHU KANG PRIMARY SCHOOL,1 HOUGANG STREET 51   ,538720,http://www.yiochukangpri.moe.edu.sg,North,Primary,1.365,103.875
+YIO CHU KANG SECONDARY SCHOOL,3063 ANG MO KIO AVENUE 5   ,569868,http://www.yiochukangsec.moe.edu.sg,North,Secondary,1.369,103.845
+YISHUN INNOVA JUNIOR COLLEGE,3 YISHUN RING ROAD   ,768675,https://yijc.moe.edu.sg/,North,Junior College,1.428,103.837
+YISHUN PRIMARY SCHOOL,500 YISHUN RING ROAD   ,768679,http://www.yishunpri.moe.edu.sg,North,Primary,1.428,103.837
+YISHUN SECONDARY SCHOOL,4 YISHUN STREET 71   ,768516,http://www.yishunsec.moe.edu.sg,North,Secondary,1.428,103.837
+YISHUN TOWN SECONDARY SCHOOL,6 YISHUN STREET 21   ,768610,http://www.yishuntownsec.moe.edu.sg,North,Secondary,1.428,103.837
+YU NENG PRIMARY SCHOOL,56 BEDOK NORTH ST 3   ,469623,http://www.ynps.moe.edu.sg/,East,Primary,1.323,103.935
+YUAN CHING SECONDARY SCHOOL,103 YUAN CHING ROAD   ,618654,https://yuanchingsec.moe.edu.sg/,West,Secondary,1.32,103.732
+YUHUA PRIMARY SCHOOL,158 JURONG EAST STREET 24   ,609558,http://www.yuhuapri.moe.edu.sg,West,Primary,1.334,103.743
+YUHUA SECONDARY SCHOOL,35 JURONG WEST STREET 41   ,649406,http://www.yuhuasec.moe.edu.sg,West,Secondary,1.34,103.702
+YUMIN PRIMARY SCHOOL,3 TAMPINES STREET 21   ,529393,http://www.yuminpri.moe.edu.sg,East,Primary,1.352,103.944
+YUSOF ISHAK SECONDARY SCHOOL,8 SUMANG WALK   ,828676,http://www.yusofishaksec.moe.edu.sg,North,Secondary,1.4,103.902
+YUYING SECONDARY SCHOOL,47 HOUGANG AVENUE 1   ,538884,http://www.yuyingsec.moe.edu.sg,North,Secondary,1.365,103.875
+ZHANGDE PRIMARY SCHOOL,51 Jalan Membina   ,169485,http://www.zhangdepri.moe.edu.sg/,Central,Primary,1.286,103.818
+ZHENGHUA PRIMARY SCHOOL,9 Fajar Road   ,679002,http://www.zhenghuapri.moe.edu.sg,West,Primary,1.378,103.763
+ZHENGHUA SECONDARY SCHOOL,62 Bukit Panjang Ring Road   ,679962,http://www.zhenghuasec.moe.edu.sg,West,Secondary,1.378,103.763
+ZHONGHUA PRIMARY SCHOOL,12 SERANGOON AVENUE 4   ,556095,http://www.zhonghuapri.moe.edu.sg,North,Primary,1.365,103.875
+ZHONGHUA SECONDARY SCHOOL,13 SERANGOON AVENUE 3   ,556123,https://www.zhonghuasec.moe.edu.sg,North,Secondary,1.365,103.875
