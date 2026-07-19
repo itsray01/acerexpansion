@@ -4,6 +4,7 @@ import csv
 import folium
 from folium import plugins
 from folium import Element
+from folium.plugins import HeatMap
 
 URA_GEOJSON_PATH = "ura_regions.json"
 SCHOOL_DB_PATH = "school_db.json"
@@ -18,7 +19,7 @@ PALETTE = {
     "Central": "#DC2626"  # Crimson Red
 }
 
-# 2. Calculated anchors to push the text boxes into the empty sea
+# Calculated anchors to push the text boxes into the empty sea
 REGIONS = {
     "North": {
         "color": PALETTE["North"],
@@ -76,12 +77,16 @@ def generate_map():
                 branch_counts[region] += 1
 
     school_counts = {"North": 0, "West": 0, "East": 0, "Central": 0}
+    heat_data = []
+    
     if os.path.exists(SCHOOL_DB_PATH):
         try:
             with open(SCHOOL_DB_PATH, 'r', encoding='utf-8') as f:
                 schools = json.load(f)
                 for s in schools:
                     lat, lon = s.get('lat', 0), s.get('lon', 0)
+                    heat_data.append([lat, lon]) # Feed GPS coordinates to Heatmap array
+                    
                     if lon < 103.75: school_counts["West"] += 1
                     elif lon > 103.88: school_counts["East"] += 1
                     elif lat > 1.37: school_counts["North"] += 1
@@ -90,6 +95,7 @@ def generate_map():
             print(f"[!] Error reading schools: {e}")
 
     student_data = {"North": "N/A", "West": "N/A", "East": "N/A", "Central": "N/A"}
+    
     if os.path.exists(MOE_DATA_PATH):
         try:
             temp_students = {"North": 0, "West": 0, "East": 0, "Central": 0}
@@ -116,11 +122,24 @@ def generate_map():
 
     m = folium.Map(
         location=[1.3521, 103.8198], 
-        zoom_start=11, 
-        tiles=None, 
-        zoom_control=False 
+        zoom_start=11.5,
+        min_zoom=11,      # REQUIRED FIX: Prevents zooming out too far
+        max_bounds=True,  # REQUIRED FIX: Prevents panning off the island
+        tiles='CartoDB positron', # Clean, light-mode infographic base
+        name="Light Mode (Default)",
+        zoom_control=True 
     )
-    m.get_root().html.add_child(Element('<div style="position:fixed; top:0; left:0; width:100vw; height:100vh; background-color:#f4f4f8; z-index:-1;"></div>'))
+    
+    # Restore Dark Mode Option
+    folium.TileLayer('CartoDB dark_matter', name="Dark Mode Map").add_to(m)
+
+    # Restore Heatmap Layer (Hidden by default)
+    if heat_data:
+        heatmap_group = folium.FeatureGroup(name="School Density Heatmap", show=False)
+        HeatMap(heat_data, radius=14, blur=18, max_zoom=1).add_to(heatmap_group)
+        heatmap_group.add_to(m)
+
+    infographic_group = folium.FeatureGroup(name="Executive Regions", show=True)
 
     def style_function(feature):
         ura_region = feature['properties'].get('REGION_N', '')
@@ -141,8 +160,9 @@ def generate_map():
     with open(URA_GEOJSON_PATH, 'r') as f:
         geo_data = json.load(f)
 
-    folium.GeoJson(geo_data, style_function=style_function).add_to(m)
+    folium.GeoJson(geo_data, style_function=style_function).add_to(infographic_group)
 
+    branch_group = folium.FeatureGroup(name="Academy Branches", show=True)
     for name, coords in EXISTING_BRANCHES.items():
         pin_color = "#333333"
         if "(North)" in name: pin_color = PALETTE["North"]
@@ -159,7 +179,7 @@ def generate_map():
             fill_color=pin_color,
             fill_opacity=1.0,
             tooltip=name
-        ).add_to(m)
+        ).add_to(branch_group)
 
     for region, config in REGIONS.items():
         color = config["color"]
@@ -170,11 +190,11 @@ def generate_map():
             weight=2,
             dash_array="4, 4",
             opacity=0.8
-        ).add_to(m)
+        ).add_to(infographic_group)
         
         folium.CircleMarker(
             location=config["center"], radius=4, color="#ffffff", weight=1, fill=True, fill_color=color, fill_opacity=1
-        ).add_to(m)
+        ).add_to(infographic_group)
 
         students = student_data[region]
         student_str = f"{students:,}" if isinstance(students, int) else students
@@ -211,10 +231,16 @@ def generate_map():
                 icon_size=(190, 110),
                 icon_anchor=(95, 55)
             )
-        ).add_to(m)
+        ).add_to(infographic_group)
+
+    infographic_group.add_to(m)
+    branch_group.add_to(m)
+    
+    # Restore the Interactive Menu/Directory Button
+    folium.LayerControl(position='topright', collapsed=True).add_to(m)
 
     m.save(OUTPUT_MAP_PATH)
-    print(f"\n[+] SUCCESS! Premium map generated: {OUTPUT_MAP_PATH}")
+    print(f"\n[+] SUCCESS! Premium map generated with menu control: {OUTPUT_MAP_PATH}")
 
 if __name__ == "__main__":
     generate_map()
