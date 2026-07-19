@@ -50,10 +50,10 @@ REGIONS_TOWNS = {
 }
 
 REGIONS_CONFIG = {
-    "North": {"color": "#4A6FA5", "icon": "north_icon.png", "offset": (0, 0.12)},
-    "East": {"color": "#E58A35", "icon": "east_icon.png", "offset": (0.1, -0.02)},
-    "Central": {"color": "#D33F49", "icon": "central_icon.png", "offset": (-0.08, 0.01)},
-    "West": {"color": "#40977B", "icon": "west_icon.png", "offset": (0.01, -0.12)}
+    "North": {"color": "#4A6FA5", "offset": (0, 0.12)},
+    "East": {"color": "#E58A35", "offset": (0.1, -0.02)},
+    "Central": {"color": "#D33F49", "offset": (-0.08, 0.01)},
+    "West": {"color": "#40977B", "offset": (0.01, -0.12)}
 }
 
 # ==========================================
@@ -156,7 +156,7 @@ def generate_map():
     exec_layer = folium.TileLayer('cartodbdark_matter', name="Executive Dark Canvas (Clean)")
     exec_layer.add_to(m)
 
-    # CSS Injection
+    # CSS Injection (Restoring Custom Dark Mode Menu & Typography)
     custom_css = """
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;800&family=Roboto+Mono:wght@400;700&display=swap');
@@ -179,6 +179,45 @@ def generate_map():
         color: #FFFFFF !important;
     }
 
+    /* Map Display Settings Menu (Dark Mode) */
+    .leaflet-control-layers {
+        background: rgba(15, 15, 18, 0.95) !important;
+        border: 1px solid #333 !important;
+        border-radius: 12px !important;
+        padding: 16px !important;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.5) !important;
+        backdrop-filter: blur(8px);
+        font-family: 'Montserrat', sans-serif !important;
+    }
+    .leaflet-control-layers-list::before {
+        content: "MAP DISPLAY SETTINGS";
+        display: block;
+        color: #38BDF8;
+        font-weight: 800;
+        font-size: 12px;
+        letter-spacing: 1px;
+        margin-bottom: 12px;
+        border-bottom: 1px solid rgba(255,255,255,0.1);
+        padding-bottom: 8px;
+    }
+    .leaflet-control-layers-overlays label, .leaflet-control-layers-base label {
+        color: #E2E8F0 !important;
+        font-size: 11px !important;
+        font-weight: 600 !important;
+        margin-bottom: 8px !important;
+        display: flex;
+        align-items: center;
+    }
+    input[type="radio"], input[type="checkbox"] {
+        accent-color: #38BDF8 !important; 
+        margin-right: 8px !important;
+    }
+    .leaflet-control-layers-separator {
+        border-top: 1px solid rgba(255,255,255,0.1) !important;
+        margin: 12px 0 !important;
+    }
+
+    /* Executive Mode Togglers */
     body.exec-mode-active .infographic-element {
         display: block !important;
         opacity: 1 !important;
@@ -196,25 +235,33 @@ def generate_map():
         text-transform: uppercase;
         letter-spacing: 1px;
     }
-    #sidebar-backdrop {
-        position: absolute;
-        top: 20px;
-        right: 20px;
-        width: 300px;
-        background: rgba(15, 15, 18, 0.85);
-        backdrop-filter: blur(12px);
-        -webkit-backdrop-filter: blur(12px);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        border-radius: 12px;
-        z-index: 1000;
-        padding: 20px;
-        color: #FFFFFF;
-        font-family: 'Montserrat', sans-serif;
-        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
-    }
     </style>
     """
     m.get_root().html.add_child(folium.Element(custom_css))
+
+    choropleth_group = folium.FeatureGroup(name="Regional Boundaries (Choropleth)", show=True)
+    
+    def style_fn(feature):
+        region = feature.get('properties', {}).get('REGION_N', '').upper()
+        if 'NORTH-EAST' in region or 'NORTH' in region: color = '#4A6FA5' # Blue
+        elif 'WEST' in region: color = '#40977B' # Green
+        elif 'EAST' in region: color = '#E58A35' # Orange
+        else: color = '#D33F49' # Red (Central)
+        
+        return {
+            'fillColor': color,
+            'color': '#FFFFFF',
+            'weight': 1,
+            'fillOpacity': 0.4
+        }
+
+    if os.path.exists("ura_regions.json"):
+        folium.GeoJson(
+            "ura_regions.json",
+            style_function=style_fn
+        ).add_to(choropleth_group)
+    
+    choropleth_group.add_to(m)
 
     # Feature Groups
     primary_group = folium.FeatureGroup(name="Primary Schools (Sky Blue)", show=True)
@@ -238,7 +285,6 @@ def generate_map():
 
     potential_expansion_coords = []
 
-    # Map branches to regions 
     for b_name, (b_lat, b_lon) in EXISTING_BRANCHES.items():
         region_key = "Central"
         if "(North)" in b_name: region_key = "North"
@@ -247,10 +293,17 @@ def generate_map():
         
         region_stats[region_key]["branches"] += 1
         
+        # Custom "A" Logo Pin
+        acer_icon_html = """
+        <div style="background: #FF4B4B; width: 28px; height: 28px; border-radius: 8px; border: 2px solid #FFF; display: flex; align-items: center; justify-content: center; color: #FFF; font-weight: 900; font-family: 'Montserrat', sans-serif; font-size: 14px; box-shadow: 0 0 15px rgba(255,75,75,0.8);">
+            A
+        </div>
+        """
+        
         folium.Marker(
             location=[b_lat, b_lon],
-            icon=folium.Icon(color='red', icon='star', prefix='fa'),
-            tooltip=f"<b>{b_name}</b>"
+            icon=folium.DivIcon(html=acer_icon_html, icon_size=(28, 28), icon_anchor=(14, 14)),
+            tooltip=f"<b style='font-family: Montserrat;'>{b_name}</b>"
         ).add_to(branches_group)
 
         folium.Circle(
@@ -294,7 +347,7 @@ def generate_map():
         url_html = f'<br><br><b style="color: #FFFFFF;">🌐 Web:</b> <a href="{url}" target="_blank" style="color: #38BDF8; text-decoration: underline; font-weight: 600;">Visit Website ↗</a>' if url and str(url).startswith('http') else ''
         
         # Hide Tier if it is Standard
-        tier_html = f'<div style="display: inline-block; background: rgba(255, 215, 0, 0.1); border: 1px solid #FFD700; color: #FFD700; padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: 700; letter-spacing: 1px; margin-bottom: 10px;">★ TIER: {tier.upper()}</div>' if tier.lower() != "standard" else ''
+        tier_html = f'<div style="display: inline-block; background: rgba(255, 215, 0, 0.1); border: 1px solid #FFD700; color: #FFD700; padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: 700; letter-spacing: 1px; margin-bottom: 10px;">★ TIER: {tier.upper()}</div>' if tier and tier.lower() != "standard" else ''
         
         popup_html = f"""
         <div style="font-family: 'Montserrat', sans-serif; min-width: 240px; padding: 4px;">
@@ -347,10 +400,10 @@ def generate_map():
     if potential_expansion_coords:
         plugins.HeatMap(
             potential_expansion_coords, 
-            name="Potential Expansion Zones", 
-            radius=36, 
-            blur=22, 
-            min_opacity=0.5, 
+            name="Expansion Heatmap (Untapped)", 
+            radius=40, 
+            blur=25, 
+            min_opacity=0.6, 
             gradient={0.2: '#00C9FF', 0.5: '#A78BFA', 0.8: '#F472B6', 1.0: '#FFD700'}
         ).add_to(heatmap_group)
     heatmap_group.add_to(m)
@@ -420,36 +473,16 @@ def generate_map():
     towns_group.add_to(m)
     branches_group.add_to(m)
 
+    # Keep the sleek Map Display Settings expanded and visible
     folium.LayerControl(collapsed=False).add_to(m)
 
-    # Sidebar
-    sidebar_html = f"""
-    <div id="sidebar-backdrop">
-        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 20px;">
-            <div style="background: #FF4B4B; width: 40px; height: 40px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 20px;">A</div>
-            <div>
-                <div style="font-weight: 800; font-size: 16px; letter-spacing: 1px;">ACER ACADEMY</div>
-                <div style="color: #FF4B4B; font-size: 10px; font-family: 'Roboto Mono', monospace;">EXPANSION INTELLIGENCE</div>
-            </div>
-        </div>
-        
-        <div style="font-size: 11px; color: #A0A0A0; line-height: 1.6; margin-bottom: 20px;">
-            Analyzing <b style="color: #FFF;">{len(schools)}</b> educational institutions against <b style="color: #FFF;">{len(EXISTING_BRANCHES)}</b> active branches to identify critical expansion zones.
-        </div>
-        
-        <div style="background: rgba(255,255,255,0.05); border-radius: 6px; padding: 12px; margin-bottom: 12px;">
-            <div style="font-size: 10px; color: #888; text-transform: uppercase; margin-bottom: 8px;">Network Status</div>
-            <div style="display: flex; justify-content: space-between; font-size: 12px; font-weight: 600;">
-                <span>Total Coverage:</span>
-                <span style="color: #4ADE80;">{round((len(schools) - len(potential_expansion_coords)) / len(schools) * 100) if schools else 0}%</span>
-            </div>
-            <div style="width: 100%; background: #333; height: 4px; border-radius: 2px; margin-top: 8px;">
-                <div style="width: {round((len(schools) - len(potential_expansion_coords)) / len(schools) * 100) if schools else 0}%; background: #4ADE80; height: 100%; border-radius: 2px;"></div>
-            </div>
-        </div>
+    # Custom Directory Button (Bottom Right)
+    dir_html = """
+    <div id="directory-btn" style="position: absolute; bottom: 20px; right: 20px; z-index: 1000; background: rgba(15, 15, 18, 0.95); color: #FFF; padding: 10px 20px; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-weight: 800; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; cursor: pointer; border: 1px solid #333; box-shadow: 0 4px 15px rgba(0,0,0,0.5); backdrop-filter: blur(8px); display: flex; align-items: center; gap: 8px;">
+        <span style="font-size: 14px;">≡</span> Directory
     </div>
     """
-    m.get_root().html.add_child(folium.Element(sidebar_html))
+    m.get_root().html.add_child(folium.Element(dir_html))
 
     # Boundary Lock & JS Toggle Code
     legend_html = """
@@ -481,10 +514,10 @@ def generate_map():
                 if (isExecClean) {
                     body.classList.add('exec-mode-active');
                     
-                    // Automatically uncheck schools and heatmap
+                    // Automatically uncheck noise layers
                     document.querySelectorAll('.leaflet-control-layers-selector').forEach(cb => {
                         let label = cb.nextElementSibling ? cb.nextElementSibling.textContent.trim() : cb.parentElement.textContent.trim();
-                        if ((label.includes('Schools') || label.includes('Heatmap') || label.includes('Town')) && cb.checked) {
+                        if ((label.includes('Schools') || label.includes('Heatmap') || label.includes('Town') || label.includes('Choropleth')) && cb.checked) {
                             cb.click();
                         }
                         if (label.includes('Regional Data Boxes') && !cb.checked) {
@@ -494,10 +527,10 @@ def generate_map():
                 } else {
                     body.classList.remove('exec-mode-active');
                     
-                    // Automatically re-check schools
+                    // Automatically re-check important layers
                     document.querySelectorAll('.leaflet-control-layers-selector').forEach(cb => {
                         let label = cb.nextElementSibling ? cb.nextElementSibling.textContent.trim() : cb.parentElement.textContent.trim();
-                        if (label.includes('Schools') && !cb.checked) {
+                        if ((label.includes('Schools') || label.includes('Choropleth')) && !cb.checked) {
                             cb.click();
                         }
                         if (label.includes('Regional Data Boxes') && cb.checked) {
