@@ -11,7 +11,6 @@ SCHOOL_DB_PATH = "school_db.json"
 MOE_DATA_PATH = "M850801_2.csv"
 OUTPUT_MAP_PATH = "acer_expansion_map.html"
 
-# 1. Premium High-Contrast Executive Palette
 PALETTE = {
     "North": "#1E3A8A",   # Deep Royal Blue
     "West": "#059669",    # Emerald Green
@@ -19,27 +18,26 @@ PALETTE = {
     "Central": "#DC2626"  # Crimson Red
 }
 
-# Calculated anchors to push the text boxes into the empty sea
 REGIONS = {
     "North": {
         "color": PALETTE["North"],
         "center": [1.415, 103.820],
-        "anchor": [1.475, 103.820] # Pushed straight UP into Johor Strait
+        "anchor": [1.475, 103.820] 
     },
     "West": {
         "color": PALETTE["West"],
         "center": [1.350, 103.700],
-        "anchor": [1.350, 103.560] # Pushed LEFT into the ocean
+        "anchor": [1.350, 103.560] 
     },
     "East": {
         "color": PALETTE["East"],
         "center": [1.355, 103.940],
-        "anchor": [1.355, 104.060] # Pushed RIGHT into the ocean
+        "anchor": [1.355, 104.060] 
     },
     "Central": {
         "color": PALETTE["Central"],
         "center": [1.320, 103.825],
-        "anchor": [1.240, 103.825] # Pushed DOWN south of Sentosa
+        "anchor": [1.240, 103.825] 
     }
 }
 
@@ -66,10 +64,6 @@ EXISTING_BRANCHES = {
 def generate_map():
     print("[*] Booting up Executive Infographic Engine...")
     
-    if not os.path.exists(URA_GEOJSON_PATH):
-        print(f"[!] ERROR: Cannot find {URA_GEOJSON_PATH}.")
-        return
-
     branch_counts = {"North": 0, "West": 0, "East": 0, "Central": 0}
     for name in EXISTING_BRANCHES.keys():
         for region in branch_counts.keys():
@@ -85,7 +79,7 @@ def generate_map():
                 schools = json.load(f)
                 for s in schools:
                     lat, lon = s.get('lat', 0), s.get('lon', 0)
-                    heat_data.append([lat, lon]) # Feed GPS coordinates to Heatmap array
+                    heat_data.append([lat, lon]) 
                     
                     if lon < 103.75: school_counts["West"] += 1
                     elif lon > 103.88: school_counts["East"] += 1
@@ -123,19 +117,17 @@ def generate_map():
     m = folium.Map(
         location=[1.3521, 103.8198], 
         zoom_start=11.5,
-        min_zoom=11,      # REQUIRED FIX: Prevents zooming out too far
-        max_bounds=True,  # REQUIRED FIX: Prevents panning off the island
-        tiles='CartoDB positron', # Clean, light-mode infographic base
+        min_zoom=11,      # Lock zooming out too far
+        max_bounds=True,  # Lock panning off the island
+        tiles='CartoDB positron', 
         name="Light Mode (Default)",
         zoom_control=True 
     )
     
-    # Restore Dark Mode Option
     folium.TileLayer('CartoDB dark_matter', name="Dark Mode Map").add_to(m)
 
-    # Restore Heatmap Layer (Hidden by default)
     if heat_data:
-        heatmap_group = folium.FeatureGroup(name="School Density Heatmap", show=False)
+        heatmap_group = folium.FeatureGroup(name="Student Heatmap", show=False)
         HeatMap(heat_data, radius=14, blur=18, max_zoom=1).add_to(heatmap_group)
         heatmap_group.add_to(m)
 
@@ -157,12 +149,12 @@ def generate_map():
             'fillOpacity': 0.85 
         }
 
-    with open(URA_GEOJSON_PATH, 'r') as f:
-        geo_data = json.load(f)
+    if os.path.exists(URA_GEOJSON_PATH):
+        with open(URA_GEOJSON_PATH, 'r') as f:
+            geo_data = json.load(f)
+        folium.GeoJson(geo_data, style_function=style_function).add_to(infographic_group)
 
-    folium.GeoJson(geo_data, style_function=style_function).add_to(infographic_group)
-
-    branch_group = folium.FeatureGroup(name="Academy Branches", show=True)
+    branch_group = folium.FeatureGroup(name="Academy Branches & Coverage", show=True)
     for name, coords in EXISTING_BRANCHES.items():
         pin_color = "#333333"
         if "(North)" in name: pin_color = PALETTE["North"]
@@ -170,6 +162,19 @@ def generate_map():
         elif "(East)" in name: pin_color = PALETTE["East"]
         elif "(Central)" in name: pin_color = PALETTE["Central"]
         
+        # 1. Coverage Radius (1.5km)
+        folium.Circle(
+            location=coords,
+            radius=1500,
+            color=pin_color,
+            weight=1,
+            fill_opacity=0.1,
+            opacity=0.4,
+            fill_color=pin_color,
+            tooltip=f"{name} Coverage (1.5km)"
+        ).add_to(branch_group)
+
+        # 2. Branch Pin
         folium.CircleMarker(
             location=coords,
             radius=6,
@@ -235,12 +240,141 @@ def generate_map():
 
     infographic_group.add_to(m)
     branch_group.add_to(m)
-    
-    # Restore the Interactive Menu/Directory Button
     folium.LayerControl(position='topright', collapsed=True).add_to(m)
 
+    
+    # Generate HTML list for the branch directory modal
+    directory_html = ""
+    for region in ["North", "West", "East", "Central"]:
+        directory_html += f"<h4 style='margin-top: 10px; margin-bottom: 5px; color: {PALETTE[region]};'>{region} Region</h4><ul style='margin-top: 0; padding-left: 20px; font-size: 13px;'>"
+        for name in EXISTING_BRANCHES.keys():
+            if f"({region})" in name:
+                clean_name = name.replace(f" ({region})", "")
+                directory_html += f"<li>{clean_name}</li>"
+        directory_html += "</ul>"
+
+    custom_ui = f"""
+    <style>
+        /* Acer Academy Top Left Logo */
+        #acer-logo-panel {{
+            position: fixed;
+            top: 20px;
+            left: 50px;
+            z-index: 9999;
+            background: white;
+            padding: 10px 18px;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+            font-family: 'Helvetica Neue', Helvetica, sans-serif;
+            border-left: 6px solid #1E3A8A; /* Deep Royal Blue */
+            display: flex;
+            align-items: center;
+            pointer-events: none; /* Let clicks pass through if needed */
+        }}
+        #acer-logo-panel strong {{
+            color: #1a1a1a;
+            font-size: 16px;
+            margin-right: 8px;
+        }}
+        #acer-logo-panel span {{
+            color: #64748b;
+            font-size: 14px;
+            font-weight: 500;
+        }}
+        
+        /* Floating Bottom Directory Button */
+        #directory-btn {{
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 9999;
+            background: #1E3A8A;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 30px;
+            font-family: 'Helvetica Neue', Helvetica, sans-serif;
+            font-weight: 600;
+            font-size: 14px;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(30, 58, 138, 0.4);
+            transition: all 0.2s ease;
+        }}
+        #directory-btn:hover {{
+            background: #152C6B;
+            transform: translateX(-50%) scale(1.05);
+        }}
+
+        /* Hidden Directory Modal */
+        #directory-modal {{
+            display: none;
+            position: fixed;
+            bottom: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 9999;
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            width: 320px;
+            max-height: 50vh;
+            overflow-y: auto;
+            font-family: 'Helvetica Neue', Helvetica, sans-serif;
+        }}
+        #directory-modal h3 {{
+            margin-top: 0;
+            margin-bottom: 15px;
+            font-size: 18px;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+            color: #1a1a1a;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }}
+        #close-modal {{
+            cursor: pointer;
+            color: #888;
+            font-size: 20px;
+        }}
+        #close-modal:hover {{ color: #333; }}
+        
+        /* Adjust default Leaflet controls to not overlap our UI */
+        .leaflet-control-zoom {{
+            margin-top: 70px !important;
+        }}
+    </style>
+
+    <div id="acer-logo-panel">
+        <strong>ACER ACADEMY</strong> <span>| Expansion Matrix</span>
+    </div>
+
+    <div id="directory-btn" onclick="toggleModal()">
+        &#9776; View Branch Directory
+    </div>
+
+    <div id="directory-modal">
+        <h3>Branch Roster <span id="close-modal" onclick="toggleModal()">&times;</span></h3>
+        {directory_html}
+    </div>
+
+    <script>
+        function toggleModal() {{
+            var modal = document.getElementById('directory-modal');
+            if (modal.style.display === 'none' || modal.style.display === '') {{
+                modal.style.display = 'block';
+            }} else {{
+                modal.style.display = 'none';
+            }}
+        }}
+    </script>
+    """
+
+    m.get_root().html.add_child(Element(custom_ui))
+
     m.save(OUTPUT_MAP_PATH)
-    print(f"\n[+] SUCCESS! Premium map generated with menu control: {OUTPUT_MAP_PATH}")
+    print(f"\n[+] SUCCESS! Master interactive map generated: {OUTPUT_MAP_PATH}")
 
 if __name__ == "__main__":
     generate_map()
