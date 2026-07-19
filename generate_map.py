@@ -7,9 +7,6 @@ import folium
 from folium import plugins
 from folium import Element
 
-# ==========================================
-# 1. CONFIGURATION & PALETTE
-# ==========================================
 URA_GEOJSON_PATH = "ura_regions.json"
 SCHOOL_DB_PATH = "school_db.json"
 MOE_DATA_PATH = "M850801_2.csv"
@@ -31,7 +28,6 @@ REGIONS_CONFIG = {
     "Central": { "color": PALETTE["Central"], "center": [1.320, 103.825], "anchor": [1.230, 103.825] }
 }
 
-# Your Existing Branches (Highly precise GPS coordinates)
 EXISTING_BRANCHES = {
     "Junction 9 (North)": (1.4325, 103.8408),
     "Admiralty Place (North)": (1.4404, 103.8003),
@@ -53,9 +49,6 @@ EXISTING_BRANCHES = {
     "Hong Kah (West)": (1.3496, 103.7210)
 }
 
-# ==========================================
-# 2. SPATIAL & DATA PARSING ENGINES
-# ==========================================
 def haversine(lat1, lon1, lat2, lon2):
     """Calculate the great-circle distance between two GPS points in meters."""
     R = 6371000
@@ -99,9 +92,6 @@ def parse_moe_data():
         print(f"[!] Error parsing MOE data: {e}")
     return student_data
 
-# ==========================================
-# 3. MAP BUILDER
-# ==========================================
 def generate_map():
     print("[*] Booting up Master Infographic & Interactive Map Engine...")
     schools = load_schools()
@@ -123,9 +113,8 @@ def generate_map():
     # Base Layers
     folium.TileLayer('OpenStreetMap', name='Dark Streets (Default)', show=True).add_to(m)
     folium.TileLayer('CartoDB positron', name='Light Canvas', show=False).add_to(m)
-    folium.TileLayer('OpenStreetMap', name='Standard OpenStreetMap', show=False).add_to(m)
+    folium.TileLayer('CartoDB dark_matter', name='Executive Dark Canvas (Clean)', show=False).add_to(m)
     
-    # Inject Custom CSS
     custom_css = """
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap');
@@ -184,9 +173,6 @@ def generate_map():
     """
     m.get_root().header.add_child(Element(custom_css))
 
-    # ==========================================
-    # URA REGIONAL CHOROPLETH LAYER
-    # ==========================================
     if os.path.exists(URA_GEOJSON_PATH):
         def style_function(feature):
             ura_region = feature['properties'].get('REGION_N', '')
@@ -196,13 +182,13 @@ def generate_map():
             elif ura_region == "CENTRAL REGION": acer_region = "Central"
             else: return {'fillOpacity': 0, 'weight': 0}
             color = PALETTE[acer_region]
-            return { 'fillColor': color, 'color': color, 'weight': 1.5, 'fillOpacity': 0.35 }
+            # Heightened opacity makes regions glow beautifully on dark mode
+            return { 'fillColor': color, 'color': color, 'weight': 2.0, 'fillOpacity': 0.45 }
         
         with open(URA_GEOJSON_PATH, 'r') as f:
             geo_data = json.load(f)
         folium.GeoJson(geo_data, name="Regional Boundaries (Choropleth)", style_function=style_function).add_to(m)
 
-    # Calculate Metrics
     branch_counts = {"North": 0, "West": 0, "East": 0, "Central": 0}
     for name in EXISTING_BRANCHES.keys():
         for region in branch_counts.keys():
@@ -216,9 +202,6 @@ def generate_map():
         elif lat > 1.37: school_counts["North"] += 1
         else: school_counts["Central"] += 1
 
-    # ==========================================
-    # SPATIAL ANALYSIS: SCHOOLS & EXPANSION
-    # ==========================================
     potential_expansion_coords = []
     schools_dir = {"PRIMARY": [], "SECONDARY": [], "JUNIOR COLLEGE": [], "INTERNATIONAL": []}
 
@@ -242,14 +225,15 @@ def generate_map():
         else: continue
         
         schools_dir[cat].append(name)
+        # Using **{"className": "school-dot"} allows us to easily hide all school dots via CSS later
         folium.CircleMarker(
             location=[lat, lon], radius=7, popup=f"<b style='color: {fill_color}'>{name}</b><br>{level.title()}",
-            tooltip=f"<span style='font-size: 14px;'>{name}</span>", color="white", weight=1, fill_color=fill_color, fill=True, fill_opacity=0.85
+            tooltip=f"<span style='font-size: 14px;'>{name}</span>", color="white", weight=1, fill_color=fill_color, fill=True, fill_opacity=0.85,
+            **{"className": "school-dot"}
         ).add_to(group)
         
     for grp in [primary_group, secondary_group, jc_group, intl_group]: grp.add_to(m)
 
-    # Heatmap & Simulation Layers
     heatmap_group = folium.FeatureGroup(name="Expansion Heatmap (Untapped)", show=False)
     plugins.HeatMap(potential_expansion_coords, name="Potential Expansion Zones", radius=25, blur=20, gradient={0.4: '#00C9FF', 0.65: '#A78BFA', 1.0: '#F472B6'}).add_to(heatmap_group)
     heatmap_group.add_to(m)
@@ -257,19 +241,19 @@ def generate_map():
     sim_group = folium.FeatureGroup(name="Simulate New Branch (Click Map)", show=False)
     sim_group.add_to(m)
 
-    # Plot Acer Academy Branches & Rings
     branch_group = folium.FeatureGroup(name="Acer Academy Branches", show=True)
     for name, (lat, lon) in EXISTING_BRANCHES.items():
         gradient_style = "background: linear-gradient(135deg, #FFD700, #00E5FF, #00FF00, #FF3D00); border-radius: 50%; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; color: white; font-size: 14px; box-shadow: 0 0 12px rgba(0,0,0,0.5); border: 2px solid white; overflow: hidden;"
         icon_html = f'<div style="{gradient_style}"><img src="https://i.imgur.com/YhyOq9V.png" style="width: 100%; object-fit: contain;"></div>'
         
         folium.Marker(location=[lat, lon], popup=f"<b style='color: #FF9800;'>ACER ACADEMY</b><br>{name}", tooltip=f"<span style='font-size: 16px; font-weight: bold; white-space: nowrap;'>★ {name}</span>", icon=folium.DivIcon(html=icon_html, icon_size=(28, 28), icon_anchor=(14, 14))).add_to(branch_group)
-        folium.Circle(location=[lat, lon], radius=1500, popup=f"1.5km Ring: {name}", color="#00C9FF", weight=2, fill_color="#00C9FF", fill_opacity=0.18).add_to(branch_group)
+        
+        folium.Circle(
+            location=[lat, lon], radius=1500, popup=f"1.5km Ring: {name}", color="#00C9FF", weight=2, fill_color="#00C9FF", fill_opacity=0.18,
+            **{"className": "coverage-ring"}
+        ).add_to(branch_group)
     branch_group.add_to(m)
 
-    # ==========================================
-    # INFOGRAPHIC OCEAN BOXES & LEADER LINES
-    # ==========================================
     infographic_group = folium.FeatureGroup(name="Regional Data Boxes", show=True)
     for region, config in REGIONS_CONFIG.items():
         color, anchor, center = config["color"], config["anchor"], config["center"]
@@ -294,16 +278,12 @@ def generate_map():
         folium.Marker(location=anchor, icon=folium.DivIcon(html=box_html, icon_size=(180, 100), icon_anchor=(90, 50))).add_to(infographic_group)
     infographic_group.add_to(m)
 
-    # Region Watermarks
     region_group = folium.FeatureGroup(name="Town & Region Labels", show=True)
     REGIONS_TOWNS = { "Woodlands": (1.436, 103.786), "Yishun": (1.430, 103.835), "Ang Mo Kio": (1.369, 103.845), "Sengkang": (1.392, 103.894), "Tampines": (1.349, 103.943), "Bedok": (1.323, 103.927), "Orchard": (1.303, 103.832), "Jurong East": (1.333, 103.742), "Choa Chu Kang": (1.385, 103.744), "Clementi": (1.316, 103.764) }
     for town, (lat, lon) in REGIONS_TOWNS.items():
         folium.Marker(location=[lat, lon], icon=folium.DivIcon(html=f'<div class="region-label">{town}</div>'), interactive=False).add_to(region_group)
     region_group.add_to(m)
 
-    # ==========================================
-    # DIRECTORY SIDEBAR & LEGEND JS ENGINES
-    # ==========================================
     sidebar_html = """
     <div id="sidebar-backdrop"></div>
     <button id="directory-btn">&#9776; Directory</button>
@@ -348,6 +328,7 @@ def generate_map():
         for (var key in window) { if (key.startsWith('map_')) { map = window[key]; break; } }
         if (map) {
             var tilePane = document.querySelector('.leaflet-tile-pane');
+            var leafletContainer = document.querySelector('.leaflet-container');
             tilePane.style.filter = 'grayscale(100%) invert(100%) brightness(95%) contrast(115%)';
             document.querySelectorAll('.region-label').forEach(lbl => { lbl.style.color = '#ffffff'; lbl.style.textShadow = '-1px -1px 3px #000, 1px -1px 3px #000, -1px 1px 3px #000, 1px 1px 3px #000, 0px 0px 15px rgba(0,0,0,0.8)'; lbl.style.fontWeight = '700'; });
 
@@ -364,12 +345,38 @@ def generate_map():
                 simLayer.addLayer(circle);
             }, true);
 
+            // ==========================================
+            // LAYER TOGGLER: DARK MODE & DOT HIDING
+            // ==========================================
             map.on('baselayerchange', function(e) {
                 var legend = document.getElementById('legend-box'), sidePanel = document.getElementById('side-panel'), title = legend ? legend.querySelector('h4') : null;
                 var innerRing = document.getElementById('legend-ring-inner'), innerRingSim = document.getElementById('legend-ring-inner-sim'), spans = legend ? legend.querySelectorAll('span.legend-text') : [], regionLabels = document.querySelectorAll('.region-label');
-                var isDark = (e.name === 'Dark Streets (Default)');
+                
+                var isDarkStreets = (e.name === 'Dark Streets (Default)');
+                var isExecDark = (e.name === 'Executive Dark Canvas (Clean)');
+                var isDark = (isDarkStreets || isExecDark);
+
+                // Handle Map Background and Tiles
+                if (isExecDark) {
+                    // Hide the underlying map tiles completely
+                    tilePane.style.opacity = '0';
+                    // Set the void to a sleek dark background
+                    leafletContainer.style.background = '#121212';
+                    // Hide all the noise
+                    document.querySelectorAll('.school-dot').forEach(el => el.style.display = 'none');
+                    document.querySelectorAll('.coverage-ring').forEach(el => el.style.display = 'none');
+                } else {
+                    tilePane.style.opacity = '1';
+                    leafletContainer.style.background = '#ddd';
+                    document.querySelectorAll('.school-dot').forEach(el => el.style.display = '');
+                    document.querySelectorAll('.coverage-ring').forEach(el => el.style.display = '');
+                }
+
+                // Handle Theme UI
                 if (isDark) {
-                    tilePane.style.filter = 'grayscale(100%) invert(100%) brightness(95%) contrast(115%)';
+                    if (isDarkStreets) tilePane.style.filter = 'grayscale(100%) invert(100%) brightness(95%) contrast(115%)';
+                    else tilePane.style.filter = 'none'; // The dark matter tiles are already dark if visible
+                    
                     if (legend) { legend.style.backgroundColor = 'rgba(20, 20, 20, 0.85)'; legend.style.borderColor = 'rgba(255,255,255,0.15)'; title.style.color = '#00E5FF'; title.style.borderBottom = '1px solid rgba(255,255,255,0.15)'; spans.forEach(s => s.style.color = 'white'); if (innerRing) innerRing.style.backgroundColor = 'rgba(20, 20, 20, 0.85)'; if (innerRingSim) innerRingSim.style.backgroundColor = 'rgba(20, 20, 20, 0.85)'; }
                     if (sidePanel) { sidePanel.style.backgroundColor = 'rgba(20, 20, 20, 0.90)'; var spTitle = sidePanel.querySelector('.panel-header h2'); if (spTitle) spTitle.style.color = '#00E5FF'; sidePanel.querySelectorAll('li').forEach(li => li.style.color = 'rgba(255,255,255,0.8)'); }
                     regionLabels.forEach(lbl => { lbl.style.color = '#ffffff'; lbl.style.textShadow = '-1px -1px 3px #000, 1px -1px 3px #000, -1px 1px 3px #000, 1px 1px 3px #000, 0px 0px 15px rgba(0,0,0,0.8)'; lbl.style.fontWeight = '700'; });
