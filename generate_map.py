@@ -66,7 +66,7 @@ def haversine(lat1, lon1, lat2, lon2):
     return 2 * R * math.atan2(math.sqrt(a), math.sqrt(1 - a))
 
 def load_schools_from_csv():
-    """Smart CSV Loader: Extracts coordinates as strict floats, and pulls Tier/Address."""
+    """Ultra-Resilient CSV Loader: Bypasses blank GPS strings without crashing."""
     schools = []
     if not os.path.exists(SCHOOL_CSV_PATH):
         print(f"[!] Cannot find {SCHOOL_CSV_PATH}. Make sure it's uploaded to GitHub!")
@@ -76,29 +76,42 @@ def load_schools_from_csv():
         reader = csv.DictReader(f)
         for row in reader:
             try:
-                # Force dictionary keys to lower to catch varied column names safely
-                row_lower = {k.lower(): v for k, v in row.items()}
+                # Clean keys and values to strings, stripping accidental whitespace
+                row_lower = {str(k).lower().strip(): str(v).strip() for k, v in row.items() if k}
                 
-                # Strict float conversion prevents Heatmap engine from crashing!
-                lat = float(row_lower.get('lat') or row_lower.get('latitude') or 0)
-                lon = float(row_lower.get('lon') or row_lower.get('longitude') or 0)
-                if lat == 0 or lon == 0: continue
+                # Safely extract GPS strings
+                lat_str = row_lower.get('lat', '') or row_lower.get('latitude', '')
+                lon_str = row_lower.get('lon', '') or row_lower.get('longitude', '')
                 
-                name = row.get('name') or row_lower.get('school_name') or "Unknown"
-                level = row_lower.get('education_level') or row_lower.get('level') or row_lower.get('mainlevel_code') or "PRIMARY"
-                address = row_lower.get('address') or row_lower.get('postal_address') or "Address Not Provided"
-                region = row_lower.get('region') or ""
+                # If GPS is entirely missing, skip this specific school
+                if not lat_str or not lon_str:
+                    continue
+                    
+                lat = float(lat_str)
+                lon = float(lon_str)
+                
+                if lat == 0 or lon == 0: 
+                    continue
+                
+                # Aggressively hunt for data columns regardless of exact naming
+                name = row.get('School_Name') or row.get('name') or row_lower.get('school_name') or "Unknown School"
+                level = row.get('Level') or row_lower.get('education_level') or row_lower.get('mainlevel_code') or row_lower.get('level') or "PRIMARY"
+                address = row.get('Address') or row_lower.get('address') or row_lower.get('postal_address') or "Address Not Provided"
+                region = row.get('Region') or row_lower.get('region') or ""
                 
                 schools.append({
-                    "name": row.get('name') or row.get('School_Name') or name.title(),
+                    "name": name.title(),
                     "lat": lat,
                     "lon": lon,
                     "level": level.upper(),
-                    "address": row.get('address') or row.get('Address') or address.title(),
+                    "address": address.title(),
                     "region": region
                 })
             except Exception as e:
+                # If one school breaks, just skip it and keep processing the rest
                 continue
+                
+    print(f"[*] Successfully loaded {len(schools)} schools from CSV.")
     return schools
 
 def parse_moe_data():
