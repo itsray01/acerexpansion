@@ -317,7 +317,7 @@ def generate_map():
             </div>
         </div>
         """
-        folium.Marker(location=anchor, icon=folium.DivIcon(html=box_html, icon_size=(180, 100), icon_anchor=(90, 50), className='infographic-element')).add_to(infographic_group)
+        folium.Marker(location=anchor, icon=folium.DivIcon(html=box_html, icon_size=(180, 100), icon_anchor=(90, 50), class_name='infographic-element')).add_to(infographic_group)
     infographic_group.add_to(m)
 
     # Region Watermarks (Deep Dive 53 major regions)
