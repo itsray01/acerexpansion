@@ -11,7 +11,7 @@ from folium import Element
 # 1. CONFIGURATION & PALETTE
 # ==========================================
 URA_GEOJSON_PATH = "ura_regions.json"
-SCHOOL_CSV_PATH = "All_Schools_Cleaned.csv"
+SCHOOL_CSV_PATH = "All_Schools_Geocoded.csv"
 MOE_DATA_PATH = "M850801_2.csv"
 OUTPUT_MAP_PATH = "acer_expansion_map.html"
 
@@ -66,10 +66,20 @@ def haversine(lat1, lon1, lat2, lon2):
     return 2 * R * math.atan2(math.sqrt(a), math.sqrt(1 - a))
 
 def load_schools_from_csv():
-    """Ultra-Resilient CSV Loader: Auto-detects delimiters, handles Linux case-sensitivity, and hunts for columns."""
+    """Fusion Engine: Merges custom CSV tiers/regions with highly accurate JSON GPS data."""
     schools = []
     
-    # 1. Fix Linux Case-Sensitivity Issue (GitHub Actions is strict)
+    # 1. Load the pristine JSON database for guaranteed GPS coordinates
+    json_gps_db = {}
+    if os.path.exists("school_db.json"):
+        try:
+            with open("school_db.json", "r", encoding="utf-8") as f:
+                for s in json.load(f):
+                    json_gps_db[s["name"].strip().lower()] = s
+        except Exception as e:
+            print(f"[!] Warning: Could not load JSON GPS fallback: {e}")
+
+    # 2. Find the user's custom CSV
     actual_file_path = None
     for file in os.listdir('.'):
         if file.lower() == SCHOOL_CSV_PATH.lower():
@@ -77,54 +87,58 @@ def load_schools_from_csv():
             break
             
     if not actual_file_path:
-        print(f"[!] CRITICAL ERROR: Could not find '{SCHOOL_CSV_PATH}' in the folder.")
-        return schools
+        print(f"[!] CRITICAL ERROR: Could not find '{SCHOOL_CSV_PATH}'.")
+        return list(json_gps_db.values()) # Fallback to pure JSON if CSV is missing
         
-    print(f"[*] Found school database file: {actual_file_path}")
+    print(f"[*] Found custom school database: {actual_file_path}")
     
     with open(actual_file_path, 'r', encoding='utf-8-sig', errors='replace') as f:
         content = f.read()
         if not content.strip():
-            print("[!] CSV file is empty.")
-            return schools
+            return list(json_gps_db.values())
             
-        # 2. Auto-Detect Delimiter (Comma, Tab, Semicolon)
         try:
             dialect = csv.Sniffer().sniff(content[:2048])
         except Exception:
-            dialect = csv.excel # Fallback to standard comma
+            dialect = csv.excel
             
         f.seek(0)
         reader = csv.DictReader(f, dialect=dialect)
         
         for row in reader:
             try:
-                # Clean keys and values to strings, stripping accidental whitespace
                 row_lower = {str(k).lower().strip(): str(v).strip() for k, v in row.items() if k}
                 
-                # 3. Aggressively hunt for GPS columns (Matches 'lat', 'latitude', 'y')
+                name_key = next((k for k in row_lower.keys() if 'name' in k or 'school' in k), None)
+                if not name_key or not row_lower[name_key]: continue
+                name = row_lower[name_key].title()
+                search_name = name.lower().strip()
+                
+                # Try to get GPS from CSV first
                 lat_key = next((k for k in row_lower.keys() if 'lat' in k or 'y' == k), None)
                 lon_key = next((k for k in row_lower.keys() if 'lon' in k or 'lng' in k or 'x' == k), None)
                 
-                if not lat_key or not lon_key: continue
-                
-                lat_str = row_lower[lat_key]
-                lon_str = row_lower[lon_key]
-                
-                if not lat_str or not lon_str: continue
-                
-                # Force clean numeric conversion (ignores random letters like "N/A" or whitespace)
-                lat = float(''.join(c for c in lat_str if c.isdigit() or c in '.-'))
-                lon = float(''.join(c for c in lon_str if c.isdigit() or c in '.-'))
-                
-                if lat == 0 or lon == 0: continue
-                
-                # 4. Aggressively hunt for Data columns
-                name_key = next((k for k in row_lower.keys() if 'name' in k or 'school' in k), None)
-                name = row_lower[name_key].title() if name_key and row_lower[name_key] else "Unknown School"
-                
-                level_key = next((k for k in row_lower.keys() if 'level' in k or 'tier' in k or 'type' in k), None)
+                lat, lon = 0.0, 0.0
+                if lat_key and lon_key and row_lower[lat_key] and row_lower[lon_key]:
+                    try:
+                        lat = float(''.join(c for c in row_lower[lat_key] if c.isdigit() or c in '.-'))
+                        lon = float(''.join(c for c in row_lower[lon_key] if c.isdigit() or c in '.-'))
+                    except:
+                        pass
+                        
+                # FUSION: If CSV lacks GPS, inject the GPS from school_db.json!
+                if (lat == 0.0 or lon == 0.0) and search_name in json_gps_db:
+                    lat = json_gps_db[search_name]["lat"]
+                    lon = json_gps_db[search_name]["lon"]
+                    
+                if lat == 0.0 or lon == 0.0:
+                    continue # If both CSV and JSON fail to provide GPS, we MUST skip it.
+                    
+                level_key = next((k for k in row_lower.keys() if 'level' in k or 'type' in k), None)
                 level = row_lower[level_key].upper() if level_key and row_lower[level_key] else "PRIMARY"
+                
+                tier_key = next((k for k in row_lower.keys() if 'tier' in k or 'band' in k), None)
+                tier = row_lower[tier_key].title() if tier_key and row_lower[tier_key] else level.title()
                 
                 addr_key = next((k for k in row_lower.keys() if 'address' in k or 'addr' in k or 'location' in k), None)
                 address = row_lower[addr_key].title() if addr_key and row_lower[addr_key] else "Address Not Provided"
@@ -137,14 +151,14 @@ def load_schools_from_csv():
                     "lat": lat,
                     "lon": lon,
                     "level": level,
+                    "tier": tier,
                     "address": address,
                     "region": region
                 })
             except Exception as e:
-                # If one row breaks, gracefully skip it instead of crashing the function
                 continue
                 
-    print(f"[*] Successfully loaded {len(schools)} schools from CSV.")
+    print(f"[*] FUSION COMPLETE: Successfully mapped {len(schools)} schools.")
     return schools
 
 def parse_moe_data():
@@ -313,6 +327,7 @@ def generate_map():
     
     for school in schools:
         level = school.get("level", "").upper()
+        tier = school.get("tier", level.title())
         lat, lon, name = school["lat"], school["lon"], school["name"]
         address = school.get("address", "Address Not Provided")
         
@@ -328,11 +343,28 @@ def generate_map():
         
         schools_dir[cat].append(name)
         
+        # Premium Business-Times Style Digital Card for the Popup
+        popup_html = f"""
+        <div style="font-family: 'Montserrat', sans-serif; min-width: 220px; padding: 4px;">
+            <div style="font-size: 14px; font-weight: 800; color: {fill_color}; margin-bottom: 6px; text-transform: uppercase; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 4px;">
+                {name}
+            </div>
+            <div style="font-size: 12px; font-weight: 700; color: #FFD700; margin-bottom: 8px; display: inline-block; background: rgba(255,215,0,0.15); padding: 2px 6px; border-radius: 4px; border: 1px solid rgba(255,215,0,0.4);">
+                ★ TIER: {tier.upper()}
+            </div>
+            <div style="font-size: 11px; color: #CCCCCC; line-height: 1.5;">
+                <b style="color: #FFFFFF;">Level:</b> {level.title()}<br>
+                <b style="color: #FFFFFF;">Region:</b> {school.get('region', 'N/A').title()}<br>
+                <b style="color: #FFFFFF;">📍 Addr:</b> {address}
+            </div>
+        </div>
+        """
+        
         # Inject custom className "school-dot" to allow CSS to hide it during Exec Clean mode
         folium.CircleMarker(
             location=[lat, lon], 
             radius=7, 
-            popup=f"<div style='min-width: 180px;'><b style='color: {fill_color}; font-size: 14px;'>{name}</b><br><span style='color: #FFD700; font-weight: 600;'>{level.title()}</span><br><span style='font-size: 12px; color: #AAAAAA;'>📍 {address}</span></div>",
+            popup=folium.Popup(popup_html, max_width=300),
             tooltip=f"<span style='font-size: 14px;'>{name}</span>", 
             color="white", weight=1, fill_color=fill_color, fill=True, fill_opacity=0.85,
             class_name="school-dot"
