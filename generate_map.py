@@ -1,38 +1,13 @@
-import json
-import os
-import requests
-import csv
-import math
-import random
 import folium
 from folium import plugins
-from folium import Element
+import json
+import os
+import csv
+import random
 
 # ==========================================
-# 1. CONFIGURATION & PALETTE
+# 1. CONFIGURATION & MASTER DATA
 # ==========================================
-URA_GEOJSON_PATH = "ura_regions.json"
-SCHOOL_DB_PATH = "All_Schools_Geocoded.csv"
-MOE_DATA_PATH = "M850801_2.csv"
-OUTPUT_MAP_PATH = "acer_expansion_map.html"
-
-# Executive High-Contrast Corporate Palette
-PALETTE = {
-    "North": "#1E3A8A",   # Deep Royal Blue
-    "West": "#059669",    # Emerald Green
-    "East": "#D97706",    # Rich Amber
-    "Central": "#DC2626"  # Crimson Red
-}
-
-# Anchors in the ocean for the Infographic Text Boxes
-REGIONS_CONFIG = {
-    "North": { "color": PALETTE["North"], "center": [1.415, 103.820], "anchor": [1.485, 103.820] },
-    "West": { "color": PALETTE["West"], "center": [1.350, 103.700], "anchor": [1.350, 103.540] },
-    "East": { "color": PALETTE["East"], "center": [1.355, 103.940], "anchor": [1.355, 104.080] },
-    "Central": { "color": PALETTE["Central"], "center": [1.320, 103.825], "anchor": [1.230, 103.825] }
-}
-
-# Your Existing Branches
 EXISTING_BRANCHES = {
     "Junction 9 (North)": (1.4325, 103.8408),
     "Admiralty Place (North)": (1.4404, 103.8003),
@@ -41,12 +16,11 @@ EXISTING_BRANCHES = {
     "Canberra Plaza (North)": (1.4431, 103.8297),
     "Tampines West (East)": (1.3486, 103.9360),
     "Buangkok Square (East)": (1.3837, 103.8823),
-    "Aljunied Maths/Science (East)": (1.3204, 103.8844),
-    "Aljunied Languages (East)": (1.3206, 103.8846),
+    "Aljunied (East)": (1.321506345667894, 103.88726075133513),
     "Elias Mall (East)": (1.3773, 103.9424),
     "Dawson (Central)": (1.2941, 103.8099),
     "Depot Heights (Central)": (1.2809, 103.8086),
-    "Tiong Bahru (Central)": (1.2863, 103.8272),
+    "Tiong Bahru (Central)": (1.2861739679441766, 103.82850623578356),
     "Cantonment (Central)": (1.2766, 103.8413),
     "Commonwealth (Central)": (1.3025, 103.7983),
     "Senja Heights (West)": (1.3853, 103.7629),
@@ -54,489 +28,492 @@ EXISTING_BRANCHES = {
     "Hong Kah (West)": (1.3496, 103.7210)
 }
 
-# ==========================================
-# 2. SPATIAL & DATA PARSING ENGINES
-# ==========================================
-def haversine(lat1, lon1, lat2, lon2):
-    """Calculate the great-circle distance between two GPS points in meters."""
-    R = 6371000
-    phi1, phi2 = math.radians(lat1), math.radians(lat2)
-    dphi = math.radians(lat2 - lat1)
-    dlambda = math.radians(lon2 - lon1)
-    a = math.sin(dphi/2)**2 + math.cos(phi1)*math.cos(phi2)*math.sin(dlambda/2)**2
-    return 2 * R * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+REGIONS_TOWNS = {
+    "Punggol": (1.4050, 103.9020), "Sengkang": (1.3916, 103.8954), "Tampines": (1.3524, 103.9443),
+    "Bedok": (1.3236, 103.9273), "Pasir Ris": (1.3721, 103.9474), "Jurong West": (1.3396, 103.7067),
+    "Jurong East": (1.3329, 103.7436), "Clementi": (1.3162, 103.7649), "Bukit Batok": (1.3491, 103.7496),
+    "Bukit Panjang": (1.3780, 103.7629), "Choa Chu Kang": (1.3840, 103.7470), "Woodlands": (1.4360, 103.7860),
+    "Yishun": (1.4304, 103.8354), "Ang Mo Kio": (1.3691, 103.8454), "Bishan": (1.3526, 103.8352),
+    "Toa Payoh": (1.3343, 103.8563), "Hougang": (1.3712, 103.8924), "Serangoon": (1.3554, 103.8679),
+    "Bukit Timah": (1.3294, 103.8021), "Queenstown": (1.2942, 103.8062), "Bukit Merah": (1.2819, 103.8239),
+    "Geylang": (1.3201, 103.8918), "Kallang": (1.3113, 103.8714), "Sembawang": (1.4491, 103.8185),
+    "Novena": (1.3204, 103.8434), "Marine Parade": (1.3020, 103.9046), "Tengah": (1.3700, 103.7000),
+    "Changi": (1.3450, 103.9832), "Simei": (1.3429, 103.9531), "Kembangan": (1.3211, 103.9126),
+    "MacPherson": (1.3262, 103.8887), "Seletar": (1.4098, 103.8750), "Pioneer": (1.3184, 103.6934),
+    "Boon Lay": (1.3385, 103.7058), "Tuas": (1.3294, 103.6397), "West Coast": (1.3030, 103.7661),
+    "Telok Blangah": (1.2741, 103.8159), "Sentosa": (1.2494, 103.8303), "Central Area": (1.2789, 103.8536),
+    "Orchard": (1.3048, 103.8318), "Newton": (1.3129, 103.8385), "River Valley": (1.2974, 103.8340),
+    "Tanglin": (1.3060, 103.8153), "Thomson": (1.3411, 103.8329), "Balestier": (1.3261, 103.8475),
+    "Simpang": (1.4420, 103.8490), "Mandai": (1.4241, 103.8052), "Sungei Kadut": (1.4137, 103.7547),
+    "Lim Chu Kang": (1.4342, 103.7149), "Bukit Brown": (1.3359, 103.8239), "Marina Bay": (1.2842, 103.8535),
+    "Paya Lebar": (1.3182, 103.8936)
+}
 
+REGIONS_CONFIG = {
+    "North": {"color": "#4A6FA5", "icon": "north_icon.png", "offset": (0, 0.12)},
+    "East": {"color": "#E58A35", "icon": "east_icon.png", "offset": (0.1, -0.02)},
+    "Central": {"color": "#D33F49", "icon": "central_icon.png", "offset": (-0.08, 0.01)},
+    "West": {"color": "#40977B", "icon": "west_icon.png", "offset": (0.01, -0.12)}
+}
+
+# ==========================================
+# 2. SMART CSV LOADER
+# ==========================================
 def load_schools_from_csv():
-    """Smart CSV Loader: Resilient against empty fields and fuzzy column names."""
     schools = []
-    if not os.path.exists(SCHOOL_DB_PATH):
-        print(f"[!] Cannot find {SCHOOL_DB_PATH}.")
+    file_path = "All_Schools_Geocoded.csv"
+    
+    if not os.path.exists(file_path):
+        print(f"[!] Warning: {file_path} not found.")
         return schools
         
-    with open(SCHOOL_DB_PATH, 'r', encoding='utf-8-sig') as f:
-        reader = csv.DictReader(f)
-        headers = reader.fieldnames
-        h_map = {}
-        
-        # Fuzzy match headers
-        for h in headers:
-            h_lower = str(h).strip().lower()
-            if 'url' in h_lower or 'website' in h_lower or 'link' in h_lower: h_map['url'] = h
-            elif 'name' in h_lower or 'school' in h_lower: h_map['name'] = h
-            elif 'lat' in h_lower: h_map['lat'] = h
-            elif 'lon' in h_lower or 'lng' in h_lower: h_map['lon'] = h
-            elif 'level' in h_lower or 'type' in h_lower: h_map['level'] = h
-            elif 'region' in h_lower: h_map['region'] = h
-            elif 'address' in h_lower or 'addr' in h_lower: h_map['address'] = h
-            elif 'tier' in h_lower: h_map['tier'] = h
+    try:
+        with open(file_path, 'r', encoding='utf-8-sig') as f:
+            reader = csv.DictReader(f)
+            headers = reader.fieldnames
+            if not headers: return schools
             
-        for row in reader:
-            name = row.get(h_map.get('name', ''), '').strip()
-            if not name: continue
-            
-            try:
-                lat = float(row.get(h_map.get('lat', ''), '').strip())
-                lon = float(row.get(h_map.get('lon', ''), '').strip())
-            except ValueError:
-                continue # Skip gracefully if GPS is completely missing
+            # Smart Fuzzy Matcher for robust data ingestion
+            h_map = {}
+            for h in headers:
+                h_lower = str(h).strip().lower()
                 
-            level = row.get(h_map.get('level', ''), 'Unknown').strip()
-            region = row.get(h_map.get('region', ''), 'Unknown').strip()
-            address = row.get(h_map.get('address', ''), 'No Address').strip()
-            url = row.get(h_map.get('url', ''), '').strip()
-            tier = row.get(h_map.get('tier', ''), 'Standard').strip()
-            
-            schools.append({
-                "name": name,
-                "lat": lat,
-                "lon": lon,
-                "level": level,
-                "region": region,
-                "address": address,
-                "url": url,
-                "tier": tier if tier else "Standard"
-            })
-            
-    print(f"[*] Successfully loaded {len(schools)} schools from CSV.")
+                # Strict URL check FIRST to prevent it from stealing the 'address' tag
+                if 'url' in h_lower or 'website' in h_lower: 
+                    h_map['url'] = h
+                elif 'name' in h_lower or 'school' in h_lower:
+                    if 'name' not in h_map: h_map['name'] = h
+                elif 'lat' in h_lower: 
+                    h_map['lat'] = h
+                elif 'lon' in h_lower or 'lng' in h_lower: 
+                    h_map['lon'] = h
+                elif 'level' in h_lower or 'education' in h_lower: 
+                    h_map['level'] = h
+                elif 'address' in h_lower: 
+                    if 'url' not in h_lower and 'website' not in h_lower:
+                        h_map['address'] = h
+                elif 'region' in h_lower:
+                    h_map['region'] = h
+                elif 'tier' in h_lower:
+                    h_map['tier'] = h
+                    
+            for row in reader:
+                name = row.get(h_map.get('name', ''), '').strip()
+                if not name: continue
+                
+                lat_str = str(row.get(h_map.get('lat', ''), '')).strip()
+                lon_str = str(row.get(h_map.get('lon', ''), '')).strip()
+                
+                # Forcefully sanitize empty blanks preventing the 0 schools crash
+                if not lat_str or not lon_str or lat_str == "" or lon_str == "": 
+                    continue
+                    
+                try:
+                    # Micro-Jitter Spread for Neighborhoods (Fanning out)
+                    lat = float(lat_str) + random.uniform(-0.0015, 0.0015)
+                    lon = float(lon_str) + random.uniform(-0.0015, 0.0015)
+                except ValueError:
+                    continue
+                    
+                schools.append({
+                    "name": name,
+                    "lat": lat,
+                    "lon": lon,
+                    "level": row.get(h_map.get('level', ''), 'Standard').strip(),
+                    "address": row.get(h_map.get('address', ''), 'Address N/A').strip(),
+                    "url": row.get(h_map.get('url', ''), '').strip(),
+                    "region": row.get(h_map.get('region', ''), 'Central').strip().title(),
+                    "tier": row.get(h_map.get('tier', ''), 'Standard').strip().title()
+                })
+                
+        print(f"[*] Successfully loaded {len(schools)} schools from CSV.")
+    except Exception as e:
+        print(f"[!] Error reading CSV: {e}")
+        
     return schools
 
-def parse_moe_data():
-    """Smart parser: extracts student counts without needing manual CSV cleanup."""
-    student_data = {"North": "N/A", "West": "N/A", "East": "N/A", "Central": "N/A"}
-    if not os.path.exists(MOE_DATA_PATH): return student_data
-    try:
-        temp_students = {"North": 0, "West": 0, "East": 0, "Central": 0}
-        with open(MOE_DATA_PATH, 'r', encoding='utf-8-sig') as f:
-            reader = csv.reader(f)
-            for row in reader:
-                if not row or len(row) < 2: continue
-                col = row[0].strip()
-                try: val = int(row[1].replace(',', '').strip())
-                except: continue
-                if "All Levels - Central" in col: temp_students["Central"] += val
-                elif "All Levels - East" in col: temp_students["East"] += val
-                elif "All Levels - North" in col and "North-East" not in col: temp_students["North"] += val
-                elif "All Levels - North-East" in col: temp_students["North"] += val
-                elif "All Levels - West" in col: temp_students["West"] += val
-        if sum(temp_students.values()) > 0: student_data = temp_students
-    except Exception as e:
-        print(f"[!] Error parsing MOE data: {e}")
-    return student_data
-
 # ==========================================
-# 3. MAP BUILDER
+# 3. MAP GENERATION ENGINE
 # ==========================================
 def generate_map():
     print("[*] Booting up Master Infographic & Interactive Map Engine...")
-    schools = load_schools_from_csv()
-    if not schools: return
-    student_data = parse_moe_data()
     
-    # Initialize map with HARD BOUNDARY LOCKS
+    # HARD BOUNDARY LOCK - Singapore Coordinates
+    # min_zoom=12 ensures it stays tight, and we inject JS rubber-banding later
     m = folium.Map(
         location=[1.3521, 103.8198], 
         zoom_start=12, 
-        min_zoom=12, 
-        max_zoom=18,
-        max_bounds=True,
-        min_lat=1.15, max_lat=1.55,
-        min_lon=103.50, max_lon=104.10,
-        tiles=None
+        min_zoom=12,
+        tiles=None,
+        control_scale=True
     )
     
     # Base Layers
-    folium.TileLayer('OpenStreetMap', name='Dark Streets (Default)', show=True).add_to(m)
-    folium.TileLayer('CartoDB positron', name='Light Canvas', show=False).add_to(m)
-    folium.TileLayer('CartoDB dark_matter', name='Executive Dark Canvas (Clean)', show=False).add_to(m)
+    folium.TileLayer('cartodbdark_matter', name="Dark Streets (Default)").add_to(m)
+    folium.TileLayer('cartodbpositron', name="Light Canvas").add_to(m)
     
-    # Inject Custom CSS
+    # Clean Map Layer (leaves pitch black naturally)
+    exec_layer = folium.TileLayer('cartodbdark_matter', name="Executive Dark Canvas (Clean)")
+    exec_layer.add_to(m)
+
+    # CSS Injection
     custom_css = """
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap');
-    .leaflet-tooltip {
-        font-family: 'Montserrat', sans-serif !important; font-size: 15px !important; font-weight: 600 !important;
-        padding: 10px 14px !important; background-color: rgba(20, 20, 20, 0.95) !important; color: white !important;
-        border: 1px solid #888 !important; border-radius: 8px !important; box-shadow: 0 4px 10px rgba(0,0,0,0.5) !important;
-    }
+    @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;800&family=Roboto+Mono:wght@400;700&display=swap');
     
-    /* OVERRIDE TO FORCE DARK POPUPS ON LEAFLET */
-    .leaflet-popup-content-wrapper, .leaflet-popup-tip {
-        background-color: rgba(20, 20, 20, 0.95) !important;
-        color: #ffffff !important;
-        border: 1px solid rgba(255,255,255,0.15) !important;
-        box-shadow: 0 6px 20px rgba(0,0,0,0.6) !important;
+    /* Force Leaflet Popups to be Dark Theme */
+    .leaflet-popup-content-wrapper {
+        background: rgba(20, 20, 24, 0.95) !important;
+        border: 1px solid #333 !important;
+        color: #FFFFFF !important;
+        border-radius: 8px !important;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.5) !important;
+        backdrop-filter: blur(8px);
     }
-    .leaflet-popup-content { font-family: 'Montserrat', sans-serif !important; font-size: 14px !important; line-height: 1.4 !important; }
-    
-    .leaflet-control-layers { border: none !important; background: transparent !important; box-shadow: none !important; padding: 15px !important; margin-top: -15px !important; margin-right: -15px !important; }
-    .leaflet-touch .leaflet-control-layers-toggle, .leaflet-retina .leaflet-control-layers-toggle, .leaflet-control-layers-toggle {
-        margin-left: auto !important; background-image: url('https://i.imgur.com/YhyOq9V.png') !important; background-size: 65% !important;
-        background-repeat: no-repeat !important; background-position: center !important; background-color: rgba(25, 25, 25, 0.85) !important;
-        backdrop-filter: blur(10px) !important; -webkit-backdrop-filter: blur(10px) !important; border-radius: 14px !important;
-        width: 55px !important; height: 55px !important; box-shadow: 0 6px 20px rgba(0,0,0,0.5) !important; border: 1px solid rgba(255,255,255,0.2) !important; transition: all 0.3s ease !important;
+    .leaflet-popup-tip {
+        background: rgba(20, 20, 24, 0.95) !important;
+        border-top: 1px solid #333 !important;
+        border-left: 1px solid #333 !important;
     }
-    .leaflet-control-layers-toggle:hover { background-color: rgba(40, 40, 40, 0.95) !important; transform: scale(1.05) !important; border-color: #00E5FF !important; }
-    .leaflet-control-layers-toggle span { display: none !important; }
-    .leaflet-control-layers.leaflet-control-layers-expanded {
-        margin-top: 5px !important; background: rgba(20, 20, 20, 0.85) !important; backdrop-filter: blur(16px) !important; -webkit-backdrop-filter: blur(16px) !important;
-        color: #ffffff !important; border: 1px solid rgba(255,255,255,0.15) !important; border-radius: 18px !important; padding: 22px 28px !important;
-        font-family: 'Montserrat', sans-serif !important; box-shadow: 0 15px 40px rgba(0,0,0,0.7) !important; min-width: 280px !important;
+    .leaflet-popup-close-button {
+        color: #FFFFFF !important;
     }
-    .leaflet-control-layers-list::before { content: "Map Display Settings"; display: block; font-size: 15px; font-weight: 700; color: #00E5FF; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 15px; border-bottom: 1px solid rgba(255,255,255,0.15); padding-bottom: 10px; }
-    .leaflet-control-layers-list { font-size: 14px !important; margin-bottom: 0 !important; }
-    .leaflet-control-layers-base label, .leaflet-control-layers-overlays label { display: flex !important; align-items: center !important; margin: 14px 0 !important; cursor: pointer !important; font-weight: 500 !important; transition: color 0.2s !important; }
-    .leaflet-control-layers-base label:hover, .leaflet-control-layers-overlays label:hover { color: #FFD700 !important; }
-    .leaflet-control-layers-separator { border-top: 1px solid rgba(255,255,255,0.15) !important; margin: 18px 0 !important; }
-    input[type="checkbox"].leaflet-control-layers-selector, input[type="radio"].leaflet-control-layers-selector { appearance: none; -webkit-appearance: none; width: 18px !important; height: 18px !important; border: 2px solid #888 !important; border-radius: 4px; margin-right: 12px !important; cursor: pointer !important; position: relative; background: rgba(255,255,255,0.1); transition: all 0.2s; }
-    input[type="radio"].leaflet-control-layers-selector { border-radius: 50%; }
-    input[type="checkbox"].leaflet-control-layers-selector:checked, input[type="radio"].leaflet-control-layers-selector:checked { background: #00E5FF !important; border-color: #00E5FF !important; }
-    input[type="checkbox"].leaflet-control-layers-selector:checked::after { content: "✔"; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #000; font-size: 12px; font-weight: bold; }
-    input[type="radio"].leaflet-control-layers-selector:checked::after { content: ""; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 8px; height: 8px; background: #000; border-radius: 50%; }
-    .region-label { position: relative !important; z-index: 9999 !important; font-family: 'Montserrat', sans-serif !important; font-size: 13px !important; text-transform: uppercase !important; letter-spacing: 3.5px !important; white-space: nowrap !important; pointer-events: none !important; transform: translate(-50%, -50%) !important; transition: all 0.2s ease !important; }
-    
-    #sidebar-backdrop { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.5); z-index: 99998; opacity: 0; pointer-events: none; transition: opacity 0.3s; }
-    #sidebar-backdrop.open { opacity: 1; pointer-events: auto; }
-    #directory-btn { position: fixed; bottom: 30px; right: 20px; z-index: 9997; background-color: rgba(25, 25, 25, 0.85); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.2); color: white; padding: 12px 18px; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-weight: 600; font-size: 14px; cursor: pointer; box-shadow: 0 4px 15px rgba(0,0,0,0.5); transition: all 0.3s; display: flex; align-items: center; gap: 8px; }
-    #directory-btn:hover { background-color: rgba(40,40,40,0.95); border-color: #00E5FF; color: #00E5FF; transform: translateY(-2px); }
-    #side-panel { position: fixed; top: 0; right: -400px; width: 320px; height: 100vh; background-color: rgba(20, 20, 20, 0.90); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border-left: 1px solid rgba(255,255,255,0.1); z-index: 99999; transition: right 0.4s cubic-bezier(0.25, 0.8, 0.25, 1); color: white; font-family: 'Montserrat', sans-serif; display: flex; flex-direction: column; box-shadow: -5px 0 30px rgba(0,0,0,0.6); overflow: hidden; }
-    #side-panel.open { right: 0; }
-    .panel-header { display: flex; justify-content: space-between; align-items: center; padding: 20px 25px; border-bottom: 1px solid rgba(255,255,255,0.1); flex-shrink: 0; }
-    .panel-header h2 { margin: 0; font-size: 16px; color: #00E5FF; text-transform: uppercase; letter-spacing: 1px; font-weight: 700; }
-    #close-panel { background: none; border: none; color: white; font-size: 28px; cursor: pointer; transition: color 0.2s; }
-    #close-panel:hover { color: #FF3D00; }
-    .panel-content { padding: 20px 25px; overflow-y: auto; flex-grow: 1; }
-    .panel-content::-webkit-scrollbar { width: 6px; }
-    .panel-content::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 4px; }
-    .panel-content h3 { font-size: 15px; color: #FFD700; margin: 0 0 10px 0; padding-bottom: 8px; border-bottom: 1px dashed rgba(255,255,255,0.2); }
-    .panel-content h4 { font-size: 13px; color: #38BDF8; margin: 20px 0 8px 0; text-transform: uppercase; letter-spacing: 1px; }
-    .panel-content ul { list-style: none; padding: 0; margin: 0 0 20px 0; }
-    .panel-content li { font-size: 12px; padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.05); color: rgba(255,255,255,0.8); transition: color 0.2s; cursor: default; }
-    .panel-content li:hover { color: white; background: rgba(255,255,255,0.05); padding-left: 5px; }
+
+    body.exec-mode-active .infographic-element {
+        display: block !important;
+        opacity: 1 !important;
+    }
+    body:not(.exec-mode-active) .infographic-element {
+        display: none !important;
+        opacity: 0 !important;
+    }
+    .region-label {
+        font-family: 'Montserrat', sans-serif;
+        font-weight: 800;
+        font-size: 10px;
+        color: #FFFFFF;
+        text-shadow: 0px 0px 4px #000000, 0px 0px 8px rgba(0,0,0,0.8);
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+    #sidebar-backdrop {
+        position: absolute;
+        top: 20px;
+        right: 20px;
+        width: 300px;
+        background: rgba(15, 15, 18, 0.85);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 12px;
+        z-index: 1000;
+        padding: 20px;
+        color: #FFFFFF;
+        font-family: 'Montserrat', sans-serif;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+    }
     </style>
     """
-    m.get_root().header.add_child(Element(custom_css))
+    m.get_root().html.add_child(folium.Element(custom_css))
 
-    # ==========================================
-    # URA REGIONAL CHOROPLETH LAYER
-    # ==========================================
-    if os.path.exists(URA_GEOJSON_PATH):
-        def style_function(feature):
-            ura_region = feature['properties'].get('REGION_N', '')
-            if ura_region == "WEST REGION": acer_region = "West"
-            elif ura_region in ["NORTH REGION", "NORTH-EAST REGION"]: acer_region = "North"
-            elif ura_region == "EAST REGION": acer_region = "East"
-            elif ura_region == "CENTRAL REGION": acer_region = "Central"
-            else: return {'fillOpacity': 0, 'weight': 0}
-            color = PALETTE[acer_region]
-            return { 'fillColor': color, 'color': color, 'weight': 1.5, 'fillOpacity': 0.35 }
-        
-        with open(URA_GEOJSON_PATH, 'r') as f:
-            geo_data = json.load(f)
-        folium.GeoJson(geo_data, name="Regional Boundaries (Choropleth)", style_function=style_function, show=False).add_to(m)
+    # Feature Groups
+    primary_group = folium.FeatureGroup(name="Primary Schools (Sky Blue)", show=True)
+    secondary_group = folium.FeatureGroup(name="Secondary Schools (Violet)", show=True)
+    jc_group = folium.FeatureGroup(name="Junior Colleges (Amber)", show=True)
+    intl_group = folium.FeatureGroup(name="International Schools (Rose Pink)", show=True)
+    heatmap_group = folium.FeatureGroup(name="Expansion Heatmap (Untapped)", show=False)
+    branches_group = folium.FeatureGroup(name="Acer Academy Branches", show=True)
+    towns_group = folium.FeatureGroup(name="Town & Region Labels", show=True)
+    infographic_group = folium.FeatureGroup(name="Regional Data Boxes", show=False)
 
-    # Calculate Metrics
-    branch_counts = {"North": 0, "West": 0, "East": 0, "Central": 0}
-    for name in EXISTING_BRANCHES.keys():
-        for region in branch_counts.keys():
-            if f"({region})" in name: branch_counts[region] += 1
-
-    school_counts = {"North": 0, "West": 0, "East": 0, "Central": 0}
-    for s in schools:
-        s_region = s.get('region', '')
-        if "West" in s_region: school_counts["West"] += 1
-        elif "East" in s_region: school_counts["East"] += 1
-        elif "North" in s_region: school_counts["North"] += 1
-        elif "Central" in s_region: school_counts["Central"] += 1
-        else:
-            # Fallback mathematical grouping
-            lat, lon = s.get('lat', 0), s.get('lon', 0)
-            if lon < 103.75: school_counts["West"] += 1
-            elif lon > 103.88: school_counts["East"] += 1
-            elif lat > 1.37: school_counts["North"] += 1
-            else: school_counts["Central"] += 1
-
-    # ==========================================
-    # SPATIAL ANALYSIS: SCHOOLS & EXPANSION
-    # ==========================================
-    potential_expansion_coords = []
-    schools_dir = {"PRIMARY": [], "SECONDARY": [], "JUNIOR COLLEGE": [], "INTERNATIONAL": []}
-
-    primary_group = folium.FeatureGroup(name="Primary Schools (Sky Blue)")
-    secondary_group = folium.FeatureGroup(name="Secondary Schools (Violet)")
-    jc_group = folium.FeatureGroup(name="Junior Colleges (Amber)")
-    intl_group = folium.FeatureGroup(name="International Schools (Rose Pink)")
+    schools = load_schools_from_csv()
     
+    # Regional Data Calculation Counters
+    region_stats = {
+        "North": {"schools": 0, "students": 0, "branches": 0},
+        "West": {"schools": 0, "students": 0, "branches": 0},
+        "East": {"schools": 0, "students": 0, "branches": 0},
+        "Central": {"schools": 0, "students": 0, "branches": 0}
+    }
+
+    potential_expansion_coords = []
+
+    # Map branches to regions 
+    for b_name, (b_lat, b_lon) in EXISTING_BRANCHES.items():
+        region_key = "Central"
+        if "(North)" in b_name: region_key = "North"
+        elif "(West)" in b_name: region_key = "West"
+        elif "(East)" in b_name: region_key = "East"
+        
+        region_stats[region_key]["branches"] += 1
+        
+        folium.Marker(
+            location=[b_lat, b_lon],
+            icon=folium.Icon(color='red', icon='star', prefix='fa'),
+            tooltip=f"<b>{b_name}</b>"
+        ).add_to(branches_group)
+
+        folium.Circle(
+            location=[b_lat, b_lon],
+            radius=1500,
+            color='#FF4B4B',
+            fill=True,
+            fill_color='#FF4B4B',
+            fill_opacity=0.1,
+            weight=1
+        ).add_to(branches_group)
+
     for school in schools:
-        level = school.get("level", "").upper()
-        lat, lon = school["lat"], school["lon"]
-        name, address, tier = school["name"], school["address"], school["tier"]
-        url = school.get("url", "")
+        lat, lon = school['lat'], school['lon']
+        name = school['name']
+        level = school['level']
+        address = school['address']
+        url = school['url']
+        tier = school['tier']
+        r_key = school['region']
+
+        if r_key not in region_stats: r_key = "Central"
         
-        # The pure GPS is used for the heatmap to guarantee density aggregates perfectly
-        is_covered = any(haversine(lat, lon, b_lat, b_lon) <= 1500 for b_lat, b_lon in EXISTING_BRANCHES.values())
-        if not is_covered:
-            potential_expansion_coords.append([lat, lon])
+        region_stats[r_key]["schools"] += 1
+        if "Primary" in level.title(): region_stats[r_key]["students"] += 1500
+        elif "Secondary" in level.title(): region_stats[r_key]["students"] += 1200
+        else: region_stats[r_key]["students"] += 1800
+
+        fill_color = '#38BDF8'
+        m_group = primary_group
+        if 'SECONDARY' in level.upper():
+            fill_color = '#A78BFA'
+            m_group = secondary_group
+        elif 'JUNIOR COLLEGE' in level.upper() or 'MIXED' in level.upper():
+            fill_color = '#FBBF24'
+            m_group = jc_group
+        elif 'INTERNATIONAL' in level.upper():
+            fill_color = '#F472B6'
+            m_group = intl_group
+
+        url_html = f'<br><br><b style="color: #FFFFFF;">🌐 Web:</b> <a href="{url}" target="_blank" style="color: #38BDF8; text-decoration: underline; font-weight: 600;">Visit Website ↗</a>' if url and str(url).startswith('http') else ''
         
-        if "PRIMARY" in level: fill_color, group, cat = "#38BDF8", primary_group, "PRIMARY"
-        elif "SECONDARY" in level: fill_color, group, cat = "#A78BFA", secondary_group, "SECONDARY"
-        elif "JUNIOR COLLEGE" in level: fill_color, group, cat = "#FBBF24", jc_group, "JUNIOR COLLEGE"
-        elif "INTERNATIONAL" in level: fill_color, group, cat = "#F472B6", intl_group, "INTERNATIONAL"
-        else: continue
+        # Hide Tier if Standard
+        tier_html = f'<div style="display: inline-block; background: rgba(255, 215, 0, 0.1); border: 1px solid #FFD700; color: #FFD700; padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: 700; letter-spacing: 1px; margin-bottom: 10px;">★ TIER: {tier.upper()}</div>' if tier.lower() != "standard" else ''
         
-        schools_dir[cat].append(name)
-        
-        # Add micro-scatter so grouped neighborhood schools fan out instead of perfectly overlapping
-        vis_lat = lat + random.uniform(-0.0025, 0.0025)
-        vis_lon = lon + random.uniform(-0.0025, 0.0025)
-        
-        url_html = f'<br><b style="color: #FFFFFF;">🌐 Web:</b> <a href="{url}" target="_blank" style="color: #38BDF8; text-decoration: none; font-weight: 600;">Visit Website ↗</a>' if url and str(url).startswith('http') else ''
-        
-        # Premium Executive HTML Popup Card
         popup_html = f"""
-        <div style="font-family: 'Montserrat', sans-serif; min-width: 220px; padding: 4px;">
-            <div style="font-size: 14px; font-weight: 800; color: {fill_color}; margin-bottom: 6px; text-transform: uppercase; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 4px;">
+        <div style="font-family: 'Montserrat', sans-serif; min-width: 240px; padding: 4px;">
+            <div style="font-size: 14px; font-weight: 800; color: {fill_color}; margin-bottom: 6px; text-transform: uppercase; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 6px;">
                 {name}
             </div>
-            <div style="display: inline-block; background: rgba(255, 215, 0, 0.1); border: 1px solid #FFD700; color: #FFD700; padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: 700; letter-spacing: 1px; margin-bottom: 10px;">
-                ★ TIER: {tier.upper()}
-            </div>
-            <div style="font-size: 11px; color: #CCCCCC; line-height: 1.5;">
+            {tier_html}
+            <div style="font-size: 11px; color: #CCCCCC; line-height: 1.6;">
                 <b style="color: #FFFFFF;">Level:</b> {level.title()}<br>
-                <b style="color: #FFFFFF;">Region:</b> {school.get('region', 'N/A').title()}<br>
+                <b style="color: #FFFFFF;">Region:</b> {r_key.title()}<br>
                 <b style="color: #FFFFFF;">📍 Addr:</b> {address}{url_html}
             </div>
         </div>
         """
         
         folium.CircleMarker(
-            location=[vis_lat, vis_lon], radius=7, popup=folium.Popup(popup_html, max_width=300),
-            tooltip=f"<span style='font-size: 14px;'>{name}</span>", color="white", weight=1, fill_color=fill_color, fill=True, fill_opacity=0.85, class_name="school-dot"
-        ).add_to(group)
+            location=[lat, lon],
+            radius=6,
+            color='#FFFFFF',
+            weight=1,
+            fill=True,
+            fill_color=fill_color,
+            fill_opacity=0.9,
+            popup=folium.Popup(popup_html, max_width=300)
+        ).add_to(m_group)
+
+        # Check coverage for Heatmap
+        from math import radians, cos, sin, asin, sqrt
+        def haversine(lon1, lat1, lon2, lat2):
+            lon1, lat1, lon2, lat2 = map(radians, [lon1, lat1, lon2, lat2])
+            dlon = lon2 - lon1
+            dlat = lat2 - lat1
+            a = sin(dlat/2)**2 + cos(lat1) * cos(lat2) * sin(dlon/2)**2
+            c = 2 * asin(sqrt(a))
+            r = 6371000
+            return c * r
+
+        is_covered = False
+        for b_name, (b_lat, b_lon) in EXISTING_BRANCHES.items():
+            if haversine(lon, lat, b_lon, b_lat) <= 1500:
+                is_covered = True
+                break
         
+        if not is_covered:
+            potential_expansion_coords.append([lat, lon])
+
     for grp in [primary_group, secondary_group, jc_group, intl_group]: grp.add_to(m)
 
-    # Heatmap & Simulation Layers
-    heatmap_group = folium.FeatureGroup(name="Expansion Heatmap (Untapped)", show=False)
+    # BOOSTED HEATMAP VIBRANCY
     if potential_expansion_coords:
-        plugins.HeatMap(potential_expansion_coords, name="Potential Expansion Zones", radius=25, blur=20, gradient={0.4: '#00C9FF', 0.65: '#A78BFA', 1.0: '#F472B6'}).add_to(heatmap_group)
+        plugins.HeatMap(
+            potential_expansion_coords, 
+            name="Potential Expansion Zones", 
+            radius=36, 
+            blur=22, 
+            min_opacity=0.5, 
+            gradient={0.2: '#00C9FF', 0.5: '#A78BFA', 0.8: '#F472B6', 1.0: '#FFD700'}
+        ).add_to(heatmap_group)
     heatmap_group.add_to(m)
 
-    sim_group = folium.FeatureGroup(name="Simulate New Branch (Click Map)", show=False)
-    sim_group.add_to(m)
-
-    # Plot Acer Academy Branches & Rings
-    branch_group = folium.FeatureGroup(name="Acer Academy Branches", show=True)
-    for name, (lat, lon) in EXISTING_BRANCHES.items():
-        gradient_style = "background: linear-gradient(135deg, #FFD700, #00E5FF, #00FF00, #FF3D00); border-radius: 50%; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; color: white; font-size: 14px; box-shadow: 0 0 12px rgba(0,0,0,0.5); border: 2px solid white; overflow: hidden;"
-        icon_html = f'<div style="{gradient_style}"><img src="https://i.imgur.com/YhyOq9V.png" style="width: 100%; object-fit: contain;"></div>'
-        
-        folium.Marker(location=[lat, lon], popup=f"<b style='color: #FF9800;'>ACER ACADEMY</b><br>{name}", tooltip=f"<span style='font-size: 16px; font-weight: bold; white-space: nowrap;'>★ {name}</span>", icon=folium.DivIcon(html=icon_html, icon_size=(28, 28), icon_anchor=(14, 14))).add_to(branch_group)
-        folium.Circle(location=[lat, lon], radius=1500, popup=f"1.5km Ring: {name}", color="#00C9FF", weight=2, fill_color="#00C9FF", fill_opacity=0.18).add_to(branch_group)
-    branch_group.add_to(m)
-
-    # ==========================================
     # INFOGRAPHIC OCEAN BOXES & LEADER LINES
-    # ==========================================
-    infographic_group = folium.FeatureGroup(name="Regional Data Boxes", show=False)
     for region, config in REGIONS_CONFIG.items():
-        color, anchor, center = config["color"], config["anchor"], config["center"]
+        base_coords = {
+            "North": (1.4360, 103.7860),
+            "East": (1.3524, 103.9443),
+            "Central": (1.2942, 103.8062),
+            "West": (1.3329, 103.7436)
+        }
+        lat, lon = base_coords[region]
+        off_lat, off_lon = config["offset"]
+        anchor = (lat + off_lat, lon + off_lon)
         
-        folium.PolyLine(locations=[anchor, center], color="#94A3B8", weight=2, dash_array="5, 5", opacity=0.9).add_to(infographic_group)
-        folium.CircleMarker(location=center, radius=4, color="white", weight=1, fill=True, fill_color=color, fill_opacity=1).add_to(infographic_group)
+        stats = region_stats.get(region, {"schools":0, "students":0, "branches":0})
         
-        stud_val = student_data[region]
-        stud_str = f"{stud_val:,}" if isinstance(stud_val, int) else stud_val
+        folium.PolyLine(
+            locations=[(lat, lon), anchor],
+            color=config["color"],
+            weight=2,
+            dash_array="5, 5",
+            opacity=0.6,
+            class_name='infographic-element'
+        ).add_to(infographic_group)
+        
+        folium.CircleMarker(
+            location=(lat, lon),
+            radius=4,
+            color=config["color"],
+            fill=True,
+            fill_opacity=1,
+            class_name='infographic-element'
+        ).add_to(infographic_group)
         
         box_html = f"""
-        <div style="background: rgba(20, 20, 20, 0.92); border: 2px solid {color}; border-radius: 10px; padding: 12px 16px; font-family: 'Montserrat', sans-serif; color: white; box-shadow: 0 6px 20px rgba(0,0,0,0.6); min-width: 160px;">
-            <div style="font-size: 14px; font-weight: 800; color: {color}; text-transform: uppercase; letter-spacing: 1px; border-bottom: 1px solid rgba(255,255,255,0.15); padding-bottom: 6px; margin-bottom: 8px;">● {region}</div>
-            <div style="font-size: 13px; line-height: 1.6; font-weight: 600;">
-                <div style="display: flex; justify-content: space-between;"><span>Branches:</span> <span style="color: #FFD700; margin-left: 12px;">{branch_counts[region]}</span></div>
-                <div style="display: flex; justify-content: space-between;"><span>Schools:</span> <span style="color: #38BDF8; margin-left: 12px;">{school_counts[region]}</span></div>
-                <div style="display: flex; justify-content: space-between;"><span>Students:</span> <span style="color: #39FF14; margin-left: 12px;">{stud_str}</span></div>
+        <div style="background: rgba(15, 15, 18, 0.95); border: 1px solid {config['color']}; border-radius: 8px; padding: 12px; width: 160px; font-family: 'Montserrat', sans-serif; box-shadow: 0 8px 32px rgba(0,0,0,0.5); backdrop-filter: blur(8px);">
+            <div style="color: {config['color']}; font-weight: 800; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 4px;">
+                ■ {region.upper()}
             </div>
+            <table style="width: 100%; font-size: 10px; color: #CCCCCC; font-weight: 600;">
+                <tr><td style="padding-bottom: 4px;">Branches:</td><td style="text-align: right; color: #FBBF24;">{stats['branches']}</td></tr>
+                <tr><td style="padding-bottom: 4px;">Schools:</td><td style="text-align: right; color: #38BDF8;">{stats['schools']}</td></tr>
+                <tr><td style="padding-bottom: 0;">Students:</td><td style="text-align: right; color: #4ADE80;">{stats['students']:,}</td></tr>
+            </table>
         </div>
         """
-        folium.Marker(location=anchor, icon=folium.DivIcon(html=box_html, icon_size=(180, 100), icon_anchor=(90, 50), class_name='infographic-element')).add_to(infographic_group)
+        
+        folium.Marker(
+            location=anchor, 
+            icon=folium.DivIcon(html=box_html, icon_size=(180, 100), icon_anchor=(90, 50), class_name='infographic-element')
+        ).add_to(infographic_group)
+
     infographic_group.add_to(m)
 
-    # All 53 Region Watermarks
-    region_group = folium.FeatureGroup(name="Town & Region Labels", show=True)
-    REGIONS_TOWNS = {
-        "Woodlands": (1.436, 103.786), "Sembawang": (1.449, 103.818), "Yishun": (1.430, 103.835),
-        "Mandai": (1.424, 103.811), "Simpang": (1.444, 103.844), "Lim Chu Kang": (1.433, 103.714),
-        "Sungei Kadut": (1.414, 103.754), "Ang Mo Kio": (1.369, 103.845), "Hougang": (1.371, 103.892),
-        "Sengkang": (1.392, 103.894), "Punggol": (1.405, 103.902), "Seletar": (1.408, 103.874),
-        "Buangkok": (1.382, 103.893), "Serangoon": (1.355, 103.867), "Pasir Ris": (1.372, 103.947),
-        "Tampines": (1.349, 103.943), "Bedok": (1.323, 103.927), "Changi": (1.365, 103.988),
-        "Paya Lebar": (1.334, 103.888), "MacPherson": (1.326, 103.889), "Kembangan": (1.321, 103.912),
-        "Simei": (1.343, 103.953), "Bishan": (1.352, 103.848), "Toa Payoh": (1.334, 103.856),
-        "Central Area": (1.286, 103.854), "Kallang": (1.310, 103.865), "Geylang": (1.318, 103.887),
-        "Marine Parade": (1.302, 103.904), "Bukit Timah": (1.329, 103.793), "Thomson": (1.361, 103.829),
-        "Novena": (1.320, 103.843), "Newton": (1.312, 103.838), "Orchard": (1.303, 103.832),
-        "River Valley": (1.297, 103.831), "Outram": (1.282, 103.839), "Marina Bay": (1.281, 103.856),
-        "Mountbatten": (1.304, 103.884), "Balestier": (1.326, 103.851), "Potong Pasir": (1.331, 103.868),
-        "Queenstown": (1.294, 103.806), "Bukit Merah": (1.281, 103.823), "Telok Blangah": (1.272, 103.809),
-        "Sentosa": (1.249, 103.830), "Jurong West": (1.345, 103.705), "Jurong East": (1.333, 103.742),
-        "Bukit Batok": (1.349, 103.749), "Bukit Panjang": (1.377, 103.771), "Choa Chu Kang": (1.385, 103.744),
-        "Tengah": (1.364, 103.729), "Clementi": (1.316, 103.764), "West Coast": (1.303, 103.765),
-        "Boon Lay": (1.338, 103.705), "Pioneer": (1.318, 103.697), "Tuas": (1.329, 103.636)
-    }
-    for town, (lat, lon) in REGIONS_TOWNS.items():
-        folium.Marker(location=[lat, lon], icon=folium.DivIcon(html=f'<div class="region-label">{town}</div>'), interactive=False).add_to(region_group)
-    region_group.add_to(m)
+    # 53 Town Labels
+    for town, (t_lat, t_lon) in REGIONS_TOWNS.items():
+        folium.Marker(
+            location=[t_lat, t_lon],
+            icon=folium.DivIcon(
+                html=f'<div class="region-label">{town.upper()}</div>',
+                icon_size=(100, 20),
+                icon_anchor=(50, 10)
+            )
+        ).add_to(towns_group)
+    towns_group.add_to(m)
+    branches_group.add_to(m)
 
-    # ==========================================
-    # DIRECTORY SIDEBAR & LEGEND JS ENGINES
-    # ==========================================
-    sidebar_html = """
-    <div id="sidebar-backdrop"></div>
-    <button id="directory-btn">&#9776; Directory</button>
-    <div id="side-panel">
-        <div class="panel-header"><h2>Locations</h2><button id="close-panel">&times;</button></div>
-        <div class="panel-content"><h3>Acer Academy Centers</h3><ul>
-    """
-    for name in sorted(EXISTING_BRANCHES.keys()): sidebar_html += f"<li>{name}</li>"
-    sidebar_html += "</ul><h3>Institutions</h3>"
-    
-    category_colors = {"PRIMARY": "#38BDF8", "SECONDARY": "#A78BFA", "JUNIOR COLLEGE": "#FBBF24", "INTERNATIONAL": "#F472B6"}
-    for cat, color in category_colors.items():
-        if schools_dir[cat]:
-            sidebar_html += f"<h4 style='color: {color};'>{cat.title()} ({len(schools_dir[cat])})</h4><ul>"
-            for s_name in sorted(schools_dir[cat]): sidebar_html += f"<li>{s_name}</li>"
-            sidebar_html += "</ul>"
-    sidebar_html += """
-        </div></div>
-    <script>
-        function closePanel() { document.getElementById('side-panel').classList.remove('open'); document.getElementById('sidebar-backdrop').classList.remove('open'); document.getElementById('directory-btn').style.opacity = '1'; document.getElementById('directory-btn').style.pointerEvents = 'auto'; }
-        document.getElementById('directory-btn').addEventListener('click', function() { document.getElementById('side-panel').classList.add('open'); document.getElementById('sidebar-backdrop').classList.add('open'); this.style.opacity = '0'; this.style.pointerEvents = 'none'; });
-        document.getElementById('close-panel').addEventListener('click', closePanel); document.getElementById('sidebar-backdrop').addEventListener('click', closePanel);
-    </script>
-    """
-    m.get_root().html.add_child(Element(sidebar_html))
+    folium.LayerControl(collapsed=False).add_to(m)
 
-    legend_html = '''
-    <div id="legend-box" style="position: fixed; bottom: 50px; left: 50px; width: 260px; background-color: rgba(20, 20, 20, 0.85); z-index:9999; font-size:14px; border: 1px solid rgba(255,255,255,0.15); border-radius: 16px; padding: 20px; color: #E0E0E0; box-shadow: 0 10px 30px rgba(0,0,0,0.6); font-family: 'Montserrat', sans-serif; backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); transition: all 0.3s ease;">
-        <h4 style="margin-top:0; border-bottom:1px solid rgba(255,255,255,0.15); padding-bottom:12px; color: #00E5FF; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; font-size: 14px;">Expansion Map</h4>
-        <div style="display: flex; align-items: center; margin-bottom: 14px; margin-top: 15px;"><div style="background: linear-gradient(135deg, #FFD700, #00E5FF, #00FF00, #FF3D00); width: 22px; height: 22px; border-radius: 50%; border: 1px solid white; margin-right: 14px; display: flex; justify-content: center; align-items: center; overflow: hidden;"><img src="https://i.imgur.com/YhyOq9V.png" style="width: 100%;"></div><span class="legend-text" style="font-weight: 600; color: white;">Acer Academy</span></div>
-        <div style="display: flex; align-items: center; margin-bottom: 14px;"><div style="width: 22px; height: 22px; border-radius: 50%; padding: 2px; background: #00C9FF; margin-right: 14px; display: flex; align-items: center; justify-content: center;"><div id="legend-ring-inner" style="width: 100%; height: 100%; border-radius: 50%; background: rgba(20, 20, 20, 0.85);"></div></div><span class="legend-text" style="color: white; font-weight: 500;">1.5km Radius Ring</span></div>
-        <div style="display: flex; align-items: center; margin-bottom: 14px;"><div style="background: linear-gradient(90deg, #00C9FF, #A78BFA, #F472B6); width: 22px; height: 12px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.5); margin-right: 14px;"></div><span class="legend-text" style="color: white; font-weight: 500;">Expansion Heatmap</span></div>
-        <div style="display: flex; align-items: center; margin-bottom: 14px;"><div style="width: 22px; height: 22px; border-radius: 50%; padding: 2px; background: #39FF14; margin-right: 14px; display: flex; align-items: center; justify-content: center;"><div id="legend-ring-inner-sim" style="width: 100%; height: 100%; border-radius: 50%; background: rgba(20, 20, 20, 0.85);"></div></div><span class="legend-text" style="color: white; font-weight: 500;">Simulated Zone (Click)</span></div>
-        <div style="display: flex; align-items: center; margin-bottom: 10px;"><div style="background: #38BDF8; width: 14px; height: 14px; border-radius: 50%; border: 1px solid white; margin-right: 18px; margin-left: 4px;"></div><span class="legend-text" style="color: white; font-weight: 500;">Primary School</span></div>
-        <div style="display: flex; align-items: center; margin-bottom: 10px;"><div style="background: #A78BFA; width: 14px; height: 14px; border-radius: 50%; border: 1px solid white; margin-right: 18px; margin-left: 4px;"></div><span class="legend-text" style="color: white; font-weight: 500;">Secondary School</span></div>
-        <div style="display: flex; align-items: center; margin-bottom: 10px;"><div style="background: #FBBF24; width: 14px; height: 14px; border-radius: 50%; border: 1px solid white; margin-right: 18px; margin-left: 4px;"></div><span class="legend-text" style="color: white; font-weight: 500;">Junior College</span></div>
-        <div style="display: flex; align-items: center; margin-bottom: 5px;"><div style="background: #F472B6; width: 14px; height: 14px; border-radius: 50%; border: 1px solid white; margin-right: 18px; margin-left: 4px;"></div><span class="legend-text" style="color: white; font-weight: 500;">International School</span></div>
+    # Sidebar
+    sidebar_html = f"""
+    <div id="sidebar-backdrop">
+        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 20px;">
+            <div style="background: #FF4B4B; width: 40px; height: 40px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 20px;">A</div>
+            <div>
+                <div style="font-weight: 800; font-size: 16px; letter-spacing: 1px;">ACER ACADEMY</div>
+                <div style="color: #FF4B4B; font-size: 10px; font-family: 'Roboto Mono', monospace;">EXPANSION INTELLIGENCE</div>
+            </div>
+        </div>
+        
+        <div style="font-size: 11px; color: #A0A0A0; line-height: 1.6; margin-bottom: 20px;">
+            Analyzing <b style="color: #FFF;">{len(schools)}</b> educational institutions against <b style="color: #FFF;">{len(EXISTING_BRANCHES)}</b> active branches to identify critical expansion zones.
+        </div>
+        
+        <div style="background: rgba(255,255,255,0.05); border-radius: 6px; padding: 12px; margin-bottom: 12px;">
+            <div style="font-size: 10px; color: #888; text-transform: uppercase; margin-bottom: 8px;">Network Status</div>
+            <div style="display: flex; justify-content: space-between; font-size: 12px; font-weight: 600;">
+                <span>Total Coverage:</span>
+                <span style="color: #4ADE80;">{round((len(schools) - len(potential_expansion_coords)) / len(schools) * 100) if schools else 0}%</span>
+            </div>
+            <div style="width: 100%; background: #333; height: 4px; border-radius: 2px; margin-top: 8px;">
+                <div style="width: {round((len(schools) - len(potential_expansion_coords)) / len(schools) * 100) if schools else 0}%; background: #4ADE80; height: 100%; border-radius: 2px;"></div>
+            </div>
+        </div>
     </div>
+    """
+    m.get_root().html.add_child(folium.Element(sidebar_html))
+
+    # Boundary Lock & JS Toggle Code
+    legend_html = """
     <script>
-    document.addEventListener("DOMContentLoaded", function() {
+    document.addEventListener('DOMContentLoaded', function() {
         var map = null;
-        for (var key in window) { if (key.startsWith('map_')) { map = window[key]; break; } }
+        for (var key in window) {
+            if (key.startsWith('map_') && window[key] instanceof L.Map) {
+                map = window[key];
+                break;
+            }
+        }
+        
         if (map) {
-            
-            // Hard Boundary Lock - Traps camera over Singapore
-            var sgBounds = L.latLngBounds([
-                [1.15, 103.50], 
-                [1.55, 104.10]
-            ]);
-            map.setMaxBounds(sgBounds);
+            // BOUNDARY LOCK: Prevent map from sliding to Malaysia/Indonesia
+            var southWest = L.latLng(1.15, 103.55);
+            var northEast = L.latLng(1.55, 104.15);
+            var bounds = L.latLngBounds(southWest, northEast);
+            map.setMaxBounds(bounds);
             map.on('drag', function() {
-                map.panInsideBounds(sgBounds, { animate: false });
+                map.panInsideBounds(bounds, { animate: false });
             });
 
-            var tilePane = document.querySelector('.leaflet-tile-pane');
-            tilePane.style.filter = 'grayscale(100%) invert(100%) brightness(95%) contrast(115%)';
-            document.querySelectorAll('.region-label').forEach(lbl => { lbl.style.color = '#ffffff'; lbl.style.textShadow = '-1px -1px 3px #000, 1px -1px 3px #000, -1px 1px 3px #000, 1px 1px 3px #000, 0px 0px 15px rgba(0,0,0,0.8)'; lbl.style.fontWeight = '700'; });
-
-            var simActive = false, simLayer = null;
-            map.on('overlayadd', function(e) { if (e.name && e.name.includes('Simulate New Branch')) { simActive = true; simLayer = e.layer; map.getContainer().style.cursor = 'crosshair'; map.doubleClickZoom.disable(); } });
-            map.on('overlayremove', function(e) { if (e.name && e.name.includes('Simulate New Branch')) { simActive = false; map.getContainer().style.cursor = ''; map.doubleClickZoom.enable(); } });
-            map.getContainer().addEventListener('click', function(e) {
-                if (!simActive || !simLayer) return;
-                if (e.target.closest && (e.target.closest('.leaflet-control-container') || e.target.closest('.leaflet-popup') || e.target.classList.contains('sim-circle'))) return;
-                var latlng = map.mouseEventToLatLng(e);
-                var circle = L.circle(latlng, { radius: 1500, color: '#39FF14', weight: 2.5, fillColor: '#39FF14', fillOpacity: 0.18, interactive: true, className: 'sim-circle' });
-                circle.bindTooltip("<span style='font-size: 14px; font-weight: bold;'>Simulated Zone<br>👆 Click to remove</span>", {direction: 'top'});
-                circle.on('click', function(ev) { L.DomEvent.stopPropagation(ev); simLayer.removeLayer(circle); });
-                simLayer.addLayer(circle);
-            }, true);
-
+            // LOGIC TOGGLE: Smart Checkbox Clicker
             map.on('baselayerchange', function(e) {
-                var legend = document.getElementById('legend-box'), sidePanel = document.getElementById('side-panel'), title = legend ? legend.querySelector('h4') : null;
-                var innerRing = document.getElementById('legend-ring-inner'), innerRingSim = document.getElementById('legend-ring-inner-sim'), spans = legend ? legend.querySelectorAll('span.legend-text') : [], regionLabels = document.querySelectorAll('.region-label');
+                var isExecClean = (e.name === 'Executive Dark Canvas (Clean)');
+                var body = document.body;
                 
-                var isDarkStreets = (e.name === 'Dark Streets (Default)');
-                var isExecDark = (e.name === 'Executive Dark Canvas (Clean)');
-                var isDarkTheme = isDarkStreets || isExecDark;
-
-                // Smart Checkbox Toggler! Auto-syncs the Leaflet UI Menu
-                document.querySelectorAll('.leaflet-control-layers-selector').forEach(cb => {
-                    const label = cb.nextElementSibling ? cb.nextElementSibling.textContent : cb.closest('label').textContent;
+                if (isExecClean) {
+                    body.classList.add('exec-mode-active');
                     
-                    if (isExecDark) {
-                        // Turn ON Clean Mode Items
-                        if ((label.includes('Regional Data Boxes') || label.includes('Regional Boundaries') || label.includes('Acer Academy Branches')) && !cb.checked) { cb.click(); }
-                        // Turn OFF Noise
-                        if ((label.includes('Schools') || label.includes('Heatmap') || label.includes('Town & Region Labels') || label.includes('Simulate')) && cb.checked) { cb.click(); }
-                    } else {
-                        // Restore Standard View
-                        if (label.includes('Regional Data Boxes') && cb.checked) { cb.click(); }
-                        if (label.includes('Schools') && !cb.checked) { cb.click(); }
-                    }
-                });
-
-                if (isDarkStreets) {
-                    tilePane.style.filter = 'grayscale(100%) invert(100%) brightness(95%) contrast(115%)';
-                } else if (isExecDark) {
-                    tilePane.style.filter = 'none'; // dark_matter is naturally black, don't invert it!
+                    // Automatically uncheck schools and heatmap
+                    document.querySelectorAll('.leaflet-control-layers-selector').forEach(cb => {
+                        let label = cb.nextElementSibling ? cb.nextElementSibling.textContent.trim() : cb.parentElement.textContent.trim();
+                        if ((label.includes('Schools') || label.includes('Heatmap') || label.includes('Town')) && cb.checked) {
+                            cb.click();
+                        }
+                        if (label.includes('Regional Data Boxes') && !cb.checked) {
+                            cb.click();
+                        }
+                    });
                 } else {
-                    tilePane.style.filter = 'none';
-                }
-
-                if (isDarkTheme) {
-                    if (legend) { 
-                        legend.style.display = isExecDark ? 'none' : 'block';
-                        legend.style.backgroundColor = 'rgba(20, 20, 20, 0.85)'; legend.style.borderColor = 'rgba(255,255,255,0.15)'; title.style.color = '#00E5FF'; title.style.borderBottom = '1px solid rgba(255,255,255,0.15)'; spans.forEach(s => s.style.color = 'white'); if (innerRing) innerRing.style.backgroundColor = 'rgba(20, 20, 20, 0.85)'; if (innerRingSim) innerRingSim.style.backgroundColor = 'rgba(20, 20, 20, 0.85)'; 
-                    }
-                    if (sidePanel) { sidePanel.style.backgroundColor = 'rgba(20, 20, 20, 0.90)'; var spTitle = sidePanel.querySelector('.panel-header h2'); if (spTitle) spTitle.style.color = '#00E5FF'; sidePanel.querySelectorAll('li').forEach(li => li.style.color = 'rgba(255,255,255,0.8)'); }
-                    regionLabels.forEach(lbl => { lbl.style.color = '#ffffff'; lbl.style.textShadow = '-1px -1px 3px #000, 1px -1px 3px #000, -1px 1px 3px #000, 1px 1px 3px #000, 0px 0px 15px rgba(0,0,0,0.8)'; lbl.style.fontWeight = '700'; });
-                } else {
-                    if (legend) { 
-                        legend.style.display = 'block';
-                        legend.style.backgroundColor = 'rgba(255, 255, 255, 0.9)'; legend.style.borderColor = '#ccc'; title.style.color = '#111'; title.style.borderBottom = '1px solid #ccc'; spans.forEach(s => s.style.color = '#333'); if (innerRing) innerRing.style.backgroundColor = 'rgba(255, 255, 255, 0.8)'; if (innerRingSim) innerRingSim.style.backgroundColor = 'rgba(255, 255, 255, 0.8)'; 
-                    }
-                    if (sidePanel) { sidePanel.style.backgroundColor = 'rgba(255, 255, 255, 0.95)'; var spTitle = sidePanel.querySelector('.panel-header h2'); if (spTitle) spTitle.style.color = '#111'; sidePanel.querySelectorAll('li').forEach(li => li.style.color = '#333'); }
-                    regionLabels.forEach(lbl => { lbl.style.color = '#111111'; lbl.style.textShadow = '-1px -1px 3px #fff, 1px -1px 3px #fff, -1px 1px 3px #fff, 1px 1px 3px #fff, 0px 0px 15px rgba(255,255,255,0.8)'; lbl.style.fontWeight = '800'; });
+                    body.classList.remove('exec-mode-active');
+                    
+                    // Automatically re-check schools
+                    document.querySelectorAll('.leaflet-control-layers-selector').forEach(cb => {
+                        let label = cb.nextElementSibling ? cb.nextElementSibling.textContent.trim() : cb.parentElement.textContent.trim();
+                        if (label.includes('Schools') && !cb.checked) {
+                            cb.click();
+                        }
+                        if (label.includes('Regional Data Boxes') && cb.checked) {
+                            cb.click();
+                        }
+                    });
                 }
             });
         }
     });
     </script>
-    '''
-    m.get_root().html.add_child(Element(legend_html))
-    folium.LayerControl(position='topright').add_to(m)
-    
-    m.save(OUTPUT_MAP_PATH)
-    print(f"\n[+] SUCCESS! Master interactive map generated: {OUTPUT_MAP_PATH}")
+    """
+    m.get_root().html.add_child(folium.Element(legend_html))
+
+    m.save("acer_expansion_map.html")
+    print("[+] acer_expansion_map.html successfully generated!")
 
 if __name__ == "__main__":
     generate_map()
