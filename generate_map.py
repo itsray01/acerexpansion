@@ -351,6 +351,9 @@ def generate_map():
             tilePane.style.filter = 'grayscale(100%) invert(100%) brightness(95%) contrast(115%)';
             document.querySelectorAll('.region-label').forEach(lbl => { lbl.style.color = '#ffffff'; lbl.style.textShadow = '-1px -1px 3px #000, 1px -1px 3px #000, -1px 1px 3px #000, 1px 1px 3px #000, 0px 0px 15px rgba(0,0,0,0.8)'; lbl.style.fontWeight = '700'; });
 
+            // Ensure the infographic mode is OFF by default since "Dark Streets" is the starting map
+            leafletContainer.classList.remove('exec-mode-active');
+
             var simActive = false, simLayer = null;
             map.on('overlayadd', function(e) { if (e.name && e.name.includes('Simulate New Branch')) { simActive = true; simLayer = e.layer; map.getContainer().style.cursor = 'crosshair'; map.doubleClickZoom.disable(); } });
             map.on('overlayremove', function(e) { if (e.name && e.name.includes('Simulate New Branch')) { simActive = false; map.getContainer().style.cursor = ''; map.doubleClickZoom.enable(); } });
@@ -377,6 +380,8 @@ def generate_map():
 
                 // Handle Map Background and Tiles
                 if (isExecDark) {
+                    leafletContainer.classList.add('exec-mode-active'); // Turn ON infographic boxes and lines
+                    
                     // Let the actual dark_matter map show through for the oceans!
                     tilePane.style.opacity = '1';
                     tilePane.style.filter = 'none'; // Ensure no weird inversions apply to the dark_matter tile
@@ -391,6 +396,8 @@ def generate_map():
                     // Hide the legend entirely to keep it ultra-clean
                     if (legend) legend.style.display = 'none';
                 } else {
+                    leafletContainer.classList.remove('exec-mode-active'); // Turn OFF infographic boxes and lines
+                    
                     tilePane.style.opacity = '1';
                     leafletContainer.style.background = '#ddd';
                     document.querySelectorAll('.school-dot').forEach(el => el.style.display = '');
