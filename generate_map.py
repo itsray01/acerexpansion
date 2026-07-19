@@ -183,7 +183,7 @@ def generate_map():
             else: return {'fillOpacity': 0, 'weight': 0}
             color = PALETTE[acer_region]
             # Heightened opacity makes regions glow beautifully on dark mode
-            return { 'fillColor': color, 'color': color, 'weight': 2.0, 'fillOpacity': 0.45 }
+            return { 'fillColor': color, 'color': color, 'weight': 2.0, 'fillOpacity': 0.65 }
         
         with open(URA_GEOJSON_PATH, 'r') as f:
             geo_data = json.load(f)
@@ -279,7 +279,26 @@ def generate_map():
     infographic_group.add_to(m)
 
     region_group = folium.FeatureGroup(name="Town & Region Labels", show=True)
-    REGIONS_TOWNS = { "Woodlands": (1.436, 103.786), "Yishun": (1.430, 103.835), "Ang Mo Kio": (1.369, 103.845), "Sengkang": (1.392, 103.894), "Tampines": (1.349, 103.943), "Bedok": (1.323, 103.927), "Orchard": (1.303, 103.832), "Jurong East": (1.333, 103.742), "Choa Chu Kang": (1.385, 103.744), "Clementi": (1.316, 103.764) }
+    REGIONS_TOWNS = {
+        "Woodlands": (1.436, 103.786), "Sembawang": (1.449, 103.818), "Yishun": (1.430, 103.835),
+        "Mandai": (1.424, 103.811), "Simpang": (1.444, 103.844), "Lim Chu Kang": (1.433, 103.714),
+        "Sungei Kadut": (1.414, 103.754), "Ang Mo Kio": (1.369, 103.845), "Hougang": (1.371, 103.892),
+        "Sengkang": (1.392, 103.894), "Punggol": (1.405, 103.902), "Seletar": (1.408, 103.874),
+        "Buangkok": (1.382, 103.893), "Serangoon": (1.355, 103.867), "Pasir Ris": (1.372, 103.947),
+        "Tampines": (1.349, 103.943), "Bedok": (1.323, 103.927), "Changi": (1.365, 103.988),
+        "Paya Lebar": (1.334, 103.888), "MacPherson": (1.326, 103.889), "Kembangan": (1.321, 103.912),
+        "Simei": (1.343, 103.953), "Bishan": (1.352, 103.848), "Toa Payoh": (1.334, 103.856),
+        "Central Area": (1.286, 103.854), "Kallang": (1.310, 103.865), "Geylang": (1.318, 103.887),
+        "Marine Parade": (1.302, 103.904), "Bukit Timah": (1.329, 103.793), "Thomson": (1.361, 103.829),
+        "Novena": (1.320, 103.843), "Newton": (1.312, 103.838), "Orchard": (1.303, 103.832),
+        "River Valley": (1.297, 103.831), "Outram": (1.282, 103.839), "Marina Bay": (1.281, 103.856),
+        "Mountbatten": (1.304, 103.884), "Balestier": (1.326, 103.851), "Potong Pasir": (1.331, 103.868),
+        "Queenstown": (1.294, 103.806), "Bukit Merah": (1.281, 103.823), "Telok Blangah": (1.272, 103.809),
+        "Sentosa": (1.249, 103.830), "Jurong West": (1.345, 103.705), "Jurong East": (1.333, 103.742),
+        "Bukit Batok": (1.349, 103.749), "Bukit Panjang": (1.377, 103.771), "Choa Chu Kang": (1.385, 103.744),
+        "Tengah": (1.364, 103.729), "Clementi": (1.316, 103.764), "West Coast": (1.303, 103.765),
+        "Boon Lay": (1.338, 103.705), "Pioneer": (1.318, 103.697), "Tuas": (1.329, 103.636)
+    }
     for town, (lat, lon) in REGIONS_TOWNS.items():
         folium.Marker(location=[lat, lon], icon=folium.DivIcon(html=f'<div class="region-label">{town}</div>'), interactive=False).add_to(region_group)
     region_group.add_to(m)
@@ -358,18 +377,25 @@ def generate_map():
 
                 // Handle Map Background and Tiles
                 if (isExecDark) {
-                    // Hide the underlying map tiles completely
-                    tilePane.style.opacity = '0';
-                    // Set the void to a sleek dark background
+                    // Let the actual dark_matter map show through for the oceans!
+                    tilePane.style.opacity = '1';
+                    tilePane.style.filter = 'none'; // Ensure no weird inversions apply to the dark_matter tile
+                    
+                    // Set map void to a sleek dark background (for off-map edges)
                     leafletContainer.style.background = '#121212';
+                    
                     // Hide all the noise
                     document.querySelectorAll('.school-dot').forEach(el => el.style.display = 'none');
                     document.querySelectorAll('.coverage-ring').forEach(el => el.style.display = 'none');
+                    
+                    // Hide the legend entirely to keep it ultra-clean
+                    if (legend) legend.style.display = 'none';
                 } else {
                     tilePane.style.opacity = '1';
                     leafletContainer.style.background = '#ddd';
                     document.querySelectorAll('.school-dot').forEach(el => el.style.display = '');
                     document.querySelectorAll('.coverage-ring').forEach(el => el.style.display = '');
+                    if (legend) legend.style.display = 'block';
                 }
 
                 // Handle Theme UI
