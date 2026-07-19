@@ -66,49 +66,82 @@ def haversine(lat1, lon1, lat2, lon2):
     return 2 * R * math.atan2(math.sqrt(a), math.sqrt(1 - a))
 
 def load_schools_from_csv():
-    """Ultra-Resilient CSV Loader: Bypasses blank GPS strings without crashing."""
+    """Ultra-Resilient CSV Loader: Auto-detects delimiters, handles Linux case-sensitivity, and hunts for columns."""
     schools = []
-    if not os.path.exists(SCHOOL_CSV_PATH):
-        print(f"[!] Cannot find {SCHOOL_CSV_PATH}. Make sure it's uploaded to GitHub!")
+    
+    # 1. Fix Linux Case-Sensitivity Issue (GitHub Actions is strict)
+    actual_file_path = None
+    for file in os.listdir('.'):
+        if file.lower() == SCHOOL_CSV_PATH.lower():
+            actual_file_path = file
+            break
+            
+    if not actual_file_path:
+        print(f"[!] CRITICAL ERROR: Could not find '{SCHOOL_CSV_PATH}' in the folder.")
         return schools
         
-    with open(SCHOOL_CSV_PATH, 'r', encoding='utf-8-sig') as f:
-        reader = csv.DictReader(f)
+    print(f"[*] Found school database file: {actual_file_path}")
+    
+    with open(actual_file_path, 'r', encoding='utf-8-sig', errors='replace') as f:
+        content = f.read()
+        if not content.strip():
+            print("[!] CSV file is empty.")
+            return schools
+            
+        # 2. Auto-Detect Delimiter (Comma, Tab, Semicolon)
+        try:
+            dialect = csv.Sniffer().sniff(content[:2048])
+        except Exception:
+            dialect = csv.excel # Fallback to standard comma
+            
+        f.seek(0)
+        reader = csv.DictReader(f, dialect=dialect)
+        
         for row in reader:
             try:
                 # Clean keys and values to strings, stripping accidental whitespace
                 row_lower = {str(k).lower().strip(): str(v).strip() for k, v in row.items() if k}
                 
-                # Safely extract GPS strings
-                lat_str = row_lower.get('lat', '') or row_lower.get('latitude', '')
-                lon_str = row_lower.get('lon', '') or row_lower.get('longitude', '')
+                # 3. Aggressively hunt for GPS columns (Matches 'lat', 'latitude', 'y')
+                lat_key = next((k for k in row_lower.keys() if 'lat' in k or 'y' == k), None)
+                lon_key = next((k for k in row_lower.keys() if 'lon' in k or 'lng' in k or 'x' == k), None)
                 
-                # If GPS is entirely missing, skip this specific school
-                if not lat_str or not lon_str:
-                    continue
-                    
-                lat = float(lat_str)
-                lon = float(lon_str)
+                if not lat_key or not lon_key: continue
                 
-                if lat == 0 or lon == 0: 
-                    continue
+                lat_str = row_lower[lat_key]
+                lon_str = row_lower[lon_key]
                 
-                # Aggressively hunt for data columns regardless of exact naming
-                name = row.get('School_Name') or row.get('name') or row_lower.get('school_name') or "Unknown School"
-                level = row.get('Level') or row_lower.get('education_level') or row_lower.get('mainlevel_code') or row_lower.get('level') or "PRIMARY"
-                address = row.get('Address') or row_lower.get('address') or row_lower.get('postal_address') or "Address Not Provided"
-                region = row.get('Region') or row_lower.get('region') or ""
+                if not lat_str or not lon_str: continue
+                
+                # Force clean numeric conversion (ignores random letters like "N/A" or whitespace)
+                lat = float(''.join(c for c in lat_str if c.isdigit() or c in '.-'))
+                lon = float(''.join(c for c in lon_str if c.isdigit() or c in '.-'))
+                
+                if lat == 0 or lon == 0: continue
+                
+                # 4. Aggressively hunt for Data columns
+                name_key = next((k for k in row_lower.keys() if 'name' in k or 'school' in k), None)
+                name = row_lower[name_key].title() if name_key and row_lower[name_key] else "Unknown School"
+                
+                level_key = next((k for k in row_lower.keys() if 'level' in k or 'tier' in k or 'type' in k), None)
+                level = row_lower[level_key].upper() if level_key and row_lower[level_key] else "PRIMARY"
+                
+                addr_key = next((k for k in row_lower.keys() if 'address' in k or 'addr' in k or 'location' in k), None)
+                address = row_lower[addr_key].title() if addr_key and row_lower[addr_key] else "Address Not Provided"
+                
+                region_key = next((k for k in row_lower.keys() if 'region' in k or 'area' in k), None)
+                region = row_lower[region_key].title() if region_key and row_lower[region_key] else ""
                 
                 schools.append({
-                    "name": name.title(),
+                    "name": name,
                     "lat": lat,
                     "lon": lon,
-                    "level": level.upper(),
-                    "address": address.title(),
+                    "level": level,
+                    "address": address,
                     "region": region
                 })
             except Exception as e:
-                # If one school breaks, just skip it and keep processing the rest
+                # If one row breaks, gracefully skip it instead of crashing the function
                 continue
                 
     print(f"[*] Successfully loaded {len(schools)} schools from CSV.")
