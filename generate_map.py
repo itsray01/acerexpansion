@@ -317,7 +317,8 @@ def generate_map():
                 elif 'WEST' in region_name: color = '#2ca02c'
                 elif 'EAST' in region_name: color = '#ff7f0e'
                 else: color = '#d62728' 
-                return {"fillColor": color, "color": "#ffffff", "weight": 1.2, "fillOpacity": 0.25}
+                # FIX: Removed the jagged white border lines so the regions blend smoothly
+                return {"fillColor": color, "color": color, "weight": 0.5, "fillOpacity": 0.20}
             folium.GeoJson(geo_data, style_function=style_function, name="Regional Boundaries").add_to(fg_regions)
         except Exception as e:
             print(f"[!] Could not load GeoJSON: {e}")
@@ -409,30 +410,38 @@ def generate_map():
     branch_group = folium.FeatureGroup(name="Acer Academy Branches", show=True)
     
     for name, (lat, lon) in EXISTING_BRANCHES.items():
-        gradient_style = (
-            "background: linear-gradient(135deg, #FFD700, #00E5FF, #00FF00, #FF3D00); "
-            "border-radius: 50%; width: 28px; height: 28px; display: flex; "
-            "align-items: center; justify-content: center; color: white; "
-            "font-size: 14px; box-shadow: 0 0 12px rgba(0,0,0,0.5); "
-            "border: 2px solid white; overflow: hidden;"
-        )
-        logo_url = "https://i.imgur.com/YhyOq9V.png"
-        icon_html = f'<div style="{gradient_style}"><img src="{logo_url}" style="width: 100%; object-fit: contain;"></div>'
+        # FIX: Replaced the broken red image with a sleek, premium dark marker and a cyan star
+        icon_html = f"""
+        <div style="
+            background: #151515;
+            border: 2px solid #00E5FF;
+            border-radius: 50%;
+            width: 28px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #00E5FF;
+            font-size: 14px;
+            box-shadow: 0 0 15px rgba(0, 229, 255, 0.6);
+        ">★</div>
+        """
         
         folium.Marker(
             location=[lat, lon],
-            popup=f"<b style='color: #FF9800;'>ACER ACADEMY</b><br>{name}",
+            popup=f"<b style='color: #00E5FF;'>ACER ACADEMY</b><br>{name}",
             tooltip=f"<span style='font-size: 16px; font-weight: bold; white-space: nowrap;'>★ {name}</span>",
             icon=folium.DivIcon(html=icon_html, icon_size=(28, 28), icon_anchor=(14, 14))
         ).add_to(branch_group)
         
+        # FIX: Forced the 1.5km radius rings to be Electric Cyan
         folium.Circle(
             location=[lat, lon],
             radius=1500, # 1.5km in meters
             color="#00C9FF", # Premium Glowing Electric Cyan
             weight=2,
             fill_color="#00C9FF",
-            fill_opacity=0.18
+            fill_opacity=0.15
         ).add_to(branch_group)
     branch_group.add_to(m)
 
