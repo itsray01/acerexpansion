@@ -1,5 +1,6 @@
 import os
 import csv
+import json
 import random
 import folium
 from folium import plugins
@@ -30,31 +31,59 @@ EXISTING_BRANCHES = {
 }
 
 def load_schools():
-    """Reads directly from the Geocoded CSV database."""
+    """Merges exact GPS from JSON with rich metadata from CSV."""
     schools = []
+    csv_metadata = {}
     
-    if os.path.exists("All_Schools_Geocoded.csv"):
-        print("[*] Found All_Schools_Geocoded.csv! Loading...")
-        with open("All_Schools_Geocoded.csv", 'r', encoding='utf-8-sig') as f:
+    # 1. Harvest rich data (Addresses & URLs) from the CSV first
+    csv_file = "Generalinformationofschools.csv" if os.path.exists("Generalinformationofschools.csv") else "All_Schools_Geocoded.csv"
+    if os.path.exists(csv_file):
+        print(f"[*] Harvesting addresses & websites from {csv_file}...")
+        with open(csv_file, 'r', encoding='utf-8-sig') as f:
             reader = csv.DictReader(f)
             for row in reader:
                 name_key = next((k for k in row.keys() if 'name' in str(k).lower() or 'school' in str(k).lower()), None)
-                level_key = next((k for k in row.keys() if 'level' in str(k).lower()), None)
+                if not name_key: continue
                 
-                if name_key and row.get('lat') and row.get('lon'):
-                    try:
-                        schools.append({
-                            "name": row[name_key],
-                            "lat": float(row['lat']),
-                            "lon": float(row['lon']),
-                            "level": row[level_key] if level_key and row[level_key] else "PRIMARY"
-                        })
-                    except ValueError:
-                        continue
-        print(f"[+] Successfully loaded {len(schools)} schools from CSV.")
+                name = row[name_key].strip().lower()
+                addr_key = next((k for k in row.keys() if 'address' in str(k).lower() and 'url' not in str(k).lower()), None)
+                url_key = next((k for k in row.keys() if 'url' in str(k).lower() or 'website' in str(k).lower()), None)
+                
+                csv_metadata[name] = {
+                    "address": row[addr_key] if addr_key and row[addr_key] else "Address not available",
+                    "website": row[url_key] if url_key and row[url_key] else ""
+                }
+    else:
+        print(f"[!] Warning: Neither Generalinformationofschools.csv nor All_Schools_Geocoded.csv found. Popups will lack rich text.")
+
+    # 2. Strictly load positions from the highly-accurate JSON file
+    if os.path.exists("school_db.json"):
+        print("[*] Found school_db.json! Loading exact GPS coordinates...")
+        with open("school_db.json", 'r', encoding='utf-8') as f:
+            json_schools = json.load(f)
+            for item in json_schools:
+                name = item.get("name", "").strip()
+                lower_name = name.lower()
+                
+                if "lat" in item and "lon" in item:
+                    # Cross-reference with CSV metadata
+                    extra = csv_metadata.get(lower_name, {})
+                    website = extra.get("website", "")
+                    if website and not website.startswith("http"):
+                        website = "http://" + website
+                        
+                    schools.append({
+                        "name": name,
+                        "lat": float(item["lat"]),
+                        "lon": float(item["lon"]),
+                        "level": item.get("level", "PRIMARY"),
+                        "address": extra.get("address", "Address not available"),
+                        "website": website
+                    })
+        print(f"[+] Successfully merged {len(schools)} schools with precise GPS & CSV metadata.")
         return schools
         
-    print("[!] CRITICAL: All_Schools_Geocoded.csv not found.")
+    print("[!] CRITICAL: school_db.json not found! Cannot map schools accurately.")
     return []
 
 def generate_map():
@@ -64,7 +93,7 @@ def generate_map():
         print("[!] No schools loaded. Terminating map generation.")
         return
     
-    # Natively loading the dark map so NO javascript inversion is needed!
+    # Natively loading the dark map
     m = folium.Map(location=[1.3521, 103.8198], zoom_start=12, tiles='CartoDB dark_matter')
 
     custom_css = """
@@ -79,7 +108,16 @@ def generate_map():
         color: white !important; border: 1px solid #888 !important; border-radius: 8px !important;
         box-shadow: 0 4px 10px rgba(0,0,0,0.5) !important;
     }
-    .leaflet-popup-content { font-family: 'Montserrat', sans-serif !important; font-size: 14px !important; }
+    
+    /* Sleek Dark Mode Popups */
+    .leaflet-popup-content-wrapper, .leaflet-popup-tip {
+        background: rgba(20, 20, 20, 0.95) !important;
+        color: #fff !important;
+        border: 1px solid rgba(255,255,255,0.15) !important;
+        box-shadow: 0 10px 25px rgba(0,0,0,0.5) !important;
+        border-radius: 12px !important;
+    }
+    .leaflet-popup-content { font-family: 'Montserrat', sans-serif !important; margin: 15px !important; }
 
     /* Custom Layer Control Menu (Click-to-Open) */
     .leaflet-control-layers {
@@ -103,14 +141,6 @@ def generate_map():
         border: 1px solid rgba(255,255,255,0.15) !important; border-radius: 18px !important;
         padding: 22px 28px !important; font-family: 'Montserrat', sans-serif !important;
         box-shadow: 0 15px 40px rgba(0,0,0,0.7) !important; min-width: 230px !important;
-    }
-
-    /* Executive Dashboard */
-    .acer-dashboard {
-        position: fixed; top: 20px; right: 80px; z-index: 9999;
-        background: rgba(20,20,20,0.85); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
-        padding: 20px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.15);
-        color: white; font-family: 'Montserrat', sans-serif; box-shadow: 0 10px 30px rgba(0,0,0,0.5); width: 280px;
     }
     </style>
     """
@@ -145,15 +175,16 @@ def generate_map():
     jc_group = folium.FeatureGroup(name="Junior Colleges (Amber)")
     intl_group = folium.FeatureGroup(name="International Schools (Rose Pink)")
     
-    # Dynamic Stat Trackers for the Regional Boxes
     stats = {"NORTH": [0,0], "EAST": [0,0], "WEST": [0,0], "CENTRAL": [0,0]}
 
     for school in schools:
         level = school.get("level", "").upper()
-        # Micro-jitter to prevent dots from stacking infinitely on top of each other
+        # Micro-jitter to prevent dots from stacking infinitely
         lat = school["lat"] + random.uniform(-0.0008, 0.0008)
         lon = school["lon"] + random.uniform(-0.0008, 0.0008)
         name = school["name"]
+        address = school["address"]
+        website = school["website"]
         
         # Region Tracking
         if lat > 1.41: stats["NORTH"][1] += 1
@@ -172,10 +203,23 @@ def generate_map():
         else:
             continue
             
+        # Rich HTML Popup Card
+        btn_html = f"<a href='{website}' target='_blank' style='display: inline-block; background: #00E5FF; color: #000; padding: 6px 12px; border-radius: 6px; font-size: 11px; font-weight: 700; text-decoration: none; margin-top: 5px;'>View Website &rarr;</a>" if website else ""
+        popup_html = f"""
+        <div style="min-width: 200px;">
+            <b style="color: {fill_color}; font-size: 15px;">{name}</b><br>
+            <div style="font-size: 11px; color: #aaa; text-transform: uppercase; margin-bottom: 8px; font-weight: 600;">{level.title()}</div>
+            <div style="font-size: 12px; color: #fff; line-height: 1.4; margin-bottom: 8px;">
+                &#128205; {address}
+            </div>
+            {btn_html}
+        </div>
+        """
+            
         folium.CircleMarker(
             location=[lat, lon],
             radius=6, 
-            popup=f"<b style='color: {fill_color}'>{name}</b><br>{level.title()}",
+            popup=folium.Popup(popup_html, max_width=300),
             tooltip=f"{name}", color="white", weight=1, fill_color=fill_color, fill=True, fill_opacity=0.85
         ).add_to(group)
         
@@ -193,7 +237,7 @@ def generate_map():
         elif lon < 103.78: stats["WEST"][0] += 1
         else: stats["CENTRAL"][0] += 1
         
-        # CSS Background is explicitly set to transparent!
+        # Transparent Background Frame
         icon_html = """
         <div style="background-color: transparent; border-radius: 8px; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border: 2px solid #ffffff; box-shadow: 0 4px 10px rgba(0,0,0,0.5); overflow: hidden;">
             <img src="https://i.imgur.com/YhyOq9V.png" style="width: 100%; height: 100%; object-fit: contain;">
@@ -207,7 +251,7 @@ def generate_map():
             icon=folium.DivIcon(html=icon_html, icon_size=(32, 32), icon_anchor=(16, 16))
         ).add_to(branch_group)
         
-        # Cyan 1.5km protective radius
+        # Cyan 1.5km radius
         folium.Circle(
             location=[lat, lon],
             radius=1500, color="#00C9FF", weight=2, fill_color="#00C9FF", fill_opacity=0.18
@@ -225,52 +269,29 @@ def generate_map():
         </div>
         """
 
-    # Coordinates configured so that X or Y match perfectly to draw a 100% straight line
+    # Extended Coordinates to push boxes further out to sea
     regions_setup = [
-        # North Box (Far up) -> points straight DOWN to Yishun
-        ("NORTH", [1.49, 103.82], [1.43, 103.82]),
-        # East Box (Far Right) -> points straight LEFT to Tampines
-        ("EAST", [1.35, 104.04], [1.35, 103.94]),
-        # West Box (Far Left) -> points straight RIGHT to Tengah
-        ("WEST", [1.364, 103.62], [1.364, 103.729]),
-        # Central Box (Far Down) -> points straight UP to Bukit Merah
-        ("CENTRAL", [1.22, 103.82], [1.28, 103.82])
+        ("NORTH", [1.53, 103.82], [1.43, 103.82]),
+        ("EAST", [1.35, 104.09], [1.35, 103.94]),
+        ("WEST", [1.364, 103.58], [1.364, 103.729]),
+        ("CENTRAL", [1.18, 103.82], [1.28, 103.82])
     ]
 
     for reg_name, box_coord, map_coord in regions_setup:
-        # 1. The Perfectly Straight Dotted Line
+        # Perfectly Straight Dotted Line
         folium.PolyLine(
             locations=[box_coord, map_coord],
             color="#00E5FF", weight=2, dash_array="5, 10", opacity=0.6
         ).add_to(m)
         
-        # 2. The Floating Data Box
+        # Floating Data Box
         folium.Marker(
             location=box_coord,
             icon=folium.DivIcon(html=create_box(reg_name, stats[reg_name][0], stats[reg_name][1]), icon_size=(160, 100), icon_anchor=(80, 50))
         ).add_to(m)
 
-    dashboard_html = """
-    <div class="acer-dashboard">
-        <h4 style="margin: 0 0 15px 0; font-size: 16px; font-weight: 800; display: flex; align-items: center; gap: 10px;">
-            <div style="width: 24px; height: 24px; border-radius: 6px; border: 1px solid #fff; display: flex; align-items: center; justify-content: center; overflow: hidden; background: transparent;">
-                <img src="https://i.imgur.com/YhyOq9V.png" style="width:100%; height:100%; object-fit: cover;">
-            </div>
-            ACER <span style="color:#ff3344;">EXPANSION</span>
-        </h4>
-        <div style="font-size: 12px; color: #ccc; line-height: 1.5;">
-            Analyzing <b style="color:#fff;">""" + str(len(schools)) + """</b> educational zones across <b style="color:#fff;">""" + str(len(EXISTING_BRANCHES)) + """</b> active branches.
-        </div>
-        <div style="display:flex; justify-content:space-between; font-size:10px; font-weight:700; color:#aaa; margin-top:14px; text-transform:uppercase;">
-            <span>Network Status</span><span style="color:#4ADE80;">Total Coverage</span>
-        </div>
-        <div style="width: 100%; height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px; margin-top: 5px; overflow: hidden;">
-            <div style="width: 100%; height: 100%; background: #4ADE80; border-radius: 3px;"></div>
-        </div>
-    </div>
-    """
-    m.get_root().html.add_child(Element(dashboard_html))
-
+    # Expand map bounds slightly to accommodate the further-out boxes
+    m.fit_bounds([[1.15, 103.55], [1.55, 104.12]])
     folium.LayerControl(position='topright', collapsed=True).add_to(m)
     
     m.save(OUTPUT_MAP_PATH)
