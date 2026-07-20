@@ -195,7 +195,7 @@ def generate_map():
     """
     m.get_root().header.add_child(Element(custom_css))
 
-    print("[*] Plotting URA Regions (Bright Yellow opacity boosted)...")
+    print("[*] Plotting URA Regions (Bug Fixed: Strict Keyword Filtering)...")
     ura_group = folium.FeatureGroup(name="Regional Boundaries (Choropleth)", show=True)
     
     ura_data = None
@@ -211,13 +211,16 @@ def generate_map():
 
     def get_vibrant_style(feature):
         props = str(feature.get('properties', {})).upper()
-        if 'EAST' in props and 'NORTH-EAST' not in props and 'NORTHEAST' not in props:
-            # Boosted opacity (0.38) makes Bright Yellow pop intensely against dark matter!
-            return {'fillColor': '#FFFF00', 'color': 'transparent', 'weight': 0, 'fillOpacity': 0.38, 'interactive': False}
-        elif 'NORTH' in props or 'WOODLANDS' in props or 'SENGKANG' in props or 'PUNGGOL' in props or 'YISHUN' in props or 'ANG MO KIO' in props or 'HOUGANG' in props or 'SERANGOON' in props:
-            return {'fillColor': '#00E5FF', 'color': 'transparent', 'weight': 0, 'fillOpacity': 0.22, 'interactive': False}
-        elif 'WEST' in props or 'JURONG' in props or 'CLEMENTI' in props or 'BUKIT BATOK' in props or 'BUKIT PANJANG' in props or 'CHOA CHU KANG' in props:
+        # 1. STRICT WEST CHECK FIRST (Traps Jurong East so it never turns yellow!)
+        if 'WEST REGION' in props or any(k in props for k in ['JURONG', 'CLEMENTI', 'BUKIT BATOK', 'BUKIT PANJANG', 'CHOA CHU KANG', 'TUAS', 'PIONEER', 'BOON LAY', 'TENGAH', 'WESTERN']):
             return {'fillColor': '#4ADE80', 'color': 'transparent', 'weight': 0, 'fillOpacity': 0.22, 'interactive': False}
+        # 2. STRICT NORTH + NE CHECK
+        elif 'NORTH REGION' in props or 'NORTH-EAST REGION' in props or 'NORTHEAST' in props or any(k in props for k in ['WOODLANDS', 'SEMBAWANG', 'YISHUN', 'MANDAI', 'SIMPANG', 'SENGKANG', 'PUNGGOL', 'HOUGANG', 'SERANGOON', 'ANG MO KIO', 'SELETAR']):
+            return {'fillColor': '#00E5FF', 'color': 'transparent', 'weight': 0, 'fillOpacity': 0.22, 'interactive': False}
+        # 3. STRICT EAST CHECK (Only true East towns get Bright Yellow!)
+        elif 'EAST REGION' in props or any(k in props for k in ['TAMPINES', 'PASIR RIS', 'CHANGI', 'BEDOK', 'PAYA LEBAR']):
+            return {'fillColor': '#FFFF00', 'color': 'transparent', 'weight': 0, 'fillOpacity': 0.38, 'interactive': False}
+        # 4. CENTRAL FALLBACK (Traps Marina East/South cleanly into Pink!)
         else:
             return {'fillColor': '#F472B6', 'color': 'transparent', 'weight': 0, 'fillOpacity': 0.22, 'interactive': False}
 
@@ -368,22 +371,22 @@ def generate_map():
         ).add_to(boxes_group)
     boxes_group.add_to(m)
 
-    # Legend moved to TOP LEFT (top: 20px; left: 20px;) filling the clean open space
+    # Legend scaled up: 13px font, larger dots, wider padding, pinned to top-left
     legend_and_sim_js = """
     <div id="map-legend" style="
         position: fixed; top: 20px; left: 20px; z-index: 9999;
         background: rgba(15, 15, 15, 0.90); backdrop-filter: blur(10px);
-        padding: 10px 14px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.15);
-        font-family: 'Montserrat', sans-serif; font-size: 11px; color: #fff;
-        box-shadow: 0 6px 16px rgba(0,0,0,0.6); pointer-events: auto;
+        padding: 14px 18px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.15);
+        font-family: 'Montserrat', sans-serif; font-size: 13px; color: #fff;
+        box-shadow: 0 8px 20px rgba(0,0,0,0.6); pointer-events: auto;
     ">
-        <div style="font-weight: 800; font-size: 11px; color: #00E5FF; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; border-bottom: 1px solid rgba(255,255,255,0.15); padding-bottom: 4px;">Map Legend</div>
-        <div style="display: flex; align-items: center; margin-bottom: 4px;"><span style="display:inline-block; width:8px; height:8px; background:#38BDF8; border-radius:50%; margin-right:8px;"></span> Primary School</div>
-        <div style="display: flex; align-items: center; margin-bottom: 4px;"><span style="display:inline-block; width:8px; height:8px; background:#A78BFA; border-radius:50%; margin-right:8px;"></span> Secondary School</div>
-        <div style="display: flex; align-items: center; margin-bottom: 4px;"><span style="display:inline-block; width:8px; height:8px; background:#FBBF24; border-radius:50%; margin-right:8px;"></span> Junior College</div>
-        <div style="display: flex; align-items: center; margin-bottom: 4px;"><span style="display:inline-block; width:8px; height:8px; background:#F472B6; border-radius:50%; margin-right:8px;"></span> International School</div>
-        <div style="display: flex; align-items: center; margin-top: 6px; border-top: 1px solid rgba(255,255,255,0.15); padding-top: 6px;"><span style="display:inline-block; width:10px; height:10px; border:2px solid #00C9FF; border-radius:50%; margin-right:8px;"></span> 1.5km Branch Catchment</div>
-        <div style="display: flex; align-items: center; margin-top: 4px;"><span style="display:inline-block; width:10px; height:10px; border:2px dashed #FFFF00; background:rgba(255,255,0,0.2); border-radius:50%; margin-right:8px;"></span> Simulated Catchment</div>
+        <div style="font-weight: 800; font-size: 13px; color: #00E5FF; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.15); padding-bottom: 6px;">Map Legend</div>
+        <div style="display: flex; align-items: center; margin-bottom: 6px;"><span style="display:inline-block; width:10px; height:10px; background:#38BDF8; border-radius:50%; margin-right:10px;"></span> Primary School</div>
+        <div style="display: flex; align-items: center; margin-bottom: 6px;"><span style="display:inline-block; width:10px; height:10px; background:#A78BFA; border-radius:50%; margin-right:10px;"></span> Secondary School</div>
+        <div style="display: flex; align-items: center; margin-bottom: 6px;"><span style="display:inline-block; width:10px; height:10px; background:#FBBF24; border-radius:50%; margin-right:10px;"></span> Junior College</div>
+        <div style="display: flex; align-items: center; margin-bottom: 6px;"><span style="display:inline-block; width:10px; height:10px; background:#F472B6; border-radius:50%; margin-right:10px;"></span> International School</div>
+        <div style="display: flex; align-items: center; margin-top: 8px; border-top: 1px solid rgba(255,255,255,0.15); padding-top: 8px;"><span style="display:inline-block; width:12px; height:12px; border:2px solid #00C9FF; border-radius:50%; margin-right:10px;"></span> 1.5km Branch Catchment</div>
+        <div style="display: flex; align-items: center; margin-top: 6px;"><span style="display:inline-block; width:12px; height:12px; border:2px dashed #FFFF00; background:rgba(255,255,0,0.2); border-radius:50%; margin-right:10px;"></span> Simulated Catchment</div>
     </div>
     <script>
     window.addEventListener('load', function() {
