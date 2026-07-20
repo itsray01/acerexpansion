@@ -93,23 +93,26 @@ def generate_map():
         print("[!] No schools loaded. Terminating map generation.")
         return
     
-    # Natively loading the dark map
-    m = folium.Map(location=[1.3521, 103.8198], zoom_start=12, tiles='CartoDB dark_matter')
+    # Initialize without tiles so we can control the Layer Menu options
+    m = folium.Map(location=[1.3521, 103.8198], zoom_start=12, tiles=None)
+
+    # 1. Base Maps
+    folium.TileLayer('CartoDB dark_matter', name='Dark Streets (Default)', show=True).add_to(m)
+    folium.TileLayer('CartoDB positron', name='Light Canvas', show=False).add_to(m)
+    folium.TileLayer('CartoDB dark_matter', name='Executive Dark Canvas (Clean)', show=False).add_to(m)
 
     custom_css = """
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap');
 
-    /* Tooltip Styling */
+    /* Tooltip & Popup Styling */
     .leaflet-tooltip {
         font-family: 'Montserrat', sans-serif !important;
-        font-size: 15px !important; font-weight: 600 !important;
-        padding: 10px 14px !important; background-color: rgba(20, 20, 20, 0.95) !important;
+        font-size: 14px !important; font-weight: 600 !important;
+        padding: 8px 12px !important; background-color: rgba(20, 20, 20, 0.95) !important;
         color: white !important; border: 1px solid #888 !important; border-radius: 8px !important;
         box-shadow: 0 4px 10px rgba(0,0,0,0.5) !important;
     }
-    
-    /* Sleek Dark Mode Popups */
     .leaflet-popup-content-wrapper, .leaflet-popup-tip {
         background: rgba(20, 20, 20, 0.95) !important;
         color: #fff !important;
@@ -119,11 +122,15 @@ def generate_map():
     }
     .leaflet-popup-content { font-family: 'Montserrat', sans-serif !important; margin: 15px !important; }
 
-    /* Custom Layer Control Menu (Click-to-Open) */
+    /* ====================================================
+       OVERHAUL: CUSTOM BRANDED TRANSLUCENT LAYERS MENU
+       ==================================================== */
     .leaflet-control-layers {
         border: none !important; background: transparent !important; box-shadow: none !important;
+        padding: 15px !important; margin-top: -15px !important; margin-right: -15px !important;
     }
     .leaflet-control-layers-toggle {
+        margin-left: auto !important;
         background-image: url('https://i.imgur.com/YhyOq9V.png') !important;
         background-size: 65% !important; background-repeat: no-repeat !important; background-position: center !important;
         background-color: rgba(25, 25, 25, 0.85) !important;
@@ -136,11 +143,38 @@ def generate_map():
         background-color: rgba(40, 40, 40, 0.95) !important; transform: scale(1.05) !important; border-color: #00E5FF !important;
     }
     .leaflet-control-layers.leaflet-control-layers-expanded {
+        margin-top: 5px !important;
         background: rgba(20, 20, 20, 0.90) !important;
         backdrop-filter: blur(16px) !important; color: #ffffff !important;
         border: 1px solid rgba(255,255,255,0.15) !important; border-radius: 18px !important;
         padding: 22px 28px !important; font-family: 'Montserrat', sans-serif !important;
-        box-shadow: 0 15px 40px rgba(0,0,0,0.7) !important; min-width: 230px !important;
+        box-shadow: 0 15px 40px rgba(0,0,0,0.7) !important; min-width: 250px !important;
+    }
+    .leaflet-control-layers-list::before {
+        content: "Map Display Settings"; display: block; font-size: 15px; font-weight: 700; color: #00E5FF;
+        text-transform: uppercase; letter-spacing: 1px; margin-bottom: 15px;
+        border-bottom: 1px solid rgba(255,255,255,0.15); padding-bottom: 10px;
+    }
+    .leaflet-control-layers-base label, .leaflet-control-layers-overlays label {
+        display: flex !important; align-items: center !important; margin: 14px 0 !important; cursor: pointer !important; font-weight: 500 !important; transition: color 0.2s !important;
+    }
+    .leaflet-control-layers-base label:hover, .leaflet-control-layers-overlays label:hover { color: #FFD700 !important; }
+    .leaflet-control-layers-separator { border-top: 1px solid rgba(255,255,255,0.15) !important; margin: 18px 0 !important; }
+
+    input[type="checkbox"].leaflet-control-layers-selector,
+    input[type="radio"].leaflet-control-layers-selector {
+        appearance: none; -webkit-appearance: none; width: 18px !important; height: 18px !important;
+        border: 2px solid #888 !important; border-radius: 4px; margin-right: 12px !important; cursor: pointer !important;
+        position: relative; background: rgba(255,255,255,0.1); transition: all 0.2s;
+    }
+    input[type="radio"].leaflet-control-layers-selector { border-radius: 50%; }
+    input[type="checkbox"].leaflet-control-layers-selector:checked,
+    input[type="radio"].leaflet-control-layers-selector:checked { background: #00E5FF !important; border-color: #00E5FF !important; }
+    input[type="checkbox"].leaflet-control-layers-selector:checked::after {
+        content: "✔"; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #000; font-size: 12px; font-weight: bold;
+    }
+    input[type="radio"].leaflet-control-layers-selector:checked::after {
+        content: ""; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 8px; height: 8px; background: #000; border-radius: 50%;
     }
     </style>
     """
@@ -154,9 +188,10 @@ def generate_map():
                 name="Regional Boundaries (Choropleth)",
                 style_function=lambda feature: {
                     'fillColor': feature['properties'].get('fill', '#333333'),
-                    'color': 'transparent', # Removes the jarring white line
+                    'color': 'transparent', 
                     'weight': 0,
-                    'fillOpacity': 0.35
+                    'fillOpacity': 0.35,
+                    'interactive': False # CRITICAL FIX: Allows clicking schools underneath!
                 }
             ).add_to(m)
             print("[+] URA boundaries loaded successfully.")
@@ -179,7 +214,7 @@ def generate_map():
 
     for school in schools:
         level = school.get("level", "").upper()
-        # Micro-jitter to prevent dots from stacking infinitely
+        # Micro-jitter to prevent stacking
         lat = school["lat"] + random.uniform(-0.0008, 0.0008)
         lon = school["lon"] + random.uniform(-0.0008, 0.0008)
         name = school["name"]
@@ -192,22 +227,19 @@ def generate_map():
         elif lon < 103.78: stats["WEST"][1] += 1
         else: stats["CENTRAL"][1] += 1
         
-        if "PRIMARY" in level:
-            fill_color, group = "#38BDF8", primary_group
-        elif "SECONDARY" in level:
-            fill_color, group = "#A78BFA", secondary_group
-        elif "JUNIOR COLLEGE" in level:
-            fill_color, group = "#FBBF24", jc_group
-        elif "INTERNATIONAL" in level:
-            fill_color, group = "#F472B6", intl_group
-        else:
-            continue
+        if "PRIMARY" in level: fill_color, group = "#38BDF8", primary_group
+        elif "SECONDARY" in level: fill_color, group = "#A78BFA", secondary_group
+        elif "JUNIOR COLLEGE" in level: fill_color, group = "#FBBF24", jc_group
+        elif "INTERNATIONAL" in level: fill_color, group = "#F472B6", intl_group
+        else: continue
             
-        # Rich HTML Popup Card
+        # Safely escape names for HTML to prevent popup JS breaks
+        safe_name = name.replace("'", "&#39;")
+        
         btn_html = f"<a href='{website}' target='_blank' style='display: inline-block; background: #00E5FF; color: #000; padding: 6px 12px; border-radius: 6px; font-size: 11px; font-weight: 700; text-decoration: none; margin-top: 5px;'>View Website &rarr;</a>" if website else ""
         popup_html = f"""
         <div style="min-width: 200px;">
-            <b style="color: {fill_color}; font-size: 15px;">{name}</b><br>
+            <b style="color: {fill_color}; font-size: 15px;">{safe_name}</b><br>
             <div style="font-size: 11px; color: #aaa; text-transform: uppercase; margin-bottom: 8px; font-weight: 600;">{level.title()}</div>
             <div style="font-size: 12px; color: #fff; line-height: 1.4; margin-bottom: 8px;">
                 &#128205; {address}
@@ -217,10 +249,9 @@ def generate_map():
         """
             
         folium.CircleMarker(
-            location=[lat, lon],
-            radius=6, 
+            location=[lat, lon], radius=6, 
             popup=folium.Popup(popup_html, max_width=300),
-            tooltip=f"{name}", color="white", weight=1, fill_color=fill_color, fill=True, fill_opacity=0.85
+            tooltip=safe_name, color="white", weight=1, fill_color=fill_color, fill=True, fill_opacity=0.85
         ).add_to(group)
         
     primary_group.add_to(m)
@@ -237,29 +268,27 @@ def generate_map():
         elif lon < 103.78: stats["WEST"][0] += 1
         else: stats["CENTRAL"][0] += 1
         
-        # Transparent Background Frame
         icon_html = """
         <div style="background-color: transparent; border-radius: 8px; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border: 2px solid #ffffff; box-shadow: 0 4px 10px rgba(0,0,0,0.5); overflow: hidden;">
             <img src="https://i.imgur.com/YhyOq9V.png" style="width: 100%; height: 100%; object-fit: contain;">
         </div>
         """
         
+        safe_branch_name = name.replace("'", "&#39;")
         folium.Marker(
             location=[lat, lon],
-            popup=f"<b style='color: #FF9800;'>ACER ACADEMY</b><br>{name}",
-            tooltip=f"★ {name}",
+            popup=f"<b style='color: #FF9800;'>ACER ACADEMY</b><br>{safe_branch_name}",
+            tooltip=f"★ {safe_branch_name}",
             icon=folium.DivIcon(html=icon_html, icon_size=(32, 32), icon_anchor=(16, 16))
         ).add_to(branch_group)
         
-        # Cyan 1.5km radius
         folium.Circle(
-            location=[lat, lon],
-            radius=1500, color="#00C9FF", weight=2, fill_color="#00C9FF", fill_opacity=0.18
+            location=[lat, lon], radius=1500, color="#00C9FF", weight=2, fill_color="#00C9FF", fill_opacity=0.18
         ).add_to(branch_group)
     branch_group.add_to(m)
 
     def create_box(region, b_count, s_count):
-        students = s_count * 1250 # Estimation algorithm
+        students = s_count * 1250
         return """
         <div style="background: rgba(15,15,15,0.95); padding: 15px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); color: white; font-family: 'Montserrat', sans-serif; width: 160px; box-shadow: 0 8px 20px rgba(0,0,0,0.6); backdrop-filter: blur(8px);">
             <div style="font-size: 13px; font-weight: 800; margin-bottom: 10px; color: #fff;">■ """ + region + """</div>
@@ -269,7 +298,7 @@ def generate_map():
         </div>
         """
 
-    # Extended Coordinates to push boxes further out to sea
+    # Perfectly aligned latitudes/longitudes so the lines are perfectly straight horizontally/vertically
     regions_setup = [
         ("NORTH", [1.53, 103.82], [1.43, 103.82]),
         ("EAST", [1.35, 104.09], [1.35, 103.94]),
@@ -278,19 +307,16 @@ def generate_map():
     ]
 
     for reg_name, box_coord, map_coord in regions_setup:
-        # Perfectly Straight Dotted Line
         folium.PolyLine(
             locations=[box_coord, map_coord],
             color="#00E5FF", weight=2, dash_array="5, 10", opacity=0.6
         ).add_to(m)
         
-        # Floating Data Box
         folium.Marker(
             location=box_coord,
             icon=folium.DivIcon(html=create_box(reg_name, stats[reg_name][0], stats[reg_name][1]), icon_size=(160, 100), icon_anchor=(80, 50))
         ).add_to(m)
 
-    # Expand map bounds slightly to accommodate the further-out boxes
     m.fit_bounds([[1.15, 103.55], [1.55, 104.12]])
     folium.LayerControl(position='topright', collapsed=True).add_to(m)
     
