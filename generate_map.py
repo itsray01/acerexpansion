@@ -247,11 +247,15 @@ def generate_map():
         lat, lon = school["lat"], school["lon"]
         name, address, website = school["name"], school["address"], school["website"]
         
-        # Simple clustering for the data boxes
-        if lat > 1.41: stats["NORTH"][1] += 1
-        elif lon > 103.89: stats["EAST"][1] += 1
-        elif lon < 103.78: stats["WEST"][1] += 1
-        else: stats["CENTRAL"][1] += 1
+        # Advanced clustering to properly catch North-East (Sengkang/Punggol/Hougang) as NORTH
+        if lat >= 1.385 or (lat >= 1.36 and 103.86 <= lon <= 103.93):
+            stats["NORTH"][1] += 1
+        elif lon >= 103.93:
+            stats["EAST"][1] += 1
+        elif lon <= 103.78:
+            stats["WEST"][1] += 1
+        else:
+            stats["CENTRAL"][1] += 1
         
         if "PRIMARY" in level: fill_color, group = "#38BDF8", primary_group
         elif "SECONDARY" in level: fill_color, group = "#A78BFA", secondary_group
@@ -285,10 +289,15 @@ def generate_map():
     branch_group = folium.FeatureGroup(name="Acer Academy Branches", show=True)
     
     for name, (lat, lon) in EXISTING_BRANCHES.items():
-        if lat > 1.41: stats["NORTH"][0] += 1
-        elif lon > 103.89: stats["EAST"][0] += 1
-        elif lon < 103.78: stats["WEST"][0] += 1
-        else: stats["CENTRAL"][0] += 1
+        # Advanced clustering to properly catch North-East (Sengkang/Punggol/Hougang) as NORTH
+        if lat >= 1.385 or (lat >= 1.36 and 103.86 <= lon <= 103.93):
+            stats["NORTH"][0] += 1
+        elif lon >= 103.93:
+            stats["EAST"][0] += 1
+        elif lon <= 103.78:
+            stats["WEST"][0] += 1
+        else:
+            stats["CENTRAL"][0] += 1
         
         # PURE TRANSPARENT BACKGROUND FOR THE LOGO
         icon_html = """
@@ -397,53 +406,53 @@ def generate_map():
     legend_html = '''
     <div id="legend-box" style="
         position: fixed; 
-        bottom: 50px; left: 50px; width: 260px; height: auto; 
-        background-color: rgba(20, 20, 20, 0.85); z-index:9999; font-size:14px;
-        border: 1px solid rgba(255,255,255,0.15); border-radius: 16px; padding: 20px; color: #E0E0E0;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.6); font-family: 'Montserrat', sans-serif;
+        bottom: 30px; left: 30px; width: 210px; height: auto; 
+        background-color: rgba(20, 20, 20, 0.85); z-index:9999; font-size:12px;
+        border: 1px solid rgba(255,255,255,0.15); border-radius: 12px; padding: 14px; color: #E0E0E0;
+        box-shadow: 0 8px 25px rgba(0,0,0,0.6); font-family: 'Montserrat', sans-serif;
         backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
         transition: all 0.3s ease;
         ">
-        <h4 style="margin-top:0; border-bottom:1px solid rgba(255,255,255,0.15); padding-bottom:12px; color: #00E5FF; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; font-size: 14px;">Expansion Map</h4>
+        <h4 style="margin-top:0; border-bottom:1px solid rgba(255,255,255,0.15); padding-bottom:8px; color: #00E5FF; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; font-size: 12px;">Expansion Map</h4>
         
-        <div style="display: flex; align-items: center; margin-bottom: 14px; margin-top: 15px;">
-            <div style="background: transparent; width: 22px; height: 22px; border-radius: 5px; border: 1px solid white; margin-right: 14px; display: flex; justify-content: center; align-items: center; overflow: hidden; box-shadow: 0 0 5px rgba(0,0,0,0.5);">
+        <div style="display: flex; align-items: center; margin-bottom: 10px; margin-top: 10px;">
+            <div style="background: transparent; width: 18px; height: 18px; border-radius: 4px; border: 1px solid white; margin-right: 12px; display: flex; justify-content: center; align-items: center; overflow: hidden; box-shadow: 0 0 5px rgba(0,0,0,0.5);">
                 <img src="https://i.imgur.com/YhyOq9V.png" style="width: 100%;">
             </div>
             <span class="legend-text" style="font-weight: 600; color: white;">Acer Academy</span>
         </div>
         
-        <div style="display: flex; align-items: center; margin-bottom: 12px;">
-            <div style="width: 22px; height: 22px; border-radius: 50%; padding: 2px; background: #00C9FF; margin-right: 14px; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 5px rgba(0,0,0,0.5);">
+        <div style="display: flex; align-items: center; margin-bottom: 10px;">
+            <div style="width: 18px; height: 18px; border-radius: 50%; padding: 2px; background: #00C9FF; margin-right: 12px; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 5px rgba(0,0,0,0.5);">
                 <div id="legend-ring-inner" style="width: 100%; height: 100%; border-radius: 50%; background: rgba(20, 20, 20, 0.85);"></div>
             </div>
             <span class="legend-text" style="color: white; font-weight: 500;">1.5km Radius Ring</span>
         </div>
 
-        <div style="display: flex; align-items: center; margin-bottom: 18px; margin-top: 5px;">
-            <div style="width: 22px; height: 22px; border-radius: 50%; padding: 2px; background: #FFD700; margin-right: 14px; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 5px rgba(0,0,0,0.5);">
+        <div style="display: flex; align-items: center; margin-bottom: 14px; margin-top: 5px;">
+            <div style="width: 18px; height: 18px; border-radius: 50%; padding: 2px; background: #FFD700; margin-right: 12px; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 5px rgba(0,0,0,0.5);">
                 <div id="legend-ring-inner-sim" style="width: 100%; height: 100%; border-radius: 50%; background: rgba(20, 20, 20, 0.85);"></div>
             </div>
             <span class="legend-text" style="color: white; font-weight: 500;">Simulated 1.5km Ring</span>
         </div>
         
-        <div style="display: flex; align-items: center; margin-bottom: 12px;">
-            <div style="background: #38BDF8; width: 14px; height: 14px; border-radius: 50%; border: 1px solid white; margin-right: 18px; margin-left: 4px;"></div>
+        <div style="display: flex; align-items: center; margin-bottom: 8px;">
+            <div style="background: #38BDF8; width: 10px; height: 10px; border-radius: 50%; border: 1px solid white; margin-right: 16px; margin-left: 4px;"></div>
             <span class="legend-text" style="color: white; font-weight: 500;">Primary School</span>
         </div>
         
-        <div style="display: flex; align-items: center; margin-bottom: 12px;">
-            <div style="background: #A78BFA; width: 14px; height: 14px; border-radius: 50%; border: 1px solid white; margin-right: 18px; margin-left: 4px;"></div>
+        <div style="display: flex; align-items: center; margin-bottom: 8px;">
+            <div style="background: #A78BFA; width: 10px; height: 10px; border-radius: 50%; border: 1px solid white; margin-right: 16px; margin-left: 4px;"></div>
             <span class="legend-text" style="color: white; font-weight: 500;">Secondary School</span>
         </div>
 
-        <div style="display: flex; align-items: center; margin-bottom: 12px;">
-            <div style="background: #FBBF24; width: 14px; height: 14px; border-radius: 50%; border: 1px solid white; margin-right: 18px; margin-left: 4px;"></div>
+        <div style="display: flex; align-items: center; margin-bottom: 8px;">
+            <div style="background: #FBBF24; width: 10px; height: 10px; border-radius: 50%; border: 1px solid white; margin-right: 16px; margin-left: 4px;"></div>
             <span class="legend-text" style="color: white; font-weight: 500;">Junior College</span>
         </div>
         
-        <div style="display: flex; align-items: center; margin-bottom: 5px;">
-            <div style="background: #F472B6; width: 14px; height: 14px; border-radius: 50%; border: 1px solid white; margin-right: 18px; margin-left: 4px;"></div>
+        <div style="display: flex; align-items: center; margin-bottom: 2px;">
+            <div style="background: #F472B6; width: 10px; height: 10px; border-radius: 50%; border: 1px solid white; margin-right: 16px; margin-left: 4px;"></div>
             <span class="legend-text" style="color: white; font-weight: 500;">International School</span>
         </div>
     </div>
