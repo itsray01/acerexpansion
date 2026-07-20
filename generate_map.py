@@ -16,7 +16,6 @@ EXISTING_BRANCHES = {
     "Vista Point (North)": (1.4315, 103.7937),
     "Canberra Plaza (North)": (1.4431, 103.8297),
     "Tampines West (East)": (1.3486, 103.9360),
-    "Buangkok Square (East)": (1.3837, 103.8823),
     "Aljunied Maths/Science (East)": (1.3204, 103.8844),
     "Aljunied Languages (East)": (1.3206, 103.8846),
     "Elias Mall (East)": (1.3773, 103.9424),
@@ -27,7 +26,9 @@ EXISTING_BRANCHES = {
     "Commonwealth (Central)": (1.3025, 103.7983),
     "Senja Heights (West)": (1.3853, 103.7629),
     "Greenridge (West)": (1.3856, 103.7663),
-    "Hong Kah (West)": (1.3496, 103.7210)
+    "Hong Kah (West)": (1.3496, 103.7210),
+    "Dairy Farm (West)": (1.3655125560760464, 103.77440746044067),
+    "Beauty World (West)": (1.3425306367584264, 103.77657043601229)
 }
 
 def load_schools():
@@ -196,11 +197,22 @@ def generate_map():
         except Exception as e:
             print(f"[!] URA network fetch failed: {e}")
 
+    def get_region_color(feature):
+        # Scan the GeoJSON properties to identify the region
+        prop_str = str(feature.get('properties', {})).upper()
+        
+        if 'CENTRAL' in prop_str: return '#800000' # Deep Maroon
+        if 'WEST' in prop_str: return '#0F5132' # Deep Green
+        if 'EAST' in prop_str and 'NORTH' not in prop_str: return '#8B4513' # Brown
+        if 'NORTH' in prop_str: return '#1E3A8A' # Deep Blue (Catches both North & North-East)
+        
+        return '#333333' # Fallback
+
     if ura_data:
         folium.GeoJson(
             ura_data,
             style_function=lambda feature: {
-                'fillColor': feature['properties'].get('fill', '#333333'),
+                'fillColor': get_region_color(feature),
                 'color': 'transparent', # NO WHITE LINES
                 'weight': 0,
                 'fillOpacity': 0.35,
