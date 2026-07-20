@@ -8,7 +8,6 @@ from branca.element import Element
 
 OUTPUT_MAP_PATH = "acer_expansion_map.html"
 
-# Your Existing Branches
 EXISTING_BRANCHES = {
     "Junction 9 (North)": (1.4325, 103.8408),
     "Admiralty Place (North)": (1.4404, 103.8003),
@@ -27,7 +26,7 @@ EXISTING_BRANCHES = {
     "Senja Heights (West)": (1.3853, 103.7629),
     "Greenridge (West)": (1.3856, 103.7663),
     "Hong Kah (West)": (1.3496, 103.7210),
-    "Dairy Farm (West)": (1.3655125560760464, 103.77440746044067),
+    "Dairy Farm (Franchise)": (1.3655125560760464, 103.77440746044067),
     "Beauty World (West)": (1.3425306367584264, 103.77657043601229)
 }
 
@@ -71,7 +70,7 @@ def load_schools():
         print("[!] CRITICAL: Could not load school_db.json from anywhere. Map will lack schools.")
         return []
 
-    # 3. Build the final strict array (NO JITTER, EXACT GPS ONLY)
+    # 3. Build the final strict array
     for item in json_data:
         name = item.get("name", "").strip()
         lower_name = name.lower()
@@ -90,7 +89,7 @@ def load_schools():
                 "website": website
             })
     
-    print(f"[+] Successfully loaded {len(schools)} schools with strict pinpoint accuracy.")
+    print(f"[+] Successfully loaded {len(schools)} schools.")
     return schools
 
 def generate_map():
@@ -198,13 +197,13 @@ def generate_map():
             print(f"[!] URA network fetch failed: {e}")
 
     def get_region_color(feature):
-        # Scan the GeoJSON properties to identify the region
+        # Scan the GeoJSON properties to identify the region and assign VIBRANT colors
         prop_str = str(feature.get('properties', {})).upper()
         
-        if 'CENTRAL' in prop_str: return '#800000' # Deep Maroon
-        if 'WEST' in prop_str: return '#0F5132' # Deep Green
-        if 'EAST' in prop_str and 'NORTH' not in prop_str: return '#8B4513' # Brown
-        if 'NORTH' in prop_str: return '#1E3A8A' # Deep Blue (Catches both North & North-East)
+        if 'CENTRAL' in prop_str: return '#F43F5E' # Vibrant Rose/Red
+        if 'WEST' in prop_str: return '#10B981' # Emerald Green
+        if 'EAST' in prop_str and 'NORTH' not in prop_str: return '#F97316' # Vibrant Orange
+        if 'NORTH' in prop_str: return '#0EA5E9' # Vibrant Sky Blue
         
         return '#333333' # Fallback
 
@@ -215,7 +214,7 @@ def generate_map():
                 'fillColor': get_region_color(feature),
                 'color': 'transparent', # NO WHITE LINES
                 'weight': 0,
-                'fillOpacity': 0.35,
+                'fillOpacity': 0.15, # Extremely light so it doesn't darken the map
                 'interactive': False # CRITICAL: Let mouse clicks pass through to schools
             }
         ).add_to(ura_group)
@@ -224,7 +223,8 @@ def generate_map():
     print("[*] Plotting Expansion Heatmap...")
     heatmap_group = folium.FeatureGroup(name="Expansion Heatmap (Untapped)", show=False)
     heat_data = [[s['lat'], s['lon']] for s in schools]
-    plugins.HeatMap(heat_data, radius=45, blur=35).add_to(heatmap_group)
+    # max_zoom=13 prevents the red dots from washing out into blue when zooming in closely!
+    plugins.HeatMap(heat_data, radius=45, blur=35, max_zoom=13).add_to(heatmap_group)
     heatmap_group.add_to(m)
 
     print(f"[*] Plotting {len(schools)} schools...")
@@ -233,7 +233,13 @@ def generate_map():
     jc_group = folium.FeatureGroup(name="Junior Colleges (Amber)", show=True)
     intl_group = folium.FeatureGroup(name="International Schools (Rose Pink)", show=True)
     
-    stats = {"NORTH": [0,0], "EAST": [0,0], "WEST": [0,0], "CENTRAL": [0,0]}
+    # Store exact hex colors for the region data boxes
+    stats = {
+        "NORTH": [0,0, '#0EA5E9'], 
+        "EAST": [0,0, '#F97316'], 
+        "WEST": [0,0, '#10B981'], 
+        "CENTRAL": [0,0, '#F43F5E']
+    }
 
     for school in schools:
         level = school.get("level", "").upper()
@@ -305,11 +311,56 @@ def generate_map():
         ).add_to(branch_group)
     branch_group.add_to(m)
 
-    def create_box(region, b_count, s_count):
+    sim_group = folium.FeatureGroup(name="Simulate Expansion (Click Map)", show=False)
+    m.add_child(sim_group)
+    
+    sim_js = f"""
+    <script>
+    document.addEventListener("DOMContentLoaded", function() {{
+        var map = null;
+        for (var key in window) {{
+            if (key.startsWith('map_')) {{ map = window[key]; break; }}
+        }}
+        if (map) {{
+            var simGroup = {sim_group.get_name()};
+            
+            map.on('click', function(e) {{
+                if (map.hasLayer(simGroup)) {{
+                    simGroup.clearLayers();
+                    
+                    var marker = L.marker(e.latlng, {{
+                        icon: L.divIcon({{
+                            className: 'custom-div-icon',
+                            html: "<div style='background-color: #FFD700; width: 14px; height: 14px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 10px #FFD700;'></div>",
+                            iconSize: [14, 14],
+                            iconAnchor: [7, 7]
+                        }})
+                    }}).addTo(simGroup);
+                    
+                    var circle = L.circle(e.latlng, {{
+                        radius: 1500,
+                        color: '#FFD700',
+                        weight: 2,
+                        fillColor: '#FFD700',
+                        fillOpacity: 0.2
+                    }}).addTo(simGroup);
+                    
+                    marker.bindPopup("<b style='color:#FFD700'>Simulated Branch</b><br>1.5km Radius").openPopup();
+                }}
+            }});
+        }}
+    }});
+    </script>
+    """
+    m.get_root().html.add_child(Element(sim_js))
+
+    data_box_group = folium.FeatureGroup(name="Regional Data Boxes", show=True)
+
+    def create_box(region, b_count, s_count, region_color):
         students = s_count * 1250
         return """
         <div style="background: rgba(15,15,15,0.95); padding: 15px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); color: white; font-family: 'Montserrat', sans-serif; width: 160px; box-shadow: 0 8px 20px rgba(0,0,0,0.6); backdrop-filter: blur(8px);">
-            <div style="font-size: 13px; font-weight: 800; margin-bottom: 10px; color: #fff;">■ """ + region + """</div>
+            <div style="font-size: 13px; font-weight: 800; margin-bottom: 10px; color: """ + region_color + """;">■ """ + region + """</div>
             <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 5px; color: #aaa;"><span>Branches:</span><b style="color: #FBBF24;">""" + str(b_count) + """</b></div>
             <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 5px; color: #aaa;"><span>Schools:</span><b style="color: #38BDF8;">""" + str(s_count) + """</b></div>
             <div style="display: flex; justify-content: space-between; font-size: 12px; color: #aaa;"><span>Students:</span><b style="color: #4ADE80;">""" + f"{students:,}" + """</b></div>
@@ -317,30 +368,129 @@ def generate_map():
         """
 
     # Format: ("REGION NAME", [Box Latitude, Box Longitude], [Target Latitude, Target Longitude])
-    # PERFECTLY ALIGNED COORDS so the lines are exclusively horizontal/vertical.
     regions_setup = [
-        ("NORTH", [1.53, 103.82], [1.44, 103.82]),    # Vertical (Same lon: 103.82)
-        ("EAST",  [1.35, 104.09], [1.35, 103.95]),    # Horizontal (Same lat: 1.35)
-        ("WEST",  [1.364, 103.58], [1.364, 103.72]),  # Horizontal (Same lat: 1.364)
-        ("CENTRAL",[1.18, 103.82], [1.28, 103.82])    # Vertical (Same lon: 103.82)
+        ("NORTH", [1.55, 103.82], [1.44, 103.82]),    # Vertical (Same lon: 103.82) - Pushed into Johor
+        ("EAST",  [1.35, 104.12], [1.35, 103.95]),    # Horizontal (Same lat: 1.35) - Pushed into Ocean
+        ("WEST",  [1.364, 103.55], [1.364, 103.72]),  # Horizontal (Same lat: 1.364) - Pushed past Tuas
+        ("CENTRAL",[1.18, 103.82], [1.28, 103.82])    # Vertical (Same lon: 103.82) - Pushed past Sentosa
     ]
 
     for reg_name, box_coord, map_coord in regions_setup:
-        # The Line
         folium.PolyLine(
             locations=[box_coord, map_coord],
             color="#00E5FF", weight=2, dash_array="5, 10", opacity=0.6
-        ).add_to(m)
-        # The Box Marker
+        ).add_to(data_box_group)
+        
         folium.Marker(
             location=box_coord,
-            icon=folium.DivIcon(html=create_box(reg_name, stats[reg_name][0], stats[reg_name][1]), icon_size=(160, 100), icon_anchor=(80, 50))
-        ).add_to(m)
+            icon=folium.DivIcon(html=create_box(reg_name, stats[reg_name][0], stats[reg_name][1], stats[reg_name][2]), icon_size=(160, 100), icon_anchor=(80, 50))
+        ).add_to(data_box_group)
+        
+    data_box_group.add_to(m)
 
     # Set Map Bounds to include the pushed-out boxes
     m.fit_bounds([[1.15, 103.55], [1.55, 104.12]])
     
     folium.LayerControl(position='topright', collapsed=True).add_to(m)
+    
+    # Live Dark Mode JS Engine + Legend HTML (No dashboard!)
+    legend_html = '''
+    <div id="legend-box" style="
+        position: fixed; 
+        bottom: 50px; left: 50px; width: 260px; height: auto; 
+        background-color: rgba(20, 20, 20, 0.85); z-index:9999; font-size:14px;
+        border: 1px solid rgba(255,255,255,0.15); border-radius: 16px; padding: 20px; color: #E0E0E0;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.6); font-family: 'Montserrat', sans-serif;
+        backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+        transition: all 0.3s ease;
+        ">
+        <h4 style="margin-top:0; border-bottom:1px solid rgba(255,255,255,0.15); padding-bottom:12px; color: #00E5FF; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; font-size: 14px;">Expansion Map</h4>
+        
+        <div style="display: flex; align-items: center; margin-bottom: 14px; margin-top: 15px;">
+            <div style="background: transparent; width: 22px; height: 22px; border-radius: 5px; border: 1px solid white; margin-right: 14px; display: flex; justify-content: center; align-items: center; overflow: hidden; box-shadow: 0 0 5px rgba(0,0,0,0.5);">
+                <img src="https://i.imgur.com/YhyOq9V.png" style="width: 100%;">
+            </div>
+            <span class="legend-text" style="font-weight: 600; color: white;">Acer Academy</span>
+        </div>
+        
+        <div style="display: flex; align-items: center; margin-bottom: 12px;">
+            <div style="width: 22px; height: 22px; border-radius: 50%; padding: 2px; background: #00C9FF; margin-right: 14px; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 5px rgba(0,0,0,0.5);">
+                <div id="legend-ring-inner" style="width: 100%; height: 100%; border-radius: 50%; background: rgba(20, 20, 20, 0.85);"></div>
+            </div>
+            <span class="legend-text" style="color: white; font-weight: 500;">1.5km Radius Ring</span>
+        </div>
+
+        <div style="display: flex; align-items: center; margin-bottom: 18px; margin-top: 5px;">
+            <div style="width: 22px; height: 22px; border-radius: 50%; padding: 2px; background: #FFD700; margin-right: 14px; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 5px rgba(0,0,0,0.5);">
+                <div id="legend-ring-inner-sim" style="width: 100%; height: 100%; border-radius: 50%; background: rgba(20, 20, 20, 0.85);"></div>
+            </div>
+            <span class="legend-text" style="color: white; font-weight: 500;">Simulated 1.5km Ring</span>
+        </div>
+        
+        <div style="display: flex; align-items: center; margin-bottom: 12px;">
+            <div style="background: #38BDF8; width: 14px; height: 14px; border-radius: 50%; border: 1px solid white; margin-right: 18px; margin-left: 4px;"></div>
+            <span class="legend-text" style="color: white; font-weight: 500;">Primary School</span>
+        </div>
+        
+        <div style="display: flex; align-items: center; margin-bottom: 12px;">
+            <div style="background: #A78BFA; width: 14px; height: 14px; border-radius: 50%; border: 1px solid white; margin-right: 18px; margin-left: 4px;"></div>
+            <span class="legend-text" style="color: white; font-weight: 500;">Secondary School</span>
+        </div>
+
+        <div style="display: flex; align-items: center; margin-bottom: 12px;">
+            <div style="background: #FBBF24; width: 14px; height: 14px; border-radius: 50%; border: 1px solid white; margin-right: 18px; margin-left: 4px;"></div>
+            <span class="legend-text" style="color: white; font-weight: 500;">Junior College</span>
+        </div>
+        
+        <div style="display: flex; align-items: center; margin-bottom: 5px;">
+            <div style="background: #F472B6; width: 14px; height: 14px; border-radius: 50%; border: 1px solid white; margin-right: 18px; margin-left: 4px;"></div>
+            <span class="legend-text" style="color: white; font-weight: 500;">International School</span>
+        </div>
+    </div>
+    
+    <script>
+    document.addEventListener("DOMContentLoaded", function() {
+        var map = null;
+        for (var key in window) {
+            if (key.startsWith('map_')) { map = window[key]; break; }
+        }
+        if (map) {
+            map.on('baselayerchange', function(e) {
+                var legend = document.getElementById('legend-box');
+                var title = legend ? legend.querySelector('h4') : null;
+                var innerRing = document.getElementById('legend-ring-inner');
+                var innerRingSim = document.getElementById('legend-ring-inner-sim');
+                var spans = legend ? legend.querySelectorAll('span.legend-text') : [];
+                
+                var isDark = (e.name === 'Dark Streets (Default)');
+
+                if (isDark) {
+                    if (legend) {
+                        legend.style.backgroundColor = 'rgba(20, 20, 20, 0.85)';
+                        legend.style.borderColor = 'rgba(255,255,255,0.15)';
+                        title.style.color = '#00E5FF';
+                        title.style.borderBottom = '1px solid rgba(255,255,255,0.15)';
+                        spans.forEach(s => s.style.color = 'white');
+                        if (innerRing) innerRing.style.backgroundColor = 'rgba(20, 20, 20, 0.85)';
+                        if (innerRingSim) innerRingSim.style.backgroundColor = 'rgba(20, 20, 20, 0.85)';
+                    }
+                } else {
+                    if (legend) {
+                        legend.style.backgroundColor = 'rgba(255, 255, 255, 0.9)';
+                        legend.style.borderColor = '#ccc';
+                        title.style.color = '#111';
+                        title.style.borderBottom = '1px solid #ccc';
+                        spans.forEach(s => s.style.color = '#333');
+                        if (innerRing) innerRing.style.backgroundColor = 'rgba(255, 255, 255, 0.8)';
+                        if (innerRingSim) innerRingSim.style.backgroundColor = 'rgba(255, 255, 255, 0.8)';
+                    }
+                }
+            });
+        }
+    });
+    </script>
+    '''
+    m.get_root().html.add_child(Element(legend_html))
     
     m.save(OUTPUT_MAP_PATH)
     print(f"\n[+] SUCCESS! Interactive map generated: {OUTPUT_MAP_PATH}")
