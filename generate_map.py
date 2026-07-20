@@ -1,7 +1,7 @@
 import os
 import csv
 import json
-import random
+import requests
 import folium
 from folium import plugins
 from branca.element import Element
@@ -31,81 +31,82 @@ EXISTING_BRANCHES = {
 }
 
 def load_schools():
-    """Merges exact GPS from JSON with rich metadata from CSV."""
+    """Strictly loads GPS from school_db.json. Cross-references CSV for extra text data."""
     schools = []
     csv_metadata = {}
     
-    # 1. Harvest rich data (Addresses & URLs) from the CSV first
+    # 1. Harvest extra text info (Address & Website)
     csv_file = "Generalinformationofschools.csv" if os.path.exists("Generalinformationofschools.csv") else "All_Schools_Geocoded.csv"
     if os.path.exists(csv_file):
-        print(f"[*] Harvesting addresses & websites from {csv_file}...")
+        print(f"[*] Harvesting metadata from {csv_file}...")
         with open(csv_file, 'r', encoding='utf-8-sig') as f:
             reader = csv.DictReader(f)
             for row in reader:
                 name_key = next((k for k in row.keys() if 'name' in str(k).lower() or 'school' in str(k).lower()), None)
                 if not name_key: continue
-                
                 name = row[name_key].strip().lower()
                 addr_key = next((k for k in row.keys() if 'address' in str(k).lower() and 'url' not in str(k).lower()), None)
                 url_key = next((k for k in row.keys() if 'url' in str(k).lower() or 'website' in str(k).lower()), None)
-                
                 csv_metadata[name] = {
                     "address": row[addr_key] if addr_key and row[addr_key] else "Address not available",
                     "website": row[url_key] if url_key and row[url_key] else ""
                 }
-    else:
-        print(f"[!] Warning: Neither Generalinformationofschools.csv nor All_Schools_Geocoded.csv found. Popups will lack rich text.")
 
-    # 2. Strictly load positions from the highly-accurate JSON file
+    # 2. BULLETPROOF JSON LOADER (Local or Network Fallback)
+    json_data = None
     if os.path.exists("school_db.json"):
-        print("[*] Found school_db.json! Loading exact GPS coordinates...")
+        print("[*] Loading exact GPS coordinates from local school_db.json...")
         with open("school_db.json", 'r', encoding='utf-8') as f:
-            json_schools = json.load(f)
-            for item in json_schools:
-                name = item.get("name", "").strip()
-                lower_name = name.lower()
+            json_data = json.load(f)
+    else:
+        print("[!] Local school_db.json missing. Fetching from GitHub directly...")
+        try:
+            res = requests.get("https://raw.githubusercontent.com/itsray01/acerexpansion/main/school_db.json", timeout=10)
+            if res.status_code == 200: json_data = res.json()
+        except Exception as e:
+            print(f"[!] Network fetch failed: {e}")
+
+    if not json_data:
+        print("[!] CRITICAL: Could not load school_db.json from anywhere. Map will lack schools.")
+        return []
+
+    # 3. Build the final strict array (NO JITTER, EXACT GPS ONLY)
+    for item in json_data:
+        name = item.get("name", "").strip()
+        lower_name = name.lower()
+        if "lat" in item and "lon" in item:
+            extra = csv_metadata.get(lower_name, {})
+            website = extra.get("website", "")
+            if website and not website.startswith("http"):
+                website = "http://" + website
                 
-                if "lat" in item and "lon" in item:
-                    # Cross-reference with CSV metadata
-                    extra = csv_metadata.get(lower_name, {})
-                    website = extra.get("website", "")
-                    if website and not website.startswith("http"):
-                        website = "http://" + website
-                        
-                    schools.append({
-                        "name": name,
-                        "lat": float(item["lat"]),
-                        "lon": float(item["lon"]),
-                        "level": item.get("level", "PRIMARY"),
-                        "address": extra.get("address", "Address not available"),
-                        "website": website
-                    })
-        print(f"[+] Successfully merged {len(schools)} schools with precise GPS & CSV metadata.")
-        return schools
-        
-    print("[!] CRITICAL: school_db.json not found! Cannot map schools accurately.")
-    return []
+            schools.append({
+                "name": name,
+                "lat": float(item["lat"]),
+                "lon": float(item["lon"]),
+                "level": item.get("level", "PRIMARY"),
+                "address": extra.get("address", "Address not available"),
+                "website": website
+            })
+    
+    print(f"[+] Successfully loaded {len(schools)} schools with strict pinpoint accuracy.")
+    return schools
 
 def generate_map():
     print("[*] Booting up Map Engine...")
     schools = load_schools()
-    if not schools: 
-        print("[!] No schools loaded. Terminating map generation.")
-        return
     
-    # Initialize without tiles so we can control the Layer Menu options
+    # Initialize Map
     m = folium.Map(location=[1.3521, 103.8198], zoom_start=12, tiles=None)
 
-    # 1. Base Maps
     folium.TileLayer('CartoDB dark_matter', name='Dark Streets (Default)', show=True).add_to(m)
     folium.TileLayer('CartoDB positron', name='Light Canvas', show=False).add_to(m)
-    folium.TileLayer('CartoDB dark_matter', name='Executive Dark Canvas (Clean)', show=False).add_to(m)
+    folium.TileLayer('OpenStreetMap', name='Standard Map', show=False).add_to(m)
 
     custom_css = """
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap');
 
-    /* Tooltip & Popup Styling */
     .leaflet-tooltip {
         font-family: 'Montserrat', sans-serif !important;
         font-size: 14px !important; font-weight: 600 !important;
@@ -115,16 +116,11 @@ def generate_map():
     }
     .leaflet-popup-content-wrapper, .leaflet-popup-tip {
         background: rgba(20, 20, 20, 0.95) !important;
-        color: #fff !important;
-        border: 1px solid rgba(255,255,255,0.15) !important;
-        box-shadow: 0 10px 25px rgba(0,0,0,0.5) !important;
-        border-radius: 12px !important;
+        color: #fff !important; border: 1px solid rgba(255,255,255,0.15) !important;
+        box-shadow: 0 10px 25px rgba(0,0,0,0.5) !important; border-radius: 12px !important;
     }
     .leaflet-popup-content { font-family: 'Montserrat', sans-serif !important; margin: 15px !important; }
 
-    /* ====================================================
-       OVERHAUL: CUSTOM BRANDED TRANSLUCENT LAYERS MENU
-       ==================================================== */
     .leaflet-control-layers {
         border: none !important; background: transparent !important; box-shadow: none !important;
         padding: 15px !important; margin-top: -15px !important; margin-right: -15px !important;
@@ -143,8 +139,7 @@ def generate_map():
         background-color: rgba(40, 40, 40, 0.95) !important; transform: scale(1.05) !important; border-color: #00E5FF !important;
     }
     .leaflet-control-layers.leaflet-control-layers-expanded {
-        margin-top: 5px !important;
-        background: rgba(20, 20, 20, 0.90) !important;
+        margin-top: 5px !important; background: rgba(20, 20, 20, 0.90) !important;
         backdrop-filter: blur(16px) !important; color: #ffffff !important;
         border: 1px solid rgba(255,255,255,0.15) !important; border-radius: 18px !important;
         padding: 22px 28px !important; font-family: 'Montserrat', sans-serif !important;
@@ -176,52 +171,65 @@ def generate_map():
     input[type="radio"].leaflet-control-layers-selector:checked::after {
         content: ""; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 8px; height: 8px; background: #000; border-radius: 50%;
     }
+    .region-label {
+        font-family: 'Montserrat', sans-serif !important; font-size: 12px !important; text-transform: uppercase !important;
+        letter-spacing: 2px !important; color: #ffffff !important; white-space: nowrap !important; pointer-events: none !important; 
+        text-shadow: -1px -1px 3px #000, 1px -1px 3px #000, -1px 1px 3px #000, 1px 1px 3px #000, 0px 0px 15px rgba(0,0,0,0.8) !important;
+        font-weight: 700 !important; transform: translate(-50%, -50%) !important;
+    }
     </style>
     """
     m.get_root().header.add_child(Element(custom_css))
 
     print("[*] Plotting URA Regions...")
+    ura_group = folium.FeatureGroup(name="Regional Boundaries (Choropleth)", show=True)
+    
+    ura_data = None
     if os.path.exists("ura_regions.json"):
-        try:
-            folium.GeoJson(
-                "ura_regions.json",
-                name="Regional Boundaries (Choropleth)",
-                style_function=lambda feature: {
-                    'fillColor': feature['properties'].get('fill', '#333333'),
-                    'color': 'transparent', 
-                    'weight': 0,
-                    'fillOpacity': 0.35,
-                    'interactive': False # CRITICAL FIX: Allows clicking schools underneath!
-                }
-            ).add_to(m)
-            print("[+] URA boundaries loaded successfully.")
-        except Exception as e:
-            print(f"[!] Failed to parse ura_regions.json: {e}")
+        with open("ura_regions.json", "r") as f:
+            ura_data = json.load(f)
     else:
-        print("[!] ura_regions.json missing from repository. Skipping choropleth.")
+        print("[!] Local ura_regions.json missing. Fetching from GitHub directly...")
+        try:
+            res = requests.get("https://raw.githubusercontent.com/itsray01/acerexpansion/main/ura_regions.json", timeout=10)
+            if res.status_code == 200: ura_data = res.json()
+        except Exception as e:
+            print(f"[!] URA network fetch failed: {e}")
+
+    if ura_data:
+        folium.GeoJson(
+            ura_data,
+            style_function=lambda feature: {
+                'fillColor': feature['properties'].get('fill', '#333333'),
+                'color': 'transparent', # NO WHITE LINES
+                'weight': 0,
+                'fillOpacity': 0.35,
+                'interactive': False # CRITICAL: Let mouse clicks pass through to schools
+            }
+        ).add_to(ura_group)
+    ura_group.add_to(m)
 
     print("[*] Plotting Expansion Heatmap...")
-    heat_data = [[s['lat'], s['lon']] for s in schools if 'lat' in s and 'lon' in s]
-    plugins.HeatMap(heat_data, name="Expansion Heatmap (Untapped)", radius=45, blur=35, show=False).add_to(m)
+    heatmap_group = folium.FeatureGroup(name="Expansion Heatmap (Untapped)", show=False)
+    heat_data = [[s['lat'], s['lon']] for s in schools]
+    plugins.HeatMap(heat_data, radius=45, blur=35).add_to(heatmap_group)
+    heatmap_group.add_to(m)
 
     print(f"[*] Plotting {len(schools)} schools...")
-    primary_group = folium.FeatureGroup(name="Primary Schools (Sky Blue)")
-    secondary_group = folium.FeatureGroup(name="Secondary Schools (Violet)")
-    jc_group = folium.FeatureGroup(name="Junior Colleges (Amber)")
-    intl_group = folium.FeatureGroup(name="International Schools (Rose Pink)")
+    primary_group = folium.FeatureGroup(name="Primary Schools (Sky Blue)", show=True)
+    secondary_group = folium.FeatureGroup(name="Secondary Schools (Violet)", show=True)
+    jc_group = folium.FeatureGroup(name="Junior Colleges (Amber)", show=True)
+    intl_group = folium.FeatureGroup(name="International Schools (Rose Pink)", show=True)
     
     stats = {"NORTH": [0,0], "EAST": [0,0], "WEST": [0,0], "CENTRAL": [0,0]}
 
     for school in schools:
         level = school.get("level", "").upper()
-        # Micro-jitter to prevent stacking
-        lat = school["lat"] + random.uniform(-0.0008, 0.0008)
-        lon = school["lon"] + random.uniform(-0.0008, 0.0008)
-        name = school["name"]
-        address = school["address"]
-        website = school["website"]
+        # ABSOLUTELY NO RANDOM JITTER - STRICT EXACT GPS
+        lat, lon = school["lat"], school["lon"]
+        name, address, website = school["name"], school["address"], school["website"]
         
-        # Region Tracking
+        # Simple clustering for the data boxes
         if lat > 1.41: stats["NORTH"][1] += 1
         elif lon > 103.89: stats["EAST"][1] += 1
         elif lon < 103.78: stats["WEST"][1] += 1
@@ -233,17 +241,13 @@ def generate_map():
         elif "INTERNATIONAL" in level: fill_color, group = "#F472B6", intl_group
         else: continue
             
-        # Safely escape names for HTML to prevent popup JS breaks
         safe_name = name.replace("'", "&#39;")
-        
         btn_html = f"<a href='{website}' target='_blank' style='display: inline-block; background: #00E5FF; color: #000; padding: 6px 12px; border-radius: 6px; font-size: 11px; font-weight: 700; text-decoration: none; margin-top: 5px;'>View Website &rarr;</a>" if website else ""
         popup_html = f"""
         <div style="min-width: 200px;">
             <b style="color: {fill_color}; font-size: 15px;">{safe_name}</b><br>
             <div style="font-size: 11px; color: #aaa; text-transform: uppercase; margin-bottom: 8px; font-weight: 600;">{level.title()}</div>
-            <div style="font-size: 12px; color: #fff; line-height: 1.4; margin-bottom: 8px;">
-                &#128205; {address}
-            </div>
+            <div style="font-size: 12px; color: #fff; line-height: 1.4; margin-bottom: 8px;">&#128205; {address}</div>
             {btn_html}
         </div>
         """
@@ -268,6 +272,7 @@ def generate_map():
         elif lon < 103.78: stats["WEST"][0] += 1
         else: stats["CENTRAL"][0] += 1
         
+        # PURE TRANSPARENT BACKGROUND FOR THE LOGO
         icon_html = """
         <div style="background-color: transparent; border-radius: 8px; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border: 2px solid #ffffff; box-shadow: 0 4px 10px rgba(0,0,0,0.5); overflow: hidden;">
             <img src="https://i.imgur.com/YhyOq9V.png" style="width: 100%; height: 100%; object-fit: contain;">
@@ -282,6 +287,7 @@ def generate_map():
             icon=folium.DivIcon(html=icon_html, icon_size=(32, 32), icon_anchor=(16, 16))
         ).add_to(branch_group)
         
+        # Perfect Cyan rings
         folium.Circle(
             location=[lat, lon], radius=1500, color="#00C9FF", weight=2, fill_color="#00C9FF", fill_opacity=0.18
         ).add_to(branch_group)
@@ -298,26 +304,30 @@ def generate_map():
         </div>
         """
 
-    # Perfectly aligned latitudes/longitudes so the lines are perfectly straight horizontally/vertically
+    # Format: ("REGION NAME", [Box Latitude, Box Longitude], [Target Latitude, Target Longitude])
+    # PERFECTLY ALIGNED COORDS so the lines are exclusively horizontal/vertical.
     regions_setup = [
-        ("NORTH", [1.53, 103.82], [1.43, 103.82]),
-        ("EAST", [1.35, 104.09], [1.35, 103.94]),
-        ("WEST", [1.364, 103.58], [1.364, 103.729]),
-        ("CENTRAL", [1.18, 103.82], [1.28, 103.82])
+        ("NORTH", [1.53, 103.82], [1.44, 103.82]),    # Vertical (Same lon: 103.82)
+        ("EAST",  [1.35, 104.09], [1.35, 103.95]),    # Horizontal (Same lat: 1.35)
+        ("WEST",  [1.364, 103.58], [1.364, 103.72]),  # Horizontal (Same lat: 1.364)
+        ("CENTRAL",[1.18, 103.82], [1.28, 103.82])    # Vertical (Same lon: 103.82)
     ]
 
     for reg_name, box_coord, map_coord in regions_setup:
+        # The Line
         folium.PolyLine(
             locations=[box_coord, map_coord],
             color="#00E5FF", weight=2, dash_array="5, 10", opacity=0.6
         ).add_to(m)
-        
+        # The Box Marker
         folium.Marker(
             location=box_coord,
             icon=folium.DivIcon(html=create_box(reg_name, stats[reg_name][0], stats[reg_name][1]), icon_size=(160, 100), icon_anchor=(80, 50))
         ).add_to(m)
 
+    # Set Map Bounds to include the pushed-out boxes
     m.fit_bounds([[1.15, 103.55], [1.55, 104.12]])
+    
     folium.LayerControl(position='topright', collapsed=True).add_to(m)
     
     m.save(OUTPUT_MAP_PATH)
