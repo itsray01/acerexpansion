@@ -34,6 +34,6 @@ jobs:
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add singapore_schools_map.html
+          git add acer_expansion_map.html
           git commit -m "Auto-update map" || exit 0
           git push
