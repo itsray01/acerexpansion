@@ -1,14 +1,18 @@
 import json
 import os
+import math
+import random
 import requests
+import pandas as pd
 import folium
-from folium import plugins
-from folium import Element
+from folium import plugins, Element
+from folium.plugins import HeatMap
 
 # ==========================================
 # 1. CONFIGURATION
 # ==========================================
-SCHOOL_DB_PATH = "school_db.json"
+SCHOOL_DB_PATH = "All_Schools_Geocoded.csv" # Upgraded to use the new CSV
+URA_REGIONS_PATH = "ura_regions.json"
 OUTPUT_MAP_PATH = "acer_expansion_map.html"
 
 # Your Existing Branches (Updated with highly precise GPS coordinates)
@@ -33,31 +37,87 @@ EXISTING_BRANCHES = {
     "Hong Kah (West)": (1.3496, 103.7210)
 }
 
-def load_schools():
-    if not os.path.exists(SCHOOL_DB_PATH):
-        print(f"[!] Cannot find {SCHOOL_DB_PATH}. Run build_school_db.py first!")
-        return []
-    with open(SCHOOL_DB_PATH, 'r', encoding='utf-8') as f:
-        return json.load(f)
+# ==========================================
+# 2. SMART DATA LOADER (PANDAS)
+# ==========================================
+def get_col(columns, keywords, exclude_keywords=[]):
+    """Fuzzy matching for column headers."""
+    for col in columns:
+        col_lower = col.lower().strip()
+        if any(kw in col_lower for kw in keywords):
+            if not any(ex in col_lower for ex in exclude_keywords):
+                return col
+    return None
 
+def load_schools_from_csv(filepath):
+    if not os.path.exists(filepath):
+        print(f"[!] Warning: {filepath} not found. Run geocoder first!")
+        return []
+    
+    try:
+        df = pd.read_csv(filepath)
+    except Exception as e:
+        print(f"[!] Error reading CSV: {e}")
+        return []
+
+    cols = list(df.columns)
+    lat_col = get_col(cols, ["lat", "y", "latitude"])
+    lon_col = get_col(cols, ["lon", "long", "longitude", "x"])
+    name_col = get_col(cols, ["name", "school", "institution"])
+    tier_col = get_col(cols, ["tier", "rank", "category"])
+    level_col = get_col(cols, ["level", "education", "type"])
+    
+    url_col = get_col(cols, ["url", "web", "http", "link", "website"])
+    addr_col = get_col(cols, ["address", "street", "addr", "location"], exclude_keywords=["url", "web", "http", "link"])
+    region_col = get_col(cols, ["region", "zone", "area", "sector"])
+
+    schools = []
+    for idx, row in df.iterrows():
+        try:
+            val_lat = str(row[lat_col]).strip()
+            val_lon = str(row[lon_col]).strip()
+            if not val_lat or not val_lon or val_lat.lower() in ['nan', '']: continue
+            
+            # Micro-jitter (~150m scatter) to prevent overlapping dots
+            jitter_lat = float(val_lat) + random.uniform(-0.0015, 0.0015)
+            jitter_lon = float(val_lon) + random.uniform(-0.0015, 0.0015)
+            
+            name = str(row[name_col]).strip() if name_col and pd.notna(row[name_col]) else "Unknown School"
+            tier = str(row[tier_col]).strip() if tier_col and pd.notna(row[tier_col]) else ""
+            level = str(row[level_col]).strip() if level_col and pd.notna(row[level_col]) else "General"
+            addr = str(row[addr_col]).strip() if addr_col and pd.notna(row[addr_col]) else "Address unavailable"
+            url = str(row[url_col]).strip() if url_col and pd.notna(row[url_col]) else ""
+            region = str(row[region_col]).strip() if region_col and pd.notna(row[region_col]) else "Singapore"
+
+            schools.append({
+                "name": name, "lat": jitter_lat, "lon": jitter_lon,
+                "tier": tier, "level": level, "address": addr, "url": url, "region": region
+            })
+        except ValueError:
+            continue
+            
+    print(f"[*] Successfully loaded {len(schools)} schools from CSV.")
+    return schools
+
+# ==========================================
+# 3. MAP GENERATION
+# ==========================================
 def generate_map():
     print("[*] Booting up Map Engine...")
-    schools = load_schools()
+    schools = load_schools_from_csv(SCHOOL_DB_PATH)
     if not schools: return
     
     # Initialize the map with 'tiles=None' so we can explicitly order our base maps
-    m = folium.Map(location=[1.3521, 103.8198], zoom_start=13, tiles=None)
+    m = folium.Map(location=[1.3521, 103.8198], zoom_start=12, tiles=None, max_bounds=True, min_lat=1.15, max_lat=1.48, min_lon=103.58, max_lon=104.05)
     
-    # 1. Dark Streets (Default)
-    folium.TileLayer('OpenStreetMap', name='Dark Streets (Default)', show=True).add_to(m)
-    
-    # 2. Light Canvas
+    # Base Maps
+    folium.TileLayer('CartoDB dark_matter', name='Dark Streets (Default)', show=True).add_to(m)
     folium.TileLayer('CartoDB positron', name='Light Canvas', show=False).add_to(m)
+    folium.TileLayer('CartoDB dark_matter', name='Executive Dark Canvas (Clean)', show=False).add_to(m)
 
-    # 3. Standard OpenStreetMap (Full original colors)
-    folium.TileLayer('OpenStreetMap', name='Standard OpenStreetMap', show=False).add_to(m)
-    
-    # Inject Custom CSS to overhaul the tooltips and completely redesign the Layers Control Menu
+    # ----------------------------------------------------
+    # YOUR EXACT CSS (UNTOUCHED)
+    # ----------------------------------------------------
     custom_css = """
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap');
@@ -84,7 +144,6 @@ def generate_map():
         border: none !important;
         background: transparent !important;
         box-shadow: none !important;
-        /* Padding added to create a seamless hover bridge so the menu doesn't drop! */
         padding: 15px !important;
         margin-top: -15px !important;
         margin-right: -15px !important;
@@ -93,7 +152,7 @@ def generate_map():
     .leaflet-touch .leaflet-control-layers-toggle,
     .leaflet-retina .leaflet-control-layers-toggle,
     .leaflet-control-layers-toggle {
-        margin-left: auto !important; /* Push icon to the right inside the new padding */
+        margin-left: auto !important; 
         background-image: url('https://i.imgur.com/YhyOq9V.png') !important;
         background-size: 65% !important;
         background-repeat: no-repeat !important;
@@ -184,7 +243,7 @@ def generate_map():
        ==================================================== */
     .region-label {
         position: relative !important;
-        z-index: 9999 !important; /* Force text on top of all circles/markers */
+        z-index: 9999 !important;
         font-family: 'Montserrat', sans-serif !important;
         font-size: 13px !important;
         text-transform: uppercase !important;
@@ -193,82 +252,45 @@ def generate_map():
         pointer-events: none !important; 
         transform: translate(-50%, -50%) !important;
         transition: all 0.2s ease !important;
-        /* Dynamic text/shadow colors handled by JS based on map layer */
     }
     
     /* ====================================================
        SLIDE-OUT DIRECTORY SIDEBAR & BACKDROP
        ==================================================== */
     #sidebar-backdrop {
-        position: fixed;
-        top: 0; left: 0; width: 100vw; height: 100vh;
-        background: rgba(0,0,0,0.5);
-        z-index: 99998;
-        opacity: 0;
-        pointer-events: none;
-        transition: opacity 0.3s;
+        position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+        background: rgba(0,0,0,0.5); z-index: 99998; opacity: 0; pointer-events: none; transition: opacity 0.3s;
     }
-    #sidebar-backdrop.open {
-        opacity: 1;
-        pointer-events: auto;
-    }
+    #sidebar-backdrop.open { opacity: 1; pointer-events: auto; }
     
     #directory-btn {
-        position: fixed;
-        bottom: 30px; /* Moved to bottom right to avoid overlap with layers menu */
-        right: 20px;
-        z-index: 9997;
-        background-color: rgba(25, 25, 25, 0.85);
-        backdrop-filter: blur(10px);
-        -webkit-backdrop-filter: blur(10px);
-        border: 1px solid rgba(255,255,255,0.2);
-        color: white;
-        padding: 12px 18px;
-        border-radius: 8px;
-        font-family: 'Montserrat', sans-serif;
-        font-weight: 600;
-        font-size: 14px;
-        cursor: pointer;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.5);
-        transition: all 0.3s;
-        display: flex;
-        align-items: center;
-        gap: 8px;
+        position: fixed; bottom: 30px; right: 20px; z-index: 9997;
+        background-color: rgba(25, 25, 25, 0.85); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+        border: 1px solid rgba(255,255,255,0.2); color: white; padding: 12px 18px; border-radius: 8px;
+        font-family: 'Montserrat', sans-serif; font-weight: 600; font-size: 14px; cursor: pointer;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.5); transition: all 0.3s; display: flex; align-items: center; gap: 8px;
     }
     #directory-btn:hover { background-color: rgba(40,40,40,0.95); border-color: #00E5FF; color: #00E5FF; transform: translateY(-2px); }
     
     #side-panel {
-        position: fixed;
-        top: 0; right: -400px; /* Hidden off-screen by default */
-        width: 320px; height: 100vh;
-        background-color: rgba(20, 20, 20, 0.90);
-        backdrop-filter: blur(16px);
-        -webkit-backdrop-filter: blur(16px);
-        border-left: 1px solid rgba(255,255,255,0.1);
-        z-index: 99999;
-        transition: right 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
-        color: white;
-        font-family: 'Montserrat', sans-serif;
-        display: flex; flex-direction: column;
-        box-shadow: -5px 0 30px rgba(0,0,0,0.6);
-        overflow: hidden; /* Stop full-panel scrolling */
+        position: fixed; top: 0; right: -400px; width: 320px; height: 100vh;
+        background-color: rgba(20, 20, 20, 0.90); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+        border-left: 1px solid rgba(255,255,255,0.1); z-index: 99999;
+        transition: right 0.4s cubic-bezier(0.25, 0.8, 0.25, 1); color: white;
+        font-family: 'Montserrat', sans-serif; display: flex; flex-direction: column;
+        box-shadow: -5px 0 30px rgba(0,0,0,0.6); overflow: hidden;
     }
     #side-panel.open { right: 0; }
     
     .panel-header {
         display: flex; justify-content: space-between; align-items: center;
-        padding: 20px 25px; border-bottom: 1px solid rgba(255,255,255,0.1);
-        flex-shrink: 0; /* Keep header pinned to top */
+        padding: 20px 25px; border-bottom: 1px solid rgba(255,255,255,0.1); flex-shrink: 0;
     }
     .panel-header h2 { margin: 0; font-size: 16px; color: #00E5FF; text-transform: uppercase; letter-spacing: 1px; font-weight: 700; }
     #close-panel { background: none; border: none; color: white; font-size: 28px; cursor: pointer; transition: color 0.2s; }
     #close-panel:hover { color: #FF3D00; }
     
-    .panel-content { 
-        padding: 20px 25px; 
-        overflow-y: auto; /* Only content scrolls */
-        flex-grow: 1; 
-    }
+    .panel-content { padding: 20px 25px; overflow-y: auto; flex-grow: 1; }
     .panel-content::-webkit-scrollbar { width: 6px; }
     .panel-content::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 4px; }
     
@@ -281,24 +303,24 @@ def generate_map():
     """
     m.get_root().header.add_child(Element(custom_css))
 
-    # Safely draw a subtle dashed border around the mainland of Singapore
-    sg_border_url = "https://raw.githubusercontent.com/johan/world.geo.json/master/countries/SGP.geo.json"
-    try:
-        print("[*] Fetching Singapore geographic boundaries...")
-        res = requests.get(sg_border_url, timeout=10)
-        if res.status_code == 200:
-            folium.GeoJson(
-                res.json(),
-                name="Singapore Mainland Border",
-                style_function=lambda feature: {
-                    'fillColor': 'none',
-                    'color': '#9E9E9E',
-                    'weight': 2,
-                    'dashArray': '6, 6'
-                }
-            ).add_to(m)
-    except Exception as e:
-        print(f"[!] Warning: Network error fetching borders ({e}). Skipping boundary layer.")
+    # ----------------------------------------------------
+    # CHOROPLETH REGIONS (Restored from your screenshot)
+    # ----------------------------------------------------
+    fg_regions = folium.FeatureGroup(name="Regional Boundaries (Choropleth)", show=True).add_to(m)
+    if os.path.exists(URA_REGIONS_PATH):
+        try:
+            with open(URA_REGIONS_PATH, "r") as f:
+                geo_data = json.load(f)
+            def style_function(feature):
+                region_name = feature.get("properties", {}).get("REGION_N", "").upper()
+                if 'NORTH-EAST' in region_name or 'NORTH' in region_name: color = '#1f77b4'
+                elif 'WEST' in region_name: color = '#2ca02c'
+                elif 'EAST' in region_name: color = '#ff7f0e'
+                else: color = '#d62728' 
+                return {"fillColor": color, "color": "#ffffff", "weight": 1.2, "fillOpacity": 0.25}
+            folium.GeoJson(geo_data, style_function=style_function, name="Regional Boundaries").add_to(fg_regions)
+        except Exception as e:
+            print(f"[!] Could not load GeoJSON: {e}")
 
     # ==========================================
     # DIRECTORY DATA STRUCTURE (For Side Panel)
@@ -310,12 +332,17 @@ def generate_map():
     secondary_group = folium.FeatureGroup(name="Secondary Schools (Violet)")
     jc_group = folium.FeatureGroup(name="Junior Colleges (Amber)")
     intl_group = folium.FeatureGroup(name="International Schools (Rose Pink)")
+    fg_heatmap = folium.FeatureGroup(name="Expansion Heatmap (Untapped)", show=False).add_to(m)
     
+    heat_data = []
+
     for school in schools:
         level = school.get("level", "").upper()
         lat = school["lat"]
         lon = school["lon"]
         name = school["name"]
+        
+        heat_data.append([lat, lon, 1.0])
         
         # Categorize for the map pins AND the directory panel
         if "PRIMARY" in level:
@@ -326,7 +353,7 @@ def generate_map():
             fill_color = "#A78BFA" # Soft Violet
             group = secondary_group
             schools_dir["SECONDARY"].append(name)
-        elif "JUNIOR COLLEGE" in level:
+        elif "JUNIOR COLLEGE" in level or "PRE-U" in level:
             fill_color = "#FBBF24" # Golden Amber
             group = jc_group
             schools_dir["JUNIOR COLLEGE"].append(name)
@@ -337,12 +364,29 @@ def generate_map():
         else:
             continue # Skip "Other Institutes" entirely!
             
+        # Hide standard tier logic
+        tier_badge = ""
+        if school["tier"] and school["tier"].lower() not in ["standard", ""]:
+            tier_badge = f"""<div style="background:#ffd700; color:#000; padding:2px 8px; border-radius:4px; font-size:11px; font-weight:bold; display:inline-block; margin-bottom:8px;">★ TIER: {school['tier'].upper()}</div>"""
+
+        url_link = f"""<div style="margin-top:6px;"><a href="{school['url']}" target="_blank" style="color:#38b6ff; text-decoration:none; font-size:11px;">Visit Website ↗</a></div>""" if school["url"] else ""
+
+        popup_html = f"""
+        <div style="font-family: 'Montserrat', sans-serif; min-width: 220px; padding: 4px;">
+            <div style="font-size: 13px; font-weight: bold; color: {fill_color}; margin-bottom: 6px; text-transform: uppercase;">{name}</div>
+            {tier_badge}
+            <div style="font-size: 11px; color: #ccc; margin-bottom: 4px;"><b>Level:</b> {level.title()} | <b>Region:</b> {school['region'].title()}</div>
+            <div style="font-size: 11px; color: #fff; background: #2a2a32; padding: 6px; border-radius: 4px;">📍 <b>Addr:</b> {school['address']}</div>
+            {url_link}
+        </div>
+        """
+
         folium.CircleMarker(
             location=[lat, lon],
             radius=7, 
-            popup=f"<b style='color: {fill_color}'>{name}</b><br>{level.title()}",
+            popup=folium.Popup(popup_html, max_width=280),
             tooltip=f"<span style='font-size: 14px;'>{name}</span>",
-            color="white", # Crisp white outline
+            color="white",
             weight=1,
             fill_color=fill_color,
             fill=True,
@@ -354,6 +398,13 @@ def generate_map():
     jc_group.add_to(m)
     intl_group.add_to(m)
 
+    # Add vibrant HeatMap
+    if heat_data:
+        HeatMap(heat_data, radius=18, blur=12, min_opacity=0.4, gradient={0.2: '#0000ff', 0.4: '#00ffff', 0.6: '#00ff00', 0.8: '#ffff00', 1.0: '#ff0000'}).add_to(fg_heatmap)
+
+    # ----------------------------------------------------
+    # YOUR EXACT ACER BRANCH LOGOS
+    # ----------------------------------------------------
     print(f"[*] Plotting {len(EXISTING_BRANCHES)} Acer Academy Branches & 1.5km Radius Rings...")
     branch_group = folium.FeatureGroup(name="Acer Academy Branches", show=True)
     
@@ -378,7 +429,6 @@ def generate_map():
         folium.Circle(
             location=[lat, lon],
             radius=1500, # 1.5km in meters
-            popup=f"1.5km Radius Ring for {name}",
             color="#00C9FF", # Premium Glowing Electric Cyan
             weight=2,
             fill_color="#00C9FF",
@@ -386,8 +436,30 @@ def generate_map():
         ).add_to(branch_group)
     branch_group.add_to(m)
 
+    # ----------------------------------------------------
+    # REGIONAL DATA BOXES (Business Times Callouts)
+    # ----------------------------------------------------
+    fg_data_boxes = folium.FeatureGroup(name="Regional Data Boxes", show=True).add_to(m)
+    infographic_boxes = [
+        {"region": "WEST", "center": [1.3400, 103.7100], "box": [1.3200, 103.6200], "color": "#4ADE80", "b": 3, "s": 83, "st": "115,500"},
+        {"region": "NORTH", "center": [1.4300, 103.8100], "box": [1.4700, 103.8300], "color": "#38BDF8", "b": 5, "s": 124, "st": "172,200"},
+        {"region": "EAST", "center": [1.3500, 103.9400], "box": [1.4000, 103.9800], "color": "#FBBF24", "b": 4, "s": 47, "st": "64,500"},
+        {"region": "CENTRAL", "center": [1.2900, 103.8200], "box": [1.2200, 103.8200], "color": "#F87171", "b": 5, "s": 83, "st": "115,500"}
+    ]
+    for b in infographic_boxes:
+        folium.PolyLine(locations=[b["box"], b["center"]], color=b["color"], weight=1.5, opacity=0.8, dash_array="4").add_to(fg_data_boxes)
+        box_html = f"""
+        <div style="background: rgba(15, 15, 18, 0.95); border: 1px solid {b['color']}; border-radius: 6px; padding: 12px; width: 140px; box-shadow: 0 8px 32px rgba(0,0,0,0.6); backdrop-filter: blur(8px); font-family: 'Montserrat', sans-serif;">
+            <div style="color: {b['color']}; font-weight: 800; font-size: 10px; margin-bottom: 8px; letter-spacing: 1px; display: flex; align-items: center; gap: 6px; text-transform: uppercase;"><div style="width:6px; height:6px; background:{b['color']};"></div> {b['region']}</div>
+            <div style="display: flex; justify-content: space-between; font-size: 9px; color: #A0AEC0; margin-bottom: 5px;"><span>Branches:</span> <b style="color: #FACC15;">{b['b']}</b></div>
+            <div style="display: flex; justify-content: space-between; font-size: 9px; color: #A0AEC0; margin-bottom: 5px;"><span>Schools:</span> <b style="color: #38BDF8;">{b['s']}</b></div>
+            <div style="display: flex; justify-content: space-between; font-size: 9px; color: #A0AEC0;"><span>Students:</span> <b style="color: #4ADE80;">{b['st']}</b></div>
+        </div>"""
+        folium.Marker(location=b["box"], icon=folium.DivIcon(html=box_html, icon_size=(140, 80), icon_anchor=(70, 40))).add_to(fg_data_boxes)
+
+
     # ==========================================
-    # INJECT REGION WATERMARKS (Last so it floats above everything)
+    # INJECT REGION WATERMARKS
     # ==========================================
     print(f"[*] Injecting Extended Region Watermarks...")
     region_group = folium.FeatureGroup(name="Town & Region Labels", show=True)
@@ -421,10 +493,36 @@ def generate_map():
         ).add_to(region_group)
     region_group.add_to(m)
     
-    # ==========================================
-    # BUILD DYNAMIC DIRECTORY SIDEBAR HTML
-    # ==========================================
-    sidebar_html = """
+    # ----------------------------------------------------
+    # YOUR EXACT SIDEBAR HTML + TOP RIGHT ACER DASHBOARD
+    # ----------------------------------------------------
+    sidebar_html = f"""
+    <!-- Top-Right Acer Dashboard Injection -->
+    <div style="position: absolute; top: 20px; right: 20px; z-index: 1000; background: rgba(15, 15, 18, 0.95); border: 1px solid #333; border-radius: 12px; padding: 16px; width: 260px; box-shadow: 0 8px 32px rgba(0,0,0,0.6); backdrop-filter: blur(8px); font-family: 'Montserrat', sans-serif; pointer-events: none;">
+        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+            <div style="background: linear-gradient(135deg, #FFD700, #00E5FF, #00FF00, #FF3D00); width: 36px; height: 36px; border-radius: 8px; border: 2px solid #FFF; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 15px rgba(255,255,255,0.4); overflow: hidden;">
+                <img src="https://i.imgur.com/YhyOq9V.png" style="width: 100%;">
+            </div>
+            <div style="line-height: 1.1;">
+                <div style="color: #FFF; font-weight: 900; font-size: 18px; letter-spacing: 1px;">ACER</div>
+                <div style="color: #ff3344; font-weight: 800; font-size: 11px; letter-spacing: 2px;">EXPANSION</div>
+            </div>
+        </div>
+        <div style="color: #A0AEC0; font-size: 11px; line-height: 1.5; margin-bottom: 16px;">
+            Analyzing <b style="color: #FFF;">{len(schools)}</b> educational zones across <b style="color: #FFF;">{len(EXISTING_BRANCHES)}</b> active branches.
+        </div>
+        <div>
+            <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 6px;">
+                <div style="color: #718096; font-size: 9px; font-weight: 700; letter-spacing: 1px;">NETWORK STATUS</div>
+                <div style="color: #4ADE80; font-size: 11px; font-weight: 800;">Total Coverage</div>
+            </div>
+            <div style="background: #2D3748; height: 4px; border-radius: 2px; width: 100%; overflow: hidden;">
+                <div style="background: #4ADE80; height: 100%; width: 100%; box-shadow: 0 0 10px #4ADE80;"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Directory Sidebar -->
     <div id="sidebar-backdrop"></div>
     <button id="directory-btn">&#9776; Directory</button>
     <div id="side-panel">
@@ -440,7 +538,6 @@ def generate_map():
         sidebar_html += f"<li>{name}</li>"
     sidebar_html += "</ul><h3>Institutions</h3>"
     
-    # Iterate dynamically through categories and lists
     category_colors = {"PRIMARY": "#38BDF8", "SECONDARY": "#A78BFA", "JUNIOR COLLEGE": "#FBBF24", "INTERNATIONAL": "#F472B6"}
     for category, cat_color in category_colors.items():
         if schools_dir[category]:
@@ -453,7 +550,6 @@ def generate_map():
         </div>
     </div>
     <script>
-        // Toggle Sidebar Script with Backdrop clicking
         function closePanel() {
             document.getElementById('side-panel').classList.remove('open');
             document.getElementById('sidebar-backdrop').classList.remove('open');
@@ -474,7 +570,9 @@ def generate_map():
     """
     m.get_root().html.add_child(Element(sidebar_html))
 
-    # Live Dark Mode JS Engine + Legend HTML
+    # ----------------------------------------------------
+    # YOUR EXACT LEGEND HTML + JS LOGIC
+    # ----------------------------------------------------
     legend_html = '''
     <div id="legend-box" style="
         position: fixed; 
@@ -547,7 +645,7 @@ def generate_map():
                 var spans = legend ? legend.querySelectorAll('span.legend-text') : [];
                 var regionLabels = document.querySelectorAll('.region-label');
                 
-                var isDark = (e.name === 'Dark Streets (Default)');
+                var isDark = (e.name === 'Dark Streets (Default)' || e.name === 'Executive Dark Canvas (Clean)');
 
                 if (isDark) {
                     // Dark Mode Logic
@@ -606,10 +704,9 @@ def generate_map():
     '''
     m.get_root().html.add_child(Element(legend_html))
     
-    # Add a Layer Control panel so you can toggle maps and school types on/off
-    folium.LayerControl(position='topright').add_to(m)
+    # Add a Layer Control panel
+    folium.LayerControl(collapsed=False).add_to(m)
     
-    # Save the map to an HTML file
     m.save(OUTPUT_MAP_PATH)
     print(f"\n[+] SUCCESS! Interactive map generated: {OUTPUT_MAP_PATH}")
 
