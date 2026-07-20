@@ -197,13 +197,13 @@ def generate_map():
             print(f"[!] URA network fetch failed: {e}")
 
     def get_region_color(feature):
-        # Scan the GeoJSON properties to identify the region and assign VIBRANT colors
+        # Scan the GeoJSON properties to identify the region and assign luminous pastels
         prop_str = str(feature.get('properties', {})).upper()
         
-        if 'CENTRAL' in prop_str: return '#F43F5E' # Vibrant Rose/Red
-        if 'WEST' in prop_str: return '#10B981' # Emerald Green
-        if 'EAST' in prop_str and 'NORTH' not in prop_str: return '#F97316' # Vibrant Orange
-        if 'NORTH' in prop_str: return '#0EA5E9' # Vibrant Sky Blue
+        if 'CENTRAL' in prop_str: return '#FB7185' # Soft Luminous Rose
+        if 'WEST' in prop_str: return '#4ADE80' # Soft Neon Mint
+        if 'EAST' in prop_str and 'NORTH' not in prop_str: return '#FB923C' # Soft Peach/Orange
+        if 'NORTH' in prop_str: return '#38BDF8' # Soft Sky Blue
         
         return '#333333' # Fallback
 
@@ -214,7 +214,7 @@ def generate_map():
                 'fillColor': get_region_color(feature),
                 'color': 'transparent', # NO WHITE LINES
                 'weight': 0,
-                'fillOpacity': 0.15, # Extremely light so it doesn't darken the map
+                'fillOpacity': 0.25, # Bumped up opacity so it glows over the dark streets
                 'interactive': False # CRITICAL: Let mouse clicks pass through to schools
             }
         ).add_to(ura_group)
@@ -233,12 +233,12 @@ def generate_map():
     jc_group = folium.FeatureGroup(name="Junior Colleges (Amber)", show=True)
     intl_group = folium.FeatureGroup(name="International Schools (Rose Pink)", show=True)
     
-    # Store exact hex colors for the region data boxes
+    # Store exact hex colors for the region data boxes to match the new bright boundaries
     stats = {
-        "NORTH": [0,0, '#0EA5E9'], 
-        "EAST": [0,0, '#F97316'], 
-        "WEST": [0,0, '#10B981'], 
-        "CENTRAL": [0,0, '#F43F5E']
+        "NORTH": [0,0, '#38BDF8'], 
+        "EAST": [0,0, '#FB923C'], 
+        "WEST": [0,0, '#4ADE80'], 
+        "CENTRAL": [0,0, '#FB7185']
     }
 
     for school in schools:
