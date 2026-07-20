@@ -113,10 +113,10 @@ def generate_map():
         max_zoom=18,
         tiles="CartoDB dark_matter",
         max_bounds=True,
-        min_lat=1.15,
-        max_lat=1.48,
-        min_lon=103.58,
-        max_lon=104.05
+        min_lat=1.10,
+        max_lat=1.52,
+        min_lon=103.50,
+        max_lon=104.12
     )
     
     # Layer control options
@@ -265,10 +265,10 @@ def generate_map():
     fg_data_boxes = folium.FeatureGroup(name="Regional Data Boxes", show=True).add_to(m)
     # Note: Lats/Lons are locked here to enforce perfectly straight lines
     infographic_boxes = [
-        {"region": "WEST", "center": [1.3650, 103.7300], "box": [1.3650, 103.6300], "color": "#4ADE80", "b": 3, "s": 83, "st": "115,500"},
-        {"region": "NORTH", "center": [1.4200, 103.8100], "box": [1.4650, 103.8100], "color": "#38BDF8", "b": 5, "s": 124, "st": "172,200"},
-        {"region": "EAST", "center": [1.3550, 103.9400], "box": [1.3550, 104.0300], "color": "#FBBF24", "b": 4, "s": 47, "st": "64,500"},
-        {"region": "CENTRAL", "center": [1.3100, 103.8400], "box": [1.2500, 103.8400], "color": "#F87171", "b": 5, "s": 83, "st": "115,500"}
+        {"region": "WEST", "center": [1.3650, 103.7300], "box": [1.3650, 103.5800], "color": "#4ADE80", "b": 3, "s": 83, "st": "115,500"},
+        {"region": "NORTH", "center": [1.4200, 103.8100], "box": [1.4800, 103.8100], "color": "#38BDF8", "b": 5, "s": 124, "st": "172,200"},
+        {"region": "EAST", "center": [1.3550, 103.9400], "box": [1.3550, 104.0550], "color": "#FBBF24", "b": 4, "s": 47, "st": "64,500"},
+        {"region": "CENTRAL", "center": [1.3100, 103.8400], "box": [1.2200, 103.8400], "color": "#F87171", "b": 5, "s": 83, "st": "115,500"}
     ]
     
     for b in infographic_boxes:
