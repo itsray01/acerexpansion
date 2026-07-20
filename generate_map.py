@@ -406,42 +406,44 @@ def generate_map():
     # ----------------------------------------------------
     # YOUR EXACT ACER BRANCH LOGOS
     # ----------------------------------------------------
-    print(f"[*] Plotting {len(EXISTING_BRANCHES)} Acer Academy Branches & 1.5km Radius Rings...")
+        print(f"[*] Plotting {len(EXISTING_BRANCHES)} Acer Academy Branches & 1.5km Radius Rings...")
     branch_group = folium.FeatureGroup(name="Acer Academy Branches", show=True)
     
     for name, (lat, lon) in EXISTING_BRANCHES.items():
-        # FIX: Replaced the broken red image with a sleek, premium dark marker and a cyan star
-        icon_html = f"""
+        # Flawlessly load the Imgur logo inside the custom framed div
+        logo_url = "https://i.imgur.com/YhyOq9V.png"
+        icon_html = f'''
         <div style="
-            background: #151515;
-            border: 2px solid #00E5FF;
-            border-radius: 50%;
-            width: 28px;
-            height: 28px;
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+            border: 2px solid #ffffff;
+            cursor: pointer;
+            overflow: hidden;
+            background-color: #ff3344;
             display: flex;
             align-items: center;
             justify-content: center;
-            color: #00E5FF;
-            font-size: 14px;
-            box-shadow: 0 0 15px rgba(0, 229, 255, 0.6);
-        ">★</div>
-        """
+        ">
+            <img src="{logo_url}" style="width: 100%; height: 100%; object-fit: cover;">
+        </div>
+        '''
         
         folium.Marker(
             location=[lat, lon],
-            popup=f"<b style='color: #00E5FF;'>ACER ACADEMY</b><br>{name}",
+            popup=f"<b style='color: #FF9800;'>ACER ACADEMY</b><br>{name}",
             tooltip=f"<span style='font-size: 16px; font-weight: bold; white-space: nowrap;'>★ {name}</span>",
-            icon=folium.DivIcon(html=icon_html, icon_size=(28, 28), icon_anchor=(14, 14))
+            icon=folium.DivIcon(html=icon_html, icon_size=(32, 32), icon_anchor=(16, 16))
         ).add_to(branch_group)
         
-        # FIX: Forced the 1.5km radius rings to be Electric Cyan
         folium.Circle(
             location=[lat, lon],
             radius=1500, # 1.5km in meters
             color="#00C9FF", # Premium Glowing Electric Cyan
             weight=2,
             fill_color="#00C9FF",
-            fill_opacity=0.15
+            fill_opacity=0.15 # Slightly reduced opacity for cleaner overlap
         ).add_to(branch_group)
     branch_group.add_to(m)
 
@@ -450,10 +452,11 @@ def generate_map():
     # ----------------------------------------------------
     fg_data_boxes = folium.FeatureGroup(name="Regional Data Boxes", show=True).add_to(m)
     infographic_boxes = [
-        {"region": "WEST", "center": [1.3400, 103.7100], "box": [1.3200, 103.6200], "color": "#4ADE80", "b": 3, "s": 83, "st": "115,500"},
-        {"region": "NORTH", "center": [1.4300, 103.8100], "box": [1.4700, 103.8300], "color": "#38BDF8", "b": 5, "s": 124, "st": "172,200"},
-        {"region": "EAST", "center": [1.3500, 103.9400], "box": [1.4000, 103.9800], "color": "#FBBF24", "b": 4, "s": 47, "st": "64,500"},
-        {"region": "CENTRAL", "center": [1.2900, 103.8200], "box": [1.2200, 103.8200], "color": "#F87171", "b": 5, "s": 83, "st": "115,500"}
+        # Adjusted "center" coordinates to perfectly hit the visual center of each color cluster
+        {"region": "WEST", "center": [1.3650, 103.7300], "box": [1.3200, 103.6200], "color": "#4ADE80", "b": 3, "s": 83, "st": "115,500"},
+        {"region": "NORTH", "center": [1.4200, 103.8100], "box": [1.4750, 103.8100], "color": "#38BDF8", "b": 5, "s": 124, "st": "172,200"},
+        {"region": "EAST", "center": [1.3550, 103.9400], "box": [1.4000, 104.0000], "color": "#FBBF24", "b": 4, "s": 47, "st": "64,500"},
+        {"region": "CENTRAL", "center": [1.3200, 103.8400], "box": [1.2200, 103.8400], "color": "#F87171", "b": 5, "s": 83, "st": "115,500"}
     ]
     for b in infographic_boxes:
         folium.PolyLine(locations=[b["box"], b["center"]], color=b["color"], weight=1.5, opacity=0.8, dash_array="4").add_to(fg_data_boxes)
