@@ -1,25 +1,39 @@
 name: Generate Infographic Map
+
 on:
-  push:
-    paths:
-      - 'generate_map.py'
-      - 'ura_regions.json'
-  workflow_dispatch:
+push:
+branches:
+- main
+workflow_dispatch:
+
+permissions:
+contents: write
+
 jobs:
-  build-map:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-python@v4
-        with:
-          python-version: '3.10'
-      - run: pip install folium
-      - run: python generate_map.py
-      - run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add acer_expansion_map.html
-          git commit -m "Auto-update map" || exit 0
-          git push
+build:
+runs-on: ubuntu-latest
+
+steps:
+  - name: Checkout repository
+    uses: actions/checkout@v3
+
+  - name: Set up Python
+    uses: actions/setup-python@v4
+    with:
+      python-version: '3.10'
+
+  - name: Install dependencies
+    run: |
+      python -m pip install --upgrade pip
+      pip install folium pandas
+
+  - name: Run Map Generator
+    run: python generate_map.py
+
+  - name: Commit and Push changes
+    run: |
+      git config --global user.name "github-actions[bot]"
+      git config --global user.email "github-actions[bot]@users.noreply.github.com"
+      git add singapore_schools_map.html
+      git commit -m "Auto-update map" || exit 0
+      git push
