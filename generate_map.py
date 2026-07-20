@@ -145,7 +145,8 @@ def generate_map():
         max_lat=1.48,
         min_lon=103.58,
         max_lon=104.05,
-        control_scale=True
+        control_scale=True,
+        zoom_control=False # Hide default zoom to use our clean custom CSS
     )
 
     # Base Tile Options (Added in specific order)
@@ -163,6 +164,7 @@ def generate_map():
     fg_jc = folium.FeatureGroup(name="Junior Colleges (Amber)", show=True).add_to(m)
     fg_intl = folium.FeatureGroup(name="International Schools (Rose Pink)", show=True).add_to(m)
     fg_heatmap = folium.FeatureGroup(name="Expansion Heatmap (Untapped)", show=False).add_to(m)
+    fg_data_boxes = folium.FeatureGroup(name="Regional Data Boxes", show=True).add_to(m)
     fg_labels = folium.FeatureGroup(name="Town & Region Labels", show=True).add_to(m)
     fg_branches = folium.FeatureGroup(name="Acer Academy Branches", show=True).add_to(m)
 
@@ -234,7 +236,48 @@ def generate_map():
             weight=1.5
         ).add_to(fg_branches)
 
-    # 3. Add School Markers & Categorize by Level
+    # 3. Regional Data Boxes (Floating Info Panels with Leader Lines)
+    # Centers of regions and their offset box positions
+    infographic_boxes = [
+        {"region": "WEST", "center": [1.3400, 103.7100], "box": [1.3200, 103.6200], "color": "#4ADE80", "b": 3, "s": 83, "st": "115,500"},
+        {"region": "NORTH", "center": [1.4300, 103.8100], "box": [1.4700, 103.8300], "color": "#38BDF8", "b": 5, "s": 124, "st": "172,200"},
+        {"region": "EAST", "center": [1.3500, 103.9400], "box": [1.4000, 103.9800], "color": "#FBBF24", "b": 4, "s": 47, "st": "64,500"},
+        {"region": "CENTRAL", "center": [1.2900, 103.8200], "box": [1.2200, 103.8200], "color": "#F87171", "b": 5, "s": 83, "st": "115,500"}
+    ]
+
+    for b in infographic_boxes:
+        # Draw the dotted leader line from the region center to the box
+        folium.PolyLine(
+            locations=[b["box"], b["center"]],
+            color=b["color"],
+            weight=1.5,
+            opacity=0.8,
+            dash_array="4"
+        ).add_to(fg_data_boxes)
+
+        # Draw the HTML Data Box
+        box_html = f"""
+        <div style="background: rgba(15, 15, 18, 0.95); border: 1px solid {b['color']}; border-radius: 6px; padding: 12px; width: 140px; box-shadow: 0 8px 32px rgba(0,0,0,0.6); backdrop-filter: blur(8px); font-family: 'Montserrat', sans-serif;">
+            <div style="color: {b['color']}; font-weight: 800; font-size: 10px; margin-bottom: 8px; letter-spacing: 1px; display: flex; align-items: center; gap: 6px; text-transform: uppercase;">
+                <div style="width:6px; height:6px; background:{b['color']};"></div> {b['region']}
+            </div>
+            <div style="display: flex; justify-content: space-between; font-size: 9px; color: #A0AEC0; margin-bottom: 5px;">
+                <span>Branches:</span> <b style="color: #FACC15;">{b['b']}</b>
+            </div>
+            <div style="display: flex; justify-content: space-between; font-size: 9px; color: #A0AEC0; margin-bottom: 5px;">
+                <span>Schools:</span> <b style="color: #38BDF8;">{b['s']}</b>
+            </div>
+            <div style="display: flex; justify-content: space-between; font-size: 9px; color: #A0AEC0;">
+                <span>Students:</span> <b style="color: #4ADE80;">{b['st']}</b>
+            </div>
+        </div>
+        """
+        folium.Marker(
+            location=b["box"],
+            icon=folium.DivIcon(html=box_html, icon_size=(140, 80), icon_anchor=(70, 40))
+        ).add_to(fg_data_boxes)
+
+    # 4. Add School Markers & Categorize by Level
     heat_data = []
     for s in schools:
         heat_data.append([s["lat"], s["lon"], 1.0])
@@ -297,7 +340,7 @@ def generate_map():
             popup=folium.Popup(popup_html, max_width=300)
         ).add_to(target_fg)
 
-    # 4. Expansion Heatmap Layer (Vibrant Neon Settings)
+    # 5. Expansion Heatmap Layer (Vibrant Neon Settings)
     if heat_data:
         HeatMap(
             heat_data,
@@ -308,7 +351,7 @@ def generate_map():
             gradient={0.2: '#00c9ff', 0.5: '#a78bfa', 0.8: '#f472b6', 1.0: '#ffd700'}
         ).add_to(fg_heatmap)
 
-    # 5. Town & Region Labels
+    # 6. Town & Region Labels
     for town, (t_lat, t_lon) in REGIONS_TOWNS.items():
         folium.Marker(
             location=[t_lat, t_lon],
@@ -320,7 +363,7 @@ def generate_map():
         ).add_to(fg_labels)
 
     # ==========================================
-    # 5. INJECT CUSTOM CSS & JS UI OVERLAYS
+    # 7. INJECT CUSTOM CSS & JS UI OVERLAYS
     # ==========================================
     map_root = m.get_root()
     total_schools = len(schools)
@@ -360,13 +403,48 @@ def generate_map():
         box-shadow: 0 8px 32px rgba(0,0,0,0.6);
         backdrop-filter: blur(8px);
         font-family: 'Montserrat', sans-serif;
-        pointer-events: none; /* Let clicks pass through to map if needed */
+        pointer-events: none;
     }}
     
-    /* 3. Right-Side MAP DISPLAY SETTINGS Menu */
-    /* Push Leaflet controls down so they sit perfectly below the Acer Dashboard */
+    /* 3. Re-Add and Re-Style the Zoom Buttons to fit the dark theme */
+    .leaflet-top.leaflet-left {{
+        top: 20px !important;
+        left: 20px !important;
+    }}
+    .leaflet-control-zoom a {{
+        background: rgba(15, 15, 18, 0.95) !important;
+        color: #FFF !important;
+        border: 1px solid #333 !important;
+    }}
+    
+    /* 4. Bottom-Right Directory Button */
+    .directory-btn {{
+        position: absolute;
+        bottom: 25px;
+        right: 20px;
+        z-index: 1000;
+        background: rgba(15, 15, 18, 0.95);
+        color: white;
+        border: 1px solid #333;
+        border-radius: 6px;
+        padding: 8px 16px;
+        font-family: 'Montserrat', sans-serif;
+        font-weight: 800;
+        font-size: 11px;
+        letter-spacing: 1px;
+        cursor: pointer;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+        transition: all 0.2s;
+    }}
+    .directory-btn:hover {{
+        background: #222;
+        border-color: #fff;
+    }}
+
+    /* 5. Right-Side MAP DISPLAY SETTINGS Menu (Bulletproof Fixes) */
     .leaflet-top.leaflet-right .leaflet-control-layers {{
         margin-top: 140px !important; 
+        margin-right: 20px !important;
         background: rgba(15, 15, 18, 0.95) !important;
         border: 1px solid #333 !important;
         border-radius: 12px !important;
@@ -374,6 +452,8 @@ def generate_map():
         box-shadow: 0 8px 32px rgba(0,0,0,0.6) !important;
         backdrop-filter: blur(8px);
         font-family: 'Montserrat', sans-serif !important;
+        width: 260px !important;
+        box-sizing: border-box !important;
     }}
     .leaflet-control-layers-list::before {{
         content: "MAP DISPLAY SETTINGS";
@@ -386,26 +466,50 @@ def generate_map():
         border-bottom: 1px solid rgba(255,255,255,0.1);
         padding-bottom: 8px;
     }}
-    /* Flex alignment fix for checkboxes/radios */
-    .leaflet-control-layers-overlays label div, .leaflet-control-layers-base label div {{
-        display: flex;
-        align-items: center;
-        gap: 8px;
+    
+    /* Ironclad custom Checkbox CSS to override browser defaults */
+    .leaflet-control-layers-overlays label, .leaflet-control-layers-base label {{
+        display: flex !important;
+        align-items: center !important;
+        gap: 10px !important;
         color: #E2E8F0 !important;
         font-size: 11px !important;
         font-weight: 600 !important;
-        margin-bottom: 6px !important;
+        margin-bottom: 8px !important;
+        cursor: pointer !important;
     }}
-    .leaflet-control-layers-overlays label span, .leaflet-control-layers-base label span {{
-        line-height: 1.2;
-    }}
-    input[type="radio"], input[type="checkbox"] {{
-        accent-color: #38BDF8 !important; 
+    .leaflet-control-layers-selector {{
+        -webkit-appearance: none !important;
+        appearance: none !important;
         margin: 0 !important;
-        width: 14px;
-        height: 14px;
-        cursor: pointer;
-        flex-shrink: 0;
+        width: 14px !important;
+        height: 14px !important;
+        border: 1px solid #555 !important;
+        border-radius: 3px !important;
+        background: #222 !important;
+        flex-shrink: 0 !important;
+        position: relative !important;
+    }}
+    .leaflet-control-layers-selector[type="radio"] {{
+        border-radius: 50% !important;
+    }}
+    .leaflet-control-layers-selector:checked {{
+        background: #38BDF8 !important;
+        border-color: #38BDF8 !important;
+    }}
+    /* The tiny white checkmark/dot inside */
+    .leaflet-control-layers-selector:checked::after {{
+        content: "";
+        position: absolute;
+        top: 2px;
+        left: 2px;
+        width: 8px;
+        height: 8px;
+        background: white;
+        border-radius: 1px;
+    }}
+    .leaflet-control-layers-selector[type="radio"]:checked::after {{
+        border-radius: 50%;
     }}
     .leaflet-control-layers-separator {{
         border-top: 1px solid rgba(255,255,255,0.1) !important;
@@ -435,8 +539,11 @@ def generate_map():
             </div>
         </div>
     </div>
+    
+    <!-- Directory Button -->
+    <button class="directory-btn">■ DIRECTORY</button>
 
-    <!-- Recursive JS Synchronizer to prevent Leaflet Menu breaking -->
+    <!-- Safe Recursive JS Synchronizer to prevent Leaflet Menu DOM destruction -->
     <script>
     document.addEventListener('DOMContentLoaded', function() {{
         var map = null;
@@ -448,50 +555,40 @@ def generate_map():
         }}
         
         if (map) {{
-            function syncLayers() {{
-                var isExecClean = document.body.classList.contains('exec-mode-active');
-                var inputs = document.querySelectorAll('.leaflet-control-layers-selector');
-                var clicked = false;
-
-                for(var i = 0; i < inputs.length; i++) {{
-                    var cb = inputs[i];
-                    var span = cb.nextElementSibling;
-                    if(!span && cb.parentElement) span = cb.parentElement.querySelector('span');
-                    if(!span) continue;
-
-                    var label = span.textContent.trim();
-                    var shouldBeChecked = cb.checked;
-
-                    if (isExecClean) {{
-                        if (label.includes('Schools') || label.includes('Heatmap')) {{
-                            shouldBeChecked = false;
-                        }} else if (label.includes('Branches') || label.includes('Choropleth') || label.includes('Town')) {{
-                            shouldBeChecked = true;
-                        }}
-                    }} else {{
-                        if (label.includes('Schools') || label.includes('Choropleth') || label.includes('Branches') || label.includes('Town')) {{
-                            shouldBeChecked = true;
-                        }}
-                    }}
-
-                    if (cb.checked !== shouldBeChecked) {{
-                        cb.click();
-                        clicked = true;
-                        break; // Click one, let Leaflet rebuild, then loop again
-                    }}
-                }}
-                if (clicked) {{
-                    setTimeout(syncLayers, 50);
-                }}
-            }}
+            // Restore default zoom control manually to top-left so it stays out of our way
+            L.control.zoom({{ position: 'topleft' }}).addTo(map);
 
             map.on('baselayerchange', function(e) {{
-                if (e.name === 'Executive Dark Canvas (Clean)') {{
-                    document.body.classList.add('exec-mode-active');
-                }} else {{
-                    document.body.classList.remove('exec-mode-active');
+                var isExecClean = (e.name === 'Executive Dark Canvas (Clean)');
+                
+                function syncNext() {{
+                    var inputs = document.querySelectorAll('.leaflet-control-layers-selector');
+                    for(var i = 0; i < inputs.length; i++) {{
+                        var cb = inputs[i];
+                        var span = cb.nextElementSibling || cb.parentElement.querySelector('span');
+                        if(!span) continue;
+                        
+                        var label = span.textContent.trim();
+                        var targetState = cb.checked;
+                        
+                        if (isExecClean) {{
+                            // Hide Clutter
+                            if (label.includes('Schools') || label.includes('Heatmap')) targetState = false;
+                            // Show Infographics
+                            else if (label.includes('Branches') || label.includes('Choropleth') || label.includes('Town') || label.includes('Data Boxes')) targetState = true;
+                        }} else {{
+                            // Turn everything back on for standard mode
+                            if (label.includes('Schools') || label.includes('Choropleth') || label.includes('Branches') || label.includes('Town') || label.includes('Data Boxes')) targetState = true;
+                        }}
+
+                        if (cb.checked !== targetState) {{
+                            cb.click(); // Triggers Leaflet to rebuild the DOM
+                            setTimeout(syncNext, 10); // Safely wait, then process the next box
+                            return; // Break the loop so we don't try to access deleted DOM elements
+                        }}
+                    }}
                 }}
-                setTimeout(syncLayers, 50);
+                syncNext(); // Kick off the safe toggling loop
             }});
         }}
     }});
