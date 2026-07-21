@@ -242,6 +242,19 @@ def generate_map():
 
     print("[*] Plotting URA Regions (Bug Fixed: Strict Keyword Filtering)...")
 
+    ura_group = folium.FeatureGroup(name="Regional Boundaries (Choropleth)", show=True)
+    
+    ura_data = None
+    if os.path.exists("ura_regions.json"):
+        with open("ura_regions.json", "r") as f:
+            ura_data = json.load(f)
+    else:
+        try:
+            res = requests.get("https://raw.githubusercontent.com/itsray01/acerexpansion/main/ura_regions.json", timeout=10)
+            if res.status_code == 200: ura_data = res.json()
+        except Exception as e:
+            print(f"[!] URA network fetch failed: {e}")
+
     def get_vibrant_style(feature):
         props = str(feature.get('properties', {})).upper()
         if 'EAST' in props and 'NORTH-EAST' not in props and 'NORTHEAST' not in props:
