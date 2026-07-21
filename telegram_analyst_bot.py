@@ -72,7 +72,7 @@ def get_map_screenshot(png_file="map_preview.png", enable_heatmap=False, force_r
 
     # 3. MEMORY LOCK: Only one thread can open Chrome at a time!
     with BROWSER_LOCK:
-        # Double check cache inside the lock (in case the Ghost Task JUST finished making it while we waited in line)
+        # Double check cache inside the lock
         if not force_refresh and os.path.exists(png_file):
             file_age_seconds = time.time() - os.path.getmtime(png_file)
             if file_age_seconds < 43200:
@@ -108,28 +108,53 @@ def get_map_screenshot(png_file="map_preview.png", enable_heatmap=False, force_r
                 # Give base map tiles a few seconds to visually populate
                 page.wait_for_timeout(5000)
                 
-                # Inject JS to click buttons like a real human
+                # Inject JS to click buttons like a real human and scale UI elements for Screenshots
                 js_code = """
                 (enableHeatmap) => {
                     const zoomOutBtn = document.querySelector('.leaflet-control-zoom-out');
                     if (zoomOutBtn) zoomOutBtn.click();
 
-                    document.querySelectorAll('.legend-text').forEach(span => {
-                        if (span.textContent.includes('Simulated')) {
-                            if (span.parentElement) span.parentElement.style.display = 'none';
+                    // UI OVERRIDE: Scale down the legend exclusively for bot screenshots
+                    const legend = document.getElementById('map-legend');
+                    if (legend) {
+                        legend.style.transform = 'scale(0.75)';
+                        legend.style.transformOrigin = 'top left';
+                    }
+
+                    // Manage Layers via Leaflet Control UI
+                    document.querySelectorAll('input.leaflet-control-layers-selector').forEach(cb => {
+                        const label = cb.closest('label');
+                        if (!label) return;
+                        const txt = label.textContent;
+
+                        // ALWAYS hide the simulation pin in bot screenshots
+                        if (txt.includes('Simulate') && cb.checked) {
+                            cb.click();
                         }
-                        if (!enableHeatmap && span.textContent.includes('Heatmap')) {
-                            if (span.parentElement) span.parentElement.style.display = 'none';
+
+                        // UI OVERRIDE: ALWAYS hide Regional Data Boxes in screenshots so they look clean
+                        if (txt.includes('Regional Data Boxes') && cb.checked) {
+                            cb.click();
+                        }
+                        
+                        // ENSURE Competitors and BTOs are ON in screenshots
+                        if (txt.includes('Competitor Network') && !cb.checked) {
+                            cb.click();
+                        }
+                        if (txt.includes('Upcoming BTO Estates') && !cb.checked) {
+                            cb.click();
+                        }
+                        
+                        // Toggle Heatmap ON if requested (for /report)
+                        if (enableHeatmap && txt.includes('Heatmap') && !cb.checked) {
+                            cb.click();
                         }
                     });
 
+                    // UI OVERRIDE: Force Ender Dragon bar to show for /report screenshots
                     if (enableHeatmap) {
-                        document.querySelectorAll('.leaflet-control-layers-selector').forEach(cb => {
-                            const label = cb.closest('label');
-                            if (label && label.textContent.includes('Heatmap') && !cb.checked) {
-                                cb.click();
-                            }
-                        });
+                        const healthBar = document.getElementById('heatmap-health-bar');
+                        if (healthBar) healthBar.style.display = 'block';
                     }
                 }
                 """
@@ -203,18 +228,19 @@ def generate_intelligence_report():
     protected_count = total_schools - total_unprotected
     coverage_pct = round((protected_count / total_schools) * 100) if total_schools > 0 else 0
 
+    # Phrasing polished from "Unprotected" to "Unserved"
     report = ("📊 *ACER ACADEMY: EXPANSION INTELLIGENCE*\n━━━━━━━━━━━━━━━━━━━━━━━━\n\n🎯 *Top Untapped Towns* _(No branch <1.5km)_\n")
     medals = ["1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣"]
     for idx, (town, count) in enumerate(top_towns):
         badge = " 🔥" if idx == 0 else ""
-        report += f"{medals[idx]} *{town}* — {count} Unprotected Schools{badge}\n"
+        report += f"{medals[idx]} *{town}* — {count} Unserved Schools{badge}\n"
 
     report += (
         "\n🛡️ *Network Coverage Summary*\n"
         f"• Existing Branches: *{len(branches)}*\n"
         f"• Tracked Schools: *{total_schools}*\n"
         f"• Protected (<1.5km): *{protected_count}* ({coverage_pct}%)\n"
-        f"• Unprotected Zones: *{total_unprotected}*\n\n"
+        f"• Unserved Schools: *{total_unprotected}*\n\n"
         "💡 *Strategic Takeaway:*\n"
         f"_Prioritize upcoming HDB commercial tenders in *{top_towns[0][0]}* and *{top_towns[1][0]}* to capture the highest density of unserved students._"
     )
@@ -231,7 +257,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "Welcome to the automated HDB tender & expansion intelligence system.\n\n"
         "📱 *Available Commands:*\n"
         "• /tenders — Scrape latest HDB Place2Lease listings\n"
-        "• /report — Network intelligence & map preview\n"
+        "• /report — Network intelligence & heatmap preview\n"
         "• /map — Render map screenshot & access web link\n"
         "• /help — How to read the data & metrics\n\n"
         "_Select an option from the menu below to begin:_"
@@ -277,7 +303,8 @@ async def report(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     try:
         loop = asyncio.get_running_loop()
-        img_path, err = await loop.run_in_executor(None, get_map_screenshot, "report_preview.png", True)
+        # force_refresh=True to make sure it captures the newly forced ON BTOs and Competitors
+        img_path, err = await loop.run_in_executor(None, get_map_screenshot, "report_preview.png", True, True)
         
         if img_path and os.path.exists(img_path):
             with open(img_path, 'rb') as photo:
@@ -300,14 +327,15 @@ async def map_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     caption_text = (
         "🗺️ *LIVE EXPANSION MAP PREVIEW*\n"
         "━━━━━━━━━━━━━━━━━━━━━━━━\n"
-        "Visualizing 17 Acer Academy branches & 331 school zones across Singapore.\n\n"
+        "Visualizing Acer Academy branches & 331 school zones across Singapore.\n\n"
         "🌐 *Live Interactive Web Map:*\n"
         "[👉 Click Here to Open Interactive Map](https://itsray01.github.io/acerexpansion/acer_expansion_map.html)"
     )
     
     try:
         loop = asyncio.get_running_loop()
-        img_path, err = await loop.run_in_executor(None, get_map_screenshot, "map_preview.png", False)
+        # force_refresh=True to make sure it captures the newly forced ON BTOs and Competitors
+        img_path, err = await loop.run_in_executor(None, get_map_screenshot, "map_preview.png", False, True)
         
         if img_path and os.path.exists(img_path):
             with open(img_path, 'rb') as photo:
@@ -328,7 +356,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "📖 *ACER ACADEMY: SYSTEM GUIDE*\n"
         "━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
         "🎯 *The 1.5km Radius Rule*\n"
-        "We use a 1.5km protective radius around existing branches. If a school falls outside this zone, it is considered an *Unprotected School*. The `/report` ranks the towns with the most unprotected schools.\n\n"
+        "We use a 1.5km protective radius around existing branches. If a school falls outside this zone, it is considered an *Unserved School*. The `/report` ranks the towns with the most unserved schools.\n\n"
         "💵 *Understanding PSF (Per Square Foot)*\n"
         "The bot automatically cross-references HDB bids against the private commercial market:\n"
         "• *Market Rate:* The median rent for similar private units in that specific cluster.\n"
@@ -398,4 +426,5 @@ if __name__ == '__main__':
     app.add_handler(CommandHandler("map", map_command))
     app.add_handler(CommandHandler("help", help_command))
     
+    print("[*] Bot is running and polling... Press Ctrl+C to stop.")
     app.run_polling()
