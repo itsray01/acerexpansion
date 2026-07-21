@@ -1,527 +1,692 @@
-import folium
-from folium import plugins
-import pandas as pd
-import json
 import os
-import requests
+import re
+import json
 import math
+import time
+import csv
+import requests
+import pandas as pd
+from playwright.sync_api import sync_playwright
 
-def generate_map():
-    print("[*] Booting up Map Engine...")
+# ==========================================
+# 1. CONFIGURATION & SECRETS  
+# ==========================================
+TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 
-    # ==========================================
-    # 1. LOAD DATA SOURCES
-    # ==========================================
-    
-    # A. Acer Academy Existing Branches
-    EXISTING_BRANCHES = {
-        "Woodlands": (1.4366, 103.7865),
-        "Bukit Panjang": (1.3789, 103.7621),
-        "Choa Chu Kang": (1.3846, 103.7447),
-        "Jurong East": (1.3331, 103.7423),
-        "Clementi": (1.3140, 103.7624),
-        "Bukit Timah": (1.3275, 103.8066),
-        "Toa Payoh": (1.3323, 103.8475),
-        "Bishan": (1.3496, 103.8492),
-        "Ang Mo Kio": (1.3694, 103.8499),
-        "Yishun": (1.4284, 103.8354),
-        "Sengkang": (1.3917, 103.8945),
-        "Punggol": (1.4052, 103.9024),
-        "Hougang": (1.3725, 103.8925),
-        "Serangoon": (1.3496, 103.8732),
-        "Tampines": (1.3524, 103.9440),
-        "Pasir Ris": (1.3721, 103.9491),
-        "Bedok": (1.3236, 103.9273),
-        "Marine Parade": (1.3026, 103.9048),
-        "Paya Lebar": (1.3175, 103.8926)
-    }
+# Your Ziny Proxy Credentials injected from GitHub Secrets
+PROXY_HOST = os.getenv("PROXY_HOST")
+PROXY_PORT = os.getenv("PROXY_PORT")
+PROXY_USER = os.getenv("PROXY_USER")
+PROXY_PASS = os.getenv("PROXY_PASS")
 
-    # B. Load School Database
-    print("[*] Loading exact GPS coordinates from local school_db.json...")
-    schools_data = []
-    if os.path.exists("school_db.json"):
-        with open("school_db.json", "r", encoding="utf-8") as f:
-            schools_data = json.load(f)
-    print(f"[+] Successfully loaded {len(schools_data)} schools with strict pinpoint accuracy.")
+STATE_FILE = "seen_hdb_listings.json"
+MIN_SQFT_LIMIT = 400.0  
 
-    # ==========================================
-    # 2. INITIALIZE PREMIUM MAP (Business Times Style)
-    # ==========================================
-    m = folium.Map(
-        location=[1.3521, 103.8198],
-        zoom_start=12,
-        tiles=None, # We use custom tiles below
-        control_scale=True,
-        max_bounds=True
-    )
+# Default CSV file path (Will be downloaded from GitHub on the fly)
+MARKET_DATA_FILE = "sg_commercial_rent_listings_psf_sorted.csv"
 
-    # Adding "Dark Mode" specifically for heatmap contrast
-    folium.TileLayer(
-        tiles='https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
-        attr='&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
-        name='Dark Streets (Default)',
-        control=True
-    ).add_to(m)
-    
-    # Adding a clean light canvas for editorial look
-    folium.TileLayer(
-        tiles='https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
-        attr='&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>',
-        name='Light Canvas',
-        control=True,
-        show=False
-    ).add_to(m)
+# Trigger "Above Market" warning
+MAX_PSF_THRESHOLD = 20.0
 
-    # Standard map just in case
-    folium.TileLayer('openstreetmap', name='Standard Map', show=False).add_to(m)
+# 2026 Regional Baselines if a specific location is missing in the CSV
+REGIONAL_FALLBACK_PSF = {
+    "West Cluster": 15.00,             # OCR Suburban (Jurong, Clementi, CCK)
+    "Central Cluster": 25.00,          # RCR City Fringe (Toa Payoh, Bishan, Queenstown)
+    "East / Northeast Cluster": 16.00, # OCR Suburban (Tampines, Sengkang)
+    "General Region": 16.00            # Fallback
+}
 
-    # ==========================================
-    # 3. URA CHOROPLETH REGIONS
-    # ==========================================
-    ura_group = folium.FeatureGroup(name="Regional Boundaries (Choropleth)", show=True)
-    boxes_group = folium.FeatureGroup(name="Regional Data Boxes", show=True)
+CLUSTER_NAMES = {
+    "JURONG": "West Cluster", "CLEMENTI": "West Cluster", "BUKIT BATOK": "West Cluster", 
+    "CHOA CHU KANG": "West Cluster", "BUKIT PANJANG": "West Cluster", "BOON LAY": "West Cluster",
+    "TOA PAYOH": "Central Cluster", "BISHAN": "Central Cluster", "KALLANG": "Central Cluster", 
+    "WHAMPOA": "Central Cluster", "QUEENSTOWN": "Central Cluster", "BUKIT MERAH": "Central Cluster", 
+    "CENTRAL AREA": "Central Cluster", "NOVENA": "Central Cluster",
+    "SERANGOON": "East / Northeast Cluster", "HOUGANG": "East / Northeast Cluster", 
+    "SENGKANG": "East / Northeast Cluster", "PUNGGOL": "East / Northeast Cluster", 
+    "TAMPINES": "East / Northeast Cluster", "BEDOK": "East / Northeast Cluster", 
+    "PASIR RIS": "East / Northeast Cluster", "GEYLANG": "East / Northeast Cluster", 
+    "KOVAN": "East / Northeast Cluster"
+}
 
-    ura_colors = {
-        "NORTH REGION": "#4fc3f7",     # Light Blue
-        "NORTH-EAST REGION": "#4fc3f7",# Merged into North conceptually for coloring
-        "EAST REGION": "#fde047",      # Yellow
-        "WEST REGION": "#86efac",      # Green
-        "CENTRAL REGION": "#f9a8d4"    # Pink
-    }
+EXISTING_BRANCHES = {
+    "Junction 9 (North)": (1.4325, 103.8408),
+    "Admiralty Place (North)": (1.4404, 103.8003),
+    "The Woodgrove (North)": (1.4311, 103.7844),
+    "Vista Point (North)": (1.4315, 103.7937),
+    "Canberra Plaza (North)": (1.4431, 103.8297),
+    "Tampines West (East)": (1.3486, 103.9360),
+    "Buangkok Square (East)": (1.3837, 103.8823),
+    "Aljunied (East)": (1.321506345667894, 103.88726075133513),
+    "Elias Mall (East)": (1.3773, 103.9424),
+    "Dawson (Central)": (1.2941, 103.8099),
+    "Depot Heights (Central)": (1.2809, 103.8086),
+    "Tiong Bahru (Central)": (1.2861739679441766, 103.82850623578356),
+    "Cantonment (Central)": (1.2766, 103.8413),
+    "Commonwealth (Central)": (1.3025, 103.7983),
+    "Senja Heights (West)": (1.3853, 103.7629),
+    "Greenridge (West)": (1.3856, 103.7663),
+    "Hong Kah (West)": (1.3496, 103.7210)
+}
 
-    # Fetch URA Regions via local file
-    print("[*] Plotting URA Regions...")
-    ura_data = None
-    if os.path.exists("ura_regions.json"):
-        try:
-            with open("ura_regions.json", "r", encoding="utf-8") as f:
-                ura_data = json.load(f)
-        except Exception as e:
-            print(f"[!] Error loading local ura_regions.json: {e}")
-    else:
-        # Fallback to web request
-        try:
-            url = "https://raw.githubusercontent.com/itsray01/acerexpansion/main/ura_regions.json"
-            res = requests.get(url)
-            if res.status_code == 200:
-                ura_data = res.json()
-        except: pass
+DEBUG_LOGS = []
 
-    if ura_data:
-        for feature in ura_data['features']:
-            region_name = feature['properties']['REGION_N']
-            # Default to Central if undefined
-            fill_color = ura_colors.get(region_name, "#f9a8d4")
+def debug_log(msg):
+    print(msg)
+    DEBUG_LOGS.append(msg)
+
+def send_telegram_alert(markdown_message, image_url=None):
+    if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
+        debug_log("[!] Telegram credentials missing from environment.")
+        return
+        
+    try:
+        if image_url:
+            # Use sendPhoto to natively attach the image to the chat bubble
+            url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendPhoto"
+            payload = {
+                "chat_id": TELEGRAM_CHAT_ID, 
+                "photo": image_url,
+                "caption": markdown_message, 
+                "parse_mode": "Markdown"
+            }
+            res = requests.post(url, json=payload, timeout=10)
             
-            folium.GeoJson(
-                feature,
-                style_function=lambda x, color=fill_color: {
-                    'fillColor': color,
-                    'color': '#ffffff',
-                    'weight': 1.5,
-                    'fillOpacity': 0.35
-                },
-                tooltip=region_name.title()
-            ).add_to(ura_group)
-            
-        # Draw Data Callout Boxes manually for the 4 regions
-        regions_centers = {
-            "North": (1.43, 103.81),
-            "West": (1.35, 103.71),
-            "East": (1.35, 103.95),
-            "Central": (1.29, 103.83)
+            # If the image upload fails, gracefully fall back to text
+            if res.status_code != 200:
+                debug_log(f"[*] Native Photo Upload Failed ({res.status_code}). Falling back to text-mode...")
+                url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
+                fallback_msg = f"{markdown_message}\n\n[🖼️ View Floorplan]({image_url})"
+                payload = {
+                    "chat_id": TELEGRAM_CHAT_ID,
+                    "text": fallback_msg,
+                    "parse_mode": "Markdown",
+                    "disable_web_page_preview": False
+                }
+                requests.post(url, json=payload, timeout=10)
+        else:
+            url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
+            payload = {
+                "chat_id": TELEGRAM_CHAT_ID, 
+                "text": markdown_message, 
+                "parse_mode": "Markdown", 
+                "disable_web_page_preview": True
+            }
+            requests.post(url, json=payload, timeout=10)
+    except Exception as e:
+        debug_log(f"[!] Failed to send Telegram alert: {e}")
+
+def get_proxies():
+    """Constructs the standard proxy dictionary for requests from your env variables."""
+    if PROXY_HOST and PROXY_PORT:
+        proxy_url = f"http://{PROXY_USER}:{PROXY_PASS}@{PROXY_HOST}:{PROXY_PORT}"
+        return {
+            "http": proxy_url,
+            "https": proxy_url
         }
-        
-        for r_name, (r_lat, r_lon) in regions_centers.items():
-            # Placeholder calculations - can be wired to actual data loops
-            box_html = f"""
-            <div style="background: white; border: 1px solid #ccc; padding: 10px; border-radius: 6px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); width: 140px;">
-                <h4 style="margin:0 0 5px 0; font-family: Arial; font-size:14px; color:#333;">{r_name} Region</h4>
-                <div style="font-family: Arial; font-size:11px; color:#666;">
-                    Branches: <b>5</b><br>
-                    Tracked Sch: <b>78</b><br>
-                    Untapped: <b>21</b>
-                </div>
-            </div>
-            """
-            folium.Marker(
-                location=[r_lat, r_lon],
-                icon=folium.DivIcon(html=box_html, icon_anchor=(70, 40))
-            ).add_to(boxes_group)
+    return None
 
-    # ==========================================
-    # 4. PLOT SCHOOLS (With strict coordinates)
-    # ==========================================
-    print("[*] Plotting Schools...")
-    primary_group = folium.FeatureGroup(name="Primary Schools (Sky Blue)", show=True)
-    secondary_group = folium.FeatureGroup(name="Secondary Schools (Violet)", show=True)
-    jc_group = folium.FeatureGroup(name="Junior Colleges (Amber)", show=True)
-    intl_group = folium.FeatureGroup(name="International Schools (Rose Pink)", show=True)
-
-    heat_data = []
-
-    for school in schools_data:
-        lat = school.get("lat")
-        lon = school.get("lon")
-        name = school.get("name", "Unknown School")
-        level = school.get("level", "")
-
-        if not lat or not lon: continue
-
-        # Add to heatmap data
-        heat_data.append([lat, lon, 1])
-
-        # Style by Level
-        color = "gray"
-        radius = 4
-        group = None
-        
-        if "PRIMARY" in level:
-            color = "#38bdf8" # Sky blue
-            group = primary_group
-        elif "SECONDARY" in level:
-            color = "#a78bfa" # Violet
-            group = secondary_group
-        elif "JUNIOR COLLEGE" in level or "MIXED" in level:
-            color = "#fbbf24" # Amber
-            group = jc_group
-        elif "INTERNATIONAL" in level:
-            color = "#f43f5e" # Rose Pink
-            group = intl_group
-            radius = 5 # Make premium schools slightly larger
-
-        if group:
-            query = name.replace(" ", "+")
-            popup_html = f"""
-            <div style="font-family: Arial, sans-serif; min-width: 150px;">
-                <b style="color: {color};">{name}</b><br>
-                <span style="font-size: 11px; color: #666;">Type: {level.title()}</span><br>
-                <a href="https://www.google.com/search?q={query}+Singapore+Official+Website" target="_blank" style="font-size: 11px; text-decoration: none; color: #0b57d0;">[+] Search Web</a>
-            </div>
-            """
-            
-            folium.CircleMarker(
-                location=[lat, lon],
-                radius=radius,
-                popup=folium.Popup(popup_html, max_width=250),
-                tooltip=name,
-                color=color,
-                fill=True,
-                fill_color=color,
-                fill_opacity=0.7,
-                weight=1
-            ).add_to(group)
-
-    # ==========================================
-    # 5. HEATMAP LAYER
-    # ==========================================
-    heatmap_group = folium.FeatureGroup(name="Expansion Heatmap (Untapped)", show=False)
-    if heat_data:
-        plugins.HeatMap(
-            heat_data,
-            radius=20,
-            blur=15,
-            max_zoom=13, # Locks heatmap intensity so it stays red when zooming in
-            gradient={0.2: '#000000', 0.4: '#22d3ee', 0.6: '#facc15', 0.8: '#ef4444', 1.0: '#991b1b'}
-        ).add_to(heatmap_group)
-
-    # ==========================================
-    # 6. COMPETITOR LAYER (TRIANGLES)
-    # ==========================================
-    print("[*] Plotting Competitor Database...")
-    comp_group = folium.FeatureGroup(name="Competitor Network", show=False)
+def fetch_latest_commercial_data():
+    """Pulls the pristine sorted dataset directly from your GitHub repository."""
+    debug_log("[*] Downloading latest market dataset from GitHub repository...")
+    url = "https://raw.githubusercontent.com/itsray01/acerexpansion/main/sg_commercial_rent_listings_psf_sorted.csv"
     
-    competitors = []
-    if os.path.exists("competitor_db.json"):
-        try:
-            with open("competitor_db.json", "r", encoding="utf-8") as f:
-                competitors = json.load(f)
-        except Exception as e: print(f"Competitor load error: {e}")
-        
-    for comp in competitors:
-        lat = comp.get("lat")
-        lon = comp.get("lon")
-        if not lat or not lon: continue
-        
-        brand = comp.get("brand", "Competitor")
-        # Base shadow and default color
-        comp_color = "#333333"
-        
-        if "Kumon" in brand: comp_color = "#1B365D" # Dark Blue
-        elif "Mind Stretcher" in brand: comp_color = "#F2D2A9" # Light Gold
-        elif "Zenith" in brand: comp_color = "#808080" # Gray
-        elif "Learning Lab" in brand or "TLL" in brand: comp_color = "#A28E5C" # Muted Gold
-        elif "Aspire" in brand: comp_color = "#4A90E2" # Blue
+    try:
+        response = requests.get(url, timeout=15)
+        if response.status_code == 200:
+            with open(MARKET_DATA_FILE, 'wb') as f:
+                f.write(response.content)
+            debug_log("[+] Successfully downloaded sg_commercial_rent_listings_psf_sorted.csv")
+        else:
+            debug_log(f"[!] GitHub raw file fetch failed. HTTP Status: {response.status_code}")
+    except Exception as e:
+        debug_log(f"[!] Error fetching CSV from GitHub: {e}")
 
-        # Draw Triangle using DivIcon
-        triangle_html = f"""
-        <div style="
-            width: 0; 
-            height: 0; 
-            border-left: 8px solid transparent;
-            border-right: 8px solid transparent;
-            border-bottom: 14px solid {comp_color};
-            filter: drop-shadow(0px 2px 2px rgba(0,0,0,0.5));
-        "></div>
-        """
-        
-        folium.Marker(
-            location=[lat, lon],
-            popup=f"<b>{brand}</b><br>{comp.get('branch', '')}",
-            tooltip=f"Competitor: {brand}",
-            icon=folium.DivIcon(html=triangle_html, icon_anchor=(8, 14))
-        ).add_to(comp_group)
-
-    # ==========================================
-    # 7. BTO MEGA-ESTATES (RADAR PULSE)
-    # ==========================================
-    print("[*] Plotting BTO Mega-Estates...")
-    bto_group = folium.FeatureGroup(name="Upcoming BTO Estates (2026-2030)", show=True)
-    
-    # 6 Massive upcoming population hubs
-    mega_btos = [
-        {"name": "Tengah Mega Town", "lat": 1.3644, "lon": 103.7306, "desc": "42,000 homes. Major smart city."},
-        {"name": "Bayshore Precinct", "lat": 1.3142, "lon": 103.9431, "desc": "10,000 homes along East Coast."},
-        {"name": "Chencharu (Yishun)", "lat": 1.4116, "lon": 103.8273, "desc": "10,000 homes in new Yishun estate."},
-        {"name": "Woodlands North", "lat": 1.4452, "lon": 103.7846, "desc": "10,000 homes near RTS Link."},
-        {"name": "Mount Pleasant", "lat": 1.3283, "lon": 103.8378, "desc": "5,000 premium homes in Central."},
-        {"name": "Ulu Pandan", "lat": 1.3175, "lon": 103.7744, "desc": "3,000 homes in mature Dover/Clementi."}
+def load_school_db():
+    possible_paths = [
+        "school_db.json",
+        os.path.join(os.path.dirname(__file__), "school_db.json") if "__file__" in globals() else None
     ]
-    
-    for bto in mega_btos:
-        # Custom CSS for pulsing radar effect
-        icon_html = """
-        <div style="
-            background-color: #ef4444;
-            width: 14px;
-            height: 14px;
-            border-radius: 50%;
-            border: 2px solid white;
-            box-shadow: 0 0 10px #ef4444, 0 0 20px #ef4444;
-            animation: pulse-red 2s infinite;
-        "></div>
-        <style>
-            @keyframes pulse-red {
-                0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
-                70% { box-shadow: 0 0 0 15px rgba(239, 68, 68, 0); }
-                100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
-            }
-        </style>
-        """
-        
-        folium.Marker(
-            location=[bto["lat"], bto["lon"]],
-            popup=f"<b style='color:#ef4444;'>{bto['name']}</b><br>{bto['desc']}",
-            tooltip=f"Mega BTO: {bto['name']}",
-            icon=folium.DivIcon(html=icon_html, icon_anchor=(7, 7))
-        ).add_to(bto_group)
-
-    # ==========================================
-    # 8. LIVE HDB TENDERS (GLOWING GREEN BEACONS)
-    # ==========================================
-    print("[*] Plotting Live HDB Tenders...")
-    tenders_group = folium.FeatureGroup(name="Live HDB Tenders (Actionable)", show=True)
-    
-    live_tenders = []
-    if os.path.exists("live_tenders.json"):
-        try:
-            with open("live_tenders.json", "r", encoding="utf-8") as f:
-                live_tenders = json.load(f)
-        except Exception as e: print(f"Error reading local live_tenders.json: {e}")
-    else:
-        try:
-            res = requests.get("https://raw.githubusercontent.com/itsray01/acerexpansion/main/live_tenders.json", timeout=10)
-            if res.status_code == 200: live_tenders = res.json()
-        except: pass
-
-    if live_tenders:
-        for tender in live_tenders:
+    for path in possible_paths:
+        if path and os.path.exists(path):
             try:
-                lat = tender.get("lat")
-                lon = tender.get("lon")
-                if not lat or not lon: continue
-                
-                # Make it pop with custom HTML Green Beacon
-                icon_html = """
-                <div style="
-                    background-color: #10B981;
-                    width: 16px;
-                    height: 16px;
-                    border-radius: 50%;
-                    border: 2px solid white;
-                    box-shadow: 0 0 10px #10B981, 0 0 20px #10B981;
-                    animation: pulse-green 2s infinite;
-                "></div>
-                <style>
-                    @keyframes pulse-green {
-                        0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
-                        70% { box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); }
-                        100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
-                    }
-                </style>
-                """
-                
-                popup_html = f"""
-                <div style="font-family: Arial, sans-serif; width: 220px;">
-                    <h4 style="margin: 0 0 5px 0; color: #10B981;">🟢 LIVE TENDER</h4>
-                    <b style="font-size: 14px;">{tender.get('project', 'Unknown')}</b><br>
-                    <span style="color: #666; font-size: 12px;">{tender.get('address', '')}</span>
-                    <hr style="margin: 8px 0; border: 0; border-top: 1px solid #eee;">
-                    <b>Rent:</b> {tender.get('price', 'N/A')}<br>
-                    <b>Size:</b> {tender.get('size_sqft', 'N/A')} sqft<br>
-                    <b>PSF:</b> ${tender.get('psf', 'N/A')}<br>
-                    <hr style="margin: 8px 0; border: 0; border-top: 1px solid #eee;">
-                    <a href="{tender.get('url', 'https://place2lease.hdb.gov.sg/')}" target="_blank" style="color: #0b57d0; text-decoration: none; font-weight: bold;">[+] View on HDB Place2Lease</a>
-                </div>
-                """
-                
-                folium.Marker(
-                    location=[lat, lon],
-                    popup=folium.Popup(popup_html, max_width=250),
-                    tooltip="🟢 Live HDB Tender",
-                    icon=folium.DivIcon(html=icon_html, icon_anchor=(8, 8))
-                ).add_to(tenders_group)
+                with open(path, "r", encoding="utf-8") as f:
+                    schools = json.load(f)
+                    if schools:
+                        return schools
             except Exception as e:
-                print(f"Error mapping tender: {e}")
+                debug_log(f"[!] Warning reading '{path}': {e}")
+                
+    debug_log("[!] school_db.json missing. Using micro-fallback database.")
+    return [
+        {"name": "Nanyang Primary School", "lat": 1.3210, "lon": 103.8060, "level": "PRIMARY"},
+        {"name": "Rulang Primary School", "lat": 1.3468, "lon": 103.7190, "level": "PRIMARY"},
+        {"name": "Nan Hua Primary School", "lat": 1.3190, "lon": 103.7600, "level": "PRIMARY"},
+        {"name": "United World College (East)", "lat": 1.3575, "lon": 103.9450, "level": "INTERNATIONAL"}
+    ]
 
-    # ==========================================
-    # 9. PLOT ACER BRANCHES & CATCHMENT
-    # ==========================================
-    print("[*] Plotting Acer Academy Branches...")
-    branch_group = folium.FeatureGroup(name="Acer Academy Branches", show=True)
+def lookup_market_psf(project_name, cluster_key):
+    if not os.path.exists(MARKET_DATA_FILE):
+        debug_log(f"[*] Reference file {MARKET_DATA_FILE} not found. Reverting to regional baseline.")
+        cluster_region = CLUSTER_NAMES.get(cluster_key, "General Region")
+        return REGIONAL_FALLBACK_PSF.get(cluster_region, 16.0), "Baseline Fallback", False
 
-    for name, coords in EXISTING_BRANCHES.items():
-        # Inner Core Icon
-        folium.CircleMarker(
-            location=coords,
-            radius=6,
-            popup=f"<b>Acer Academy {name}</b>",
-            tooltip=f"Acer Academy {name}",
-            color="white",
-            weight=2,
-            fill=True,
-            fill_color="#0b57d0",
-            fill_opacity=1.0,
-            zIndexOffset=1000
-        ).add_to(branch_group)
+    try:
+        matching_psfs = []
+        project_normalized = str(project_name).strip().lower()
+        
+        with open(MARKET_DATA_FILE, "r", encoding="utf-8") as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                row_project = str(row.get("Project", "")).strip().lower()
+                row_address = str(row.get("Address", "")).strip().lower()
+                
+                if (project_normalized in row_project) or (row_project in project_normalized) or (project_normalized in row_address):
+                    try:
+                        psf_val = float(row.get("PSF", 0.0))
+                        if psf_val > 0.1:
+                            matching_psfs.append(psf_val)
+                    except ValueError:
+                        continue
+                        
+        if matching_psfs:
+            matching_psfs.sort()
+            mid = len(matching_psfs) // 2
+            median_psf = (matching_psfs[mid] + matching_psfs[~mid]) / 2.0
+            debug_log(f"[+] Found {len(matching_psfs)} direct market matches. Localized Median: ${median_psf:.2f} PSF.")
+            return median_psf, "Direct Match", True
 
-        # 1.5km Catchment Ring
-        folium.Circle(
-            location=coords,
-            radius=1500,
-            color="#0b57d0",
-            weight=1,
-            fill=True,
-            fill_color="#0b57d0",
-            fill_opacity=0.1
-        ).add_to(branch_group)
+    except Exception as e:
+        debug_log(f"[!] Error reading market dataset: {e}")
 
-    # ==========================================
-    # 10. INTERACTIVE EXPANSION SIMULATOR
-    # ==========================================
-    sim_group = folium.FeatureGroup(name="Simulate Expansion (Click Map)", show=False)
-    
-    click_js = """
-    function onMapClick(e) {
-        if (!window.simLayerActive) return;
+    # Regional matching fallback inside the CSV
+    try:
+        cluster_psfs = []
+        cluster_normalized = str(cluster_key).strip().lower()
         
-        if (window.simMarker) {
-            map.removeLayer(window.simMarker);
-            map.removeLayer(window.simCircle);
-        }
-        
-        window.simMarker = L.circleMarker(e.latlng, {
-            radius: 8,
-            color: 'white',
-            weight: 2,
-            fillColor: '#facc15',
-            fillOpacity: 1.0
-        }).addTo(map);
-        
-        window.simCircle = L.circle(e.latlng, {
-            radius: 1500,
-            color: '#facc15',
-            weight: 2,
-            fillColor: '#facc15',
-            fillOpacity: 0.2
-        }).addTo(map);
-        
-        window.simMarker.bindPopup("<b>Simulated Branch</b><br>1.5km Radius").openPopup();
+        with open(MARKET_DATA_FILE, "r", encoding="utf-8") as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                row_address = str(row.get("Address", "")).strip().lower()
+                if cluster_normalized in row_address:
+                    try:
+                        psf_val = float(row.get("PSF", 0.0))
+                        if psf_val > 0.1:
+                            cluster_psfs.append(psf_val)
+                    except ValueError:
+                        continue
+                        
+        if cluster_psfs:
+            cluster_psfs.sort()
+            mid = len(cluster_psfs) // 2
+            median_psf = (cluster_psfs[mid] + cluster_psfs[~mid]) / 2.0
+            debug_log(f"[+] Regional matches resolved on cluster '{cluster_key}'. Regional Median: ${median_psf:.2f} PSF.")
+            return median_psf, f"CSV: {cluster_key}", True
+            
+    except Exception as e:
+        debug_log(f"[!] Error during regional CSV analysis step: {e}")
+
+    # Absolute fallback
+    cluster_region = CLUSTER_NAMES.get(cluster_key, "General Region")
+    fallback_val = REGIONAL_FALLBACK_PSF.get(cluster_region, 16.0)
+    return fallback_val, "Baseline Fallback", False
+
+def fetch_json_safe(url, use_sg_proxy=False):
+    """Safely fetches JSON using standard Python Requests with your native Proxy"""
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+        "Accept": "application/json",
+        "Referer": "https://www.hdb.gov.sg/"
     }
     
-    map.on('click', onMapClick);
+    proxies = get_proxies() if use_sg_proxy else None
     
-    map.on('overlayadd', function(e) {
-        if (e.name === 'Simulate Expansion (Click Map)') window.simLayerActive = true;
-    });
-    map.on('overlayremove', function(e) {
-        if (e.name === 'Simulate Expansion (Click Map)') {
-            window.simLayerActive = false;
-            if (window.simMarker) {
-                map.removeLayer(window.simMarker);
-                map.removeLayer(window.simCircle);
-            }
-        }
-    });
+    try:
+        res = requests.get(url, headers=headers, proxies=proxies, timeout=30)
+        if res.status_code == 200:
+            text = res.text
+            if text.strip().startswith("<"): 
+                debug_log("[!] FATAL: Firewall returned HTML instead of JSON API response!")
+                return {}
+            try:
+                return json.loads(text)
+            except Exception as e:
+                debug_log(f"[!] Failed to parse JSON. Response preview: {text[:100]}")
+                return {}
+        else:
+            debug_log(f"[!] Target URL returned HTTP {res.status_code}. Response preview: {res.text[:100]}")
+    except Exception as e:
+        debug_log(f"[!] Connection failed for {url}: {e}")
+    return {}
+
+def deep_find(obj, *keys):
+    target_keys = [k.lower() for k in keys]
+    if isinstance(obj, dict):
+        for k, v in obj.items():
+            if k.lower() in target_keys and v is not None and str(v).strip() != "":
+                return v
+        for k, v in obj.items():
+            if isinstance(v, (dict, list)):
+                res = deep_find(v, *keys)
+                if res is not None and str(res).strip() != "":
+                    return res
+    elif isinstance(obj, list):
+        for item in obj:
+            res = deep_find(item, *keys)
+            if res is not None and str(res).strip() != "":
+                return res
+    return None
+
+def calculate_haversine_distance(lat1, lon1, lat2, lon2):
+    R = 6371000  
+    phi1, phi2 = math.radians(lat1), math.radians(lat2)
+    delta_phi = math.radians(lat2 - lat1)
+    delta_lambda = math.radians(lon2 - lon1)
+    a = math.sin(delta_phi / 2.0)**2 + math.cos(phi1) * math.cos(phi2) * math.sin(delta_lambda / 2.0)**2
+    return R * (2 * math.atan2(math.sqrt(a), math.sqrt(1 - a)))
+
+def check_cannibalization(target_lat, target_lon):
+    nearest_branch, min_dist = None, float('inf')
+    for name, (lat, lon) in EXISTING_BRANCHES.items():
+        dist = calculate_haversine_distance(target_lat, target_lon, lat, lon)
+        if dist < min_dist:
+            min_dist, nearest_branch = dist, name
+    return nearest_branch, min_dist
+
+def count_local_schools(target_lat, target_lon, school_list, radius_meters=1500):
+    if not target_lat or not target_lon: return 0
+    return sum(1 for s in school_list if calculate_haversine_distance(target_lat, target_lon, s["lat"], s["lon"]) <= radius_meters)
+
+def get_robust_gps(address_string, cluster_key=""):
+    queries_to_try = []
+    postal_match = re.search(r'\b(\d{6})\b', address_string)
+    if postal_match: queries_to_try.append(postal_match.group(1))
+
+    clean_addr = re.sub(r'#\d+-[a-zA-Z0-9/]+', '', address_string)
+    clean_addr = re.sub(r'\b(Shop|Retail|Unit|HDB|Commercial|#\S+)\b', ' ', clean_addr, flags=re.I).strip()
+    if len(clean_addr) > 5: queries_to_try.append(clean_addr)
+    if cluster_key: queries_to_try.append(f"{cluster_key} Singapore")
+
+    for query in queries_to_try:
+        url = f"https://www.onemap.gov.sg/api/common/elastic/search?searchVal={query}&returnGeom=Y&getAddrDetails=Y&pageNum=1"
+        res = fetch_json_safe(url, use_sg_proxy=True) 
+        if res and res.get("found", 0) > 0:
+            return float(res["results"][0]["LATITUDE"]), float(res["results"][0]["LONGITUDE"])
+            
+    if "tengah" in address_string.lower() or (cluster_key and "tengah" in cluster_key.lower()):
+        debug_log("[*] Known BTO Fallback Triggered: Tengah")
+        return 1.3700, 103.7000 
+        
+    return None, None
+
+def format_display_address(raw_address):
+    return raw_address.strip()
+
+def extract_starting_bid(item_id):
     """
-    m.get_root().script.add_child(folium.Element(click_js))
-    sim_group.add_to(m)
+    Spins up Playwright exclusively for E-Bidding units to render Angular
+    and extract the hidden starting bid from the DOM.
+    """
+    if not item_id:
+        return 0.0
 
-    # ==========================================
-    # 11. REORDER LAYERS FOR CLEAN MENU
-    # ==========================================
-    # The order you add them here defines the order in the top-right menu!
-    branch_group.add_to(m)
-    tenders_group.add_to(m)
-    comp_group.add_to(m)
-    bto_group.add_to(m)
-    primary_group.add_to(m)
-    secondary_group.add_to(m)
-    jc_group.add_to(m)
-    intl_group.add_to(m)
-    heatmap_group.add_to(m)
-    ura_group.add_to(m)
-    boxes_group.add_to(m)
+    url = f"https://place2lease.hdb.gov.sg/public/view-properties/true/ebid-unit-details/{item_id}"
+    debug_log(f"[*] E-Bidding unit detected. Booting Playwright to scrape Starting Bid DOM for ID: {item_id}...")
 
-    # ==========================================
-    # 12. ADD LAYER CONTROL & LEGEND
-    # ==========================================
-    folium.LayerControl(collapsed=False).add_to(m)
+    try:
+        with sync_playwright() as p:
+            proxy_settings = None
+            if PROXY_HOST and PROXY_PORT:
+                proxy_settings = {
+                    "server": f"http://{PROXY_HOST}:{PROXY_PORT}",
+                    "username": PROXY_USER,
+                    "password": PROXY_PASS
+                }
 
-    # Upgraded Legend with Competitor Triangles
-    legend_html = '''
-    <div style="
-        position: fixed; 
-        bottom: 20px; left: 20px; width: 220px;
-        background-color: rgba(255, 255, 255, 0.95);
-        border: 1px solid #e0e0e0; border-radius: 8px;
-        padding: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-        font-family: 'Segoe UI', Arial, sans-serif; font-size: 12px; z-index: 9999;">
-        <h4 style="margin: 0 0 10px 0; font-size: 13px; color: #333;">Map Legend</h4>
+            browser = p.chromium.launch(headless=True)
+            context = browser.new_context(
+                proxy=proxy_settings,
+                user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"
+            )
+            page = context.new_page()
+            
+            page.goto(url, wait_until="networkidle", timeout=45000)
+            
+            # Wait for the TABLE ROW containing "Starting Bid" to appear
+            page.wait_for_selector("tr:has-text('Starting Bid')", timeout=15000)
+            
+            # Extract the text from that entire row
+            row_locator = page.locator("tr", has_text="Starting Bid").first
+            
+            if row_locator:
+                text = row_locator.inner_text().strip()
+                match = re.search(r'([0-9]{1,3}(?:,[0-9]{3})*(?:\.\d{2})?)', text)
+                if match:
+                    clean_val = match.group(1).replace(',', '')
+                    bid_value = float(clean_val)
+                    if bid_value > 500:
+                        browser.close()
+                        debug_log(f"    -> Successfully extracted Playwright DOM Bid: ${bid_value}")
+                        return bid_value
+
+            browser.close()
+    except Exception as e:
+        debug_log(f"[!] Playwright scrape failed for {item_id}: {e}")
+
+    return 0.0
+
+def scrape_hdb_place2lease():
+    debug_log("[*] Intercepting internal HDB JSON feed...")
+    listings = []
+    page_num = 1
+    max_pages = 10
+    
+    while page_num <= max_pages:
+        api_url = f"https://place2lease.hdb.gov.sg/webservice-public/api/v1/tender-units/public/search-tender-units?page={page_num}&pageSize=50&order=asc&orderProperty=lastPost.currentBidClosingDate&startIndex=0"
         
-        <i class="fa fa-circle" style="color: #0b57d0; margin-right: 5px;"></i> Acer Branch (1.5km Zone)<br>
-        <i class="fa fa-circle" style="color: #10B981; margin-right: 5px; text-shadow: 0 0 5px #10B981;"></i> <b>Live HDB Tender</b><br>
-        <i class="fa fa-bullseye" style="color: #ef4444; margin-right: 5px; text-shadow: 0 0 5px #ef4444;"></i> Upcoming BTO Estate<br>
+        payload = fetch_json_safe(api_url, use_sg_proxy=True)
+        raw_units = []
         
-        <div style="margin-top: 8px; margin-bottom: 5px; font-weight: bold; color: #555;">Competitors</div>
-        <i class="fa fa-caret-up" style="color: #1B365D; font-size: 16px; margin-right: 5px;"></i> Kumon<br>
-        <i class="fa fa-caret-up" style="color: #F2D2A9; font-size: 16px; margin-right: 5px;"></i> Mind Stretcher<br>
-        <i class="fa fa-caret-up" style="color: #808080; font-size: 16px; margin-right: 5px;"></i> Zenith<br>
-        <i class="fa fa-caret-up" style="color: #A28E5C; font-size: 16px; margin-right: 5px;"></i> The Learning Lab<br>
-        <i class="fa fa-caret-up" style="color: #4A90E2; font-size: 16px; margin-right: 5px;"></i> Aspire Hub<br>
-        
-        <div style="margin-top: 8px; margin-bottom: 5px; font-weight: bold; color: #555;">Schools</div>
-        <i class="fa fa-circle" style="color: #38bdf8; margin-right: 5px;"></i> Primary<br>
-        <i class="fa fa-circle" style="color: #a78bfa; margin-right: 5px;"></i> Secondary<br>
-        <i class="fa fa-circle" style="color: #fbbf24; margin-right: 5px;"></i> Junior College<br>
-        <i class="fa fa-circle" style="color: #f43f5e; margin-right: 5px;"></i> International
-    </div>
-    '''
-    m.get_root().html.add_child(folium.Element(legend_html))
+        if not payload:
+            debug_log(f"[!] Payload is empty on page {page_num}.")
+            break
 
-    print("[*] Saving highly interactive HTML map...")
-    m.save("acer_expansion_map.html")
-    print("[SUCCESS] Map successfully updated and saved to 'acer_expansion_map.html'")
+        if isinstance(payload, list): 
+            raw_units = payload
+        elif isinstance(payload, dict):
+            total_elements = payload.get("totalElements")
+            if total_elements == 0:
+                debug_log("[*] HDB API confirms totalElements = 0.")
+                break
+                
+            for key in ["content", "results", "tenderUnits", "data", "list", "items"]:
+                if key in payload and isinstance(payload[key], list): 
+                    raw_units = payload[key]
+                    break
+            if not raw_units:
+                for k, v in payload.items():
+                    if isinstance(v, dict):
+                        for subkey in ["content", "results", "tenderUnits", "list", "items"]:
+                            if subkey in v and isinstance(v[subkey], list): 
+                                raw_units = v[subkey]
+                                break
+        
+        if not raw_units:
+            break
+
+        debug_log(f"[+] Page {page_num}: Intercepted {len(raw_units)} raw properties. Filtering trades...")
+
+        for item in raw_units:
+            try:
+                # 1. STRICT TRADE FILTERING
+                is_open = item.get("isOpenTrade", False)
+                included_trades = item.get("includedTrades", []) or []
+                
+                target_trades = ["tuition", "enrichment", "student care"]
+                trade_match = False
+                
+                if is_open:
+                    trade_match = True
+                    trade_type = "Open Trade"
+                else:
+                    matched_specific = [t for t in included_trades if any(kw in t.lower() for kw in target_trades)]
+                    if matched_specific:
+                        trade_match = True
+                        trade_type = ", ".join(matched_specific)
+                    else:
+                        trade_type = ", ".join(included_trades) if included_trades else "Not Specified"
+                
+                if not trade_match:
+                    continue 
+                    
+                # 2. EXTRACT DATA
+                item_id = str(item.get("tenderUnitId") or item.get("id", ""))
+                full_address = item.get("address", "")
+                
+                if not full_address:
+                    block = str(deep_find(item, "blockNo", "block") or "").strip()
+                    street = str(deep_find(item, "streetName", "street") or "").strip()
+                    unit_no = str(deep_find(item, "unitNo", "unit") or "").strip()
+                    if block and street: full_address = f"Blk {block} {street}"
+                    if unit_no and unit_no != "None": full_address += f" #{unit_no}"
+
+                sqm = float(item.get("floorArea", 0) or 0)
+                sqft = sqm * 10.7639
+                if sqft < MIN_SQFT_LIMIT: continue
+
+                matched_key = item.get("hdbTown", "Unmapped Region").title()
+                
+                # Fetch Current/Highest Price
+                price = float(item.get("currentBid") or item.get("highestBid") or item.get("tenderPrice") or item.get("price") or 0.0)
+                
+                # Fetch Tender Type exactly as written in the main API
+                tender_type_raw = str(item.get("tenderType", "Unknown"))
+                tender_type = tender_type_raw.lower()
+                
+                is_sealed = ("price only" in tender_type or "sealed" in tender_type)
+                
+                # === PLAYWRIGHT INTEGRATION ===
+                starting_bid = 0.0
+                if "e-bidding" in tender_type:
+                    starting_bid = extract_starting_bid(item_id)
+                
+                # End Date directly from JSON
+                closing_date = item.get("bidClosingDate", "TBA")
+                if closing_date != "TBA":
+                    closing_date = closing_date.split(" ")[0]
+                
+                # Media / Thumbnail
+                image_url = ""
+                medias = item.get("unitMedias", [])
+                if medias and isinstance(medias, list) and len(medias) > 0:
+                    image_url = medias[0].get("url", "")
+                    if image_url.startswith("/"):
+                        image_url = f"https://place2lease.hdb.gov.sg{image_url}"
+
+                direct_link = f"https://place2lease.hdb.gov.sg/public/view-properties/true/ebid-unit-details/{item_id}" if item_id else "https://place2lease.hdb.gov.sg/public/"
+                unique_id = f"HDB_{item_id}_{int(sqft)}"
+
+                listings.append({
+                    "id": unique_id,
+                    "portal": "HDB Place2Lease",
+                    "cluster_key": matched_key,
+                    "address": full_address,
+                    "sqft": sqft,
+                    "sqm": round(sqm),
+                    "price": price,
+                    "starting_bid": starting_bid,
+                    "is_sealed": is_sealed,
+                    "tender_type_raw": tender_type_raw,
+                    "tender_type": tender_type,
+                    "trade_type": trade_type,
+                    "closing_date": closing_date,
+                    "link": direct_link,
+                    "image_url": image_url
+                })
+            except Exception as e:
+                debug_log(f"[!] Processing error on item: {e}")
+                
+        # Pagination Check
+        if isinstance(payload, dict):
+            total_elements = payload.get("totalElements", 0)
+            if page_num * 50 >= total_elements:
+                break
+        page_num += 1
+
+    return listings
+
+def load_price_ledger():
+    if os.path.exists(STATE_FILE):
+        try:
+            with open(STATE_FILE, "r") as f: return json.load(f)
+        except Exception: pass
+    return {}
+
+def save_price_ledger(ledger_dict):
+    with open(STATE_FILE, "w") as f: json.dump(ledger_dict, f, indent=2)
+
+def main():
+    send_telegram_alert("🟢 *System Test:* Direct HDB API Pipeline live. Fetching active inventory...")
+    
+    # 1. ALWAYS download the latest commercial benchmark file directly from GitHub
+    fetch_latest_commercial_data()
+    
+    price_ledger = load_price_ledger()
+    school_list = load_school_db()
+    all_units = scrape_hdb_place2lease()
+    
+    debug_log(f"[*] Found {len(all_units)} qualified active HDB properties.")
+    
+    # === CRITICAL FIX: MAP WIPE LOGIC ===
+    if not all_units:
+        log_text = "\n".join(DEBUG_LOGS[-15:])
+        error_msg = f"ℹ️ *HDB Feed Diagnostic:* 0 properties matched criteria.\n\n*Auto-Debug Logs:*\n```text\n{log_text}\n```"
+        send_telegram_alert(error_msg)
+        
+        # Overwrite map file with empty array so map deletes expired pins
+        with open("live_tenders.json", "w", encoding="utf-8") as f:
+            json.dump([], f)
+        debug_log("[+] Zero active listings. Map cleared. Exiting safely.")
+        return
+
+    # Container to hold all processed alerts
+    property_alerts = []
+    
+    # === NEW: CONTAINER FOR MAP EXPORT ===
+    map_tenders = []
+
+    for unit in all_units:
+        lid = unit["id"]
+        current_price = unit["price"]
+        
+        if lid not in price_ledger: 
+            header_badge = "🆕 *NEW TENDER*"
+        elif current_price > price_ledger.get(lid, 0.0) and current_price > 0 and not unit["is_sealed"]:
+            header_badge = f"📈 *BID INCREASED* (Was ${price_ledger[lid]:,.0f}/mo)"
+        else: 
+            header_badge = "📌 *ACTIVE TENDER*"
+            
+        price_ledger[lid] = current_price
+
+        # Dynamic Pricing Engine lookup using local sorted CSV
+        est_private_psf, mapping_source, database_found = lookup_market_psf(unit["address"], unit["cluster_key"])
+        
+        hdb_psf_bid = est_private_psf * 0.65 
+        est_monthly = hdb_psf_bid * unit['sqft']
+
+        # Determine Display Price & Status
+        tender_type_display = unit.get("tender_type_raw", "Unknown").title()
+        is_ebidding = "e-bidding" in unit["tender_type"]
+        
+        # Default labels for Valuation block
+        ask_label = "Current Ask:"
+        target_bid_line = f"\n• 🎯 *Target Bid:* *${hdb_psf_bid:.2f} psf* (~${est_monthly:,.0f}/mo)"
+        
+        # Apply E-Bidding UI Overrides
+        if is_ebidding:
+            target_bid_line = "" # E-bidding does not have a single set target bid 
+            
+        if unit["is_sealed"]:
+            price_status = "🔒 Sealed Tender"
+            display_price = 0
+            psf = 0
+        else:
+            display_price = unit["price"] if unit["price"] > 0 else unit.get("starting_bid", 0)
+            psf = round(display_price / unit["sqft"], 2) if unit["sqft"] > 0 else 0.0
+            psf_flag = " ⚠️ (Above Market)" if psf > MAX_PSF_THRESHOLD else ""
+            
+            # Format display based on whether E-Bidding Starting Bid exists
+            if is_ebidding and unit.get("starting_bid", 0) > 0:
+                if unit["price"] > 0 and unit["price"] > unit["starting_bid"]:
+                    ask_label = "Current Bid:"
+                    price_status = f"${unit['price']:,.0f}/mo (Starts at ${unit['starting_bid']:,.0f}) (${psf:.2f} psf){psf_flag}"
+                else:
+                    ask_label = "Starting Bid:"
+                    price_status = f"${unit['starting_bid']:,.0f}/mo (${psf:.2f} psf){psf_flag}"
+            elif display_price > 0:
+                price_status = f"${display_price:,.0f}/mo (${psf:.2f} psf){psf_flag}"
+            else:
+                price_status = "TBA (Check Listing for Price)"
+
+        lat, lon = get_robust_gps(unit["address"], cluster_key=unit["cluster_key"])
+        display_address = format_display_address(unit['address'])
+
+        # === NEW: APPEND TO MAP EXPORT ===
+        if lat and lon:
+            map_tenders.append({
+                "id": str(unit["id"]),
+                "project": unit["cluster_key"].title(),
+                "address": display_address,
+                "price": f"${display_price:,.0f}/mo" if display_price > 0 else "TBA",
+                "size_sqft": int(unit['sqft']),
+                "psf": psf,
+                "lat": lat,
+                "lon": lon,
+                "url": unit['link']
+            })
+
+        # Catchment analysis strings
+        if lat and lon:
+            nearest_branch, dist = check_cannibalization(lat, lon)
+            schools_count = count_local_schools(lat, lon, school_list)
+            
+            schools_line = f"Schools <1.5km: {schools_count}" 
+            buffer_line = f"Nearest Branch: {round(dist/1000, 1)}km ({nearest_branch})"
+            if dist < 800: buffer_line += " ⚠️ *(Too Close)*"
+        else:
+            schools_line = "Schools <1.5km: *GPS Missing*"
+            buffer_line = "Nearest Branch: *GPS Missing*"
+
+        # Smart Warning Check
+        trade_type_str = unit.get('trade_type', 'Not Specified')
+        target_trades = ["tuition", "enrichment", "student care", "open trade"]
+        
+        if any(kw in trade_type_str.lower() for kw in target_trades):
+            warning_block = ""
+        else:
+            warning_block = "⚠️ _Action Required: Verify no existing tuition/enrichment trades exist in this block._\n\n"
+
+        # Ultra-Clean Modern UI Format
+        block = (
+            f"{header_badge} | *{unit['cluster_key'].title()}*\n"
+            f"🏢 *{display_address}*\n\n"
+            f"📐 *Size:* {int(unit['sqft']):,} sqft ({unit['sqm']} m²)\n"
+            f"📋 *Allowed Trades:* {trade_type_str}\n"
+            f"🏷️ *Tender Type:* {tender_type_display}\n"
+            f"⏳ *Closing Date:* {unit.get('closing_date', 'TBA')}\n\n"
+            f"💵 *Valuation & Bidding:*\n"
+            f"• {ask_label} {price_status}\n"
+            f"• Market Rate: ${est_private_psf:.2f} psf ({mapping_source}){target_bid_line}\n\n"
+            f"📍 *Catchment Analysis:*\n"
+            f"• {schools_line}\n"
+            f"• {buffer_line}\n\n"
+            f"{warning_block}"
+            f"[🔗 View Listing on HDB Place2Lease]({unit['link']})"
+        ).strip()
+        
+        property_alerts.append({
+            "text": block,
+            "image_url": unit.get("image_url")
+        })
+
+    # Send Introduction Message
+    header_text = f"🏢 *ACER ACADEMY: ACTIVE HDB INVENTORY* 🏢\n_{len(all_units)} Target Matches Currently Open for Bidding/Tender_"
+    send_telegram_alert(header_text)
+    time.sleep(1)
+
+    # Send each property block with embedded photos individually
+    for alert in property_alerts:
+        send_telegram_alert(alert["text"], alert["image_url"])
+        time.sleep(1.5) # Slight delay to prevent Telegram rate-limiting
+
+    save_price_ledger(price_ledger)
+    
+    # === NEW: SAVE MAP EXPORT TO DISK ===
+    with open("live_tenders.json", "w", encoding="utf-8") as f:
+        json.dump(map_tenders, f, indent=4)
+        
+    debug_log(f"[+] Pipeline finished successfully. Exported {len(map_tenders)} live tenders for the map.")
 
 if __name__ == "__main__":
-    generate_map()
+    main()
