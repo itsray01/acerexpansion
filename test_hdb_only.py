@@ -50,24 +50,31 @@ CLUSTER_NAMES = {
     "KOVAN": "East / Northeast Cluster"
 }
 
+# The Full 19 Active Branches
 EXISTING_BRANCHES = {
+    # North (5)
     "Junction 9 (North)": (1.4325, 103.8408),
     "Admiralty Place (North)": (1.4404, 103.8003),
     "The Woodgrove (North)": (1.4311, 103.7844),
     "Vista Point (North)": (1.4315, 103.7937),
     "Canberra Plaza (North)": (1.4431, 103.8297),
+    # East (4)
     "Tampines West (East)": (1.3486, 103.9360),
-    "Buangkok Square (East)": (1.3837, 103.8823),
-    "Aljunied (East)": (1.321506345667894, 103.88726075133513),
+    "Aljunied Maths/Science (East)": (1.3204, 103.8844),
+    "Aljunied Languages (East)": (1.3206, 103.8846),
     "Elias Mall (East)": (1.3773, 103.9424),
+    # Central (5)
     "Dawson (Central)": (1.2941, 103.8099),
     "Depot Heights (Central)": (1.2809, 103.8086),
-    "Tiong Bahru (Central)": (1.2861739679441766, 103.82850623578356),
+    "Tiong Bahru (Central)": (1.2863, 103.8272),
     "Cantonment (Central)": (1.2766, 103.8413),
     "Commonwealth (Central)": (1.3025, 103.7983),
+    # West (5)
     "Senja Heights (West)": (1.3853, 103.7629),
     "Greenridge (West)": (1.3856, 103.7663),
-    "Hong Kah (West)": (1.3496, 103.7210)
+    "Hong Kah (West)": (1.3496, 103.7210),
+    "Dairy Farm (West)": (1.3655, 103.7744),
+    "Beauty World (West)": (1.3425, 103.7765)
 }
 
 DEBUG_LOGS = []
