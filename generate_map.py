@@ -156,7 +156,7 @@ def generate_map():
         animation: pulse-white 2s infinite;
     }
     
-    /* PULSING ANIMATION FOR LIVE TENDERS WITH STOREFRONT ICON */
+    /* PULSING ANIMATION FOR LIVE TENDERS */
     @keyframes pulse-green {
         0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
         70% { transform: scale(1); box-shadow: 0 0 0 15px rgba(16, 185, 129, 0); }
@@ -166,10 +166,7 @@ def generate_map():
         width: 32px; height: 32px; background-color: #10B981;
         border-radius: 50%; border: 2px solid #FFFFFF;
         animation: pulse-green 2s infinite;
-        display: flex; align-items: center; justify-content: center;
-        box-shadow: 0 4px 12px rgba(16, 185, 129, 0.5);
     }
-    .tender-pulse svg { width: 16px; height: 16px; stroke: #FFFFFF; fill: none; stroke-width: 2; }
 
     .competitor-pin {
         width: 10px; height: 10px; background-color: #555;
@@ -261,8 +258,7 @@ def generate_map():
 
     def get_vibrant_style(feature):
         props = str(feature.get('properties', {})).upper()
-        
-        # EXPLICITLY PREVENT JURONG EAST AND MARINA EAST FROM OVERRIDING
+        # EXPLICITLY filter out Jurong East and Marina East from hitting the East catch
         if 'EAST' in props and 'NORTH-EAST' not in props and 'NORTHEAST' not in props and 'JURONG EAST' not in props and 'MARINA EAST' not in props:
             return {'fillColor': '#FFFF00', 'color': 'transparent', 'weight': 0, 'fillOpacity': 0.38, 'interactive': False}
         elif 'NORTH' in props or 'WOODLANDS' in props or 'SENGKANG' in props or 'PUNGGOL' in props or 'YISHUN' in props or 'ANG MO KIO' in props or 'HOUGANG' in props or 'SERANGOON' in props:
@@ -282,7 +278,7 @@ def generate_map():
     heatmap_group = folium.FeatureGroup(name="Expansion Heatmap (Untapped)", show=False)
     heat_data = [[s['lat'], s['lon']] for s in schools]
     plugins.HeatMap(
-        heat_data, radius=38, blur=22, max_zoom=11, min_opacity=0.35,
+        heat_data, radius=38, blur=22, max_zoom=14, min_opacity=0.35,
         gradient={0.25: '#00E5FF', 0.5: '#4ADE80', 0.75: '#FFFF00', 1.0: '#FF3344'}
     ).add_to(heatmap_group)
 
@@ -401,9 +397,6 @@ def generate_map():
     print("[*] Plotting Live HDB Tenders...")
     tenders_group = folium.FeatureGroup(name="Live HDB Tenders (Actionable)", show=True)
     
-    # Storefront SVG icon for Live Tenders
-    store_svg = '<svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M2 7h20"/><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><path d="M15 22v-4a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4"/><path d="m2 7 4.41-4.41A2 2 0 0 1 7.83 2h8.34a2 2 0 0 1 1.42.59L22 7"/></svg>'
-    
     live_tenders = []
     if os.path.exists("live_tenders.json"):
         try:
@@ -428,21 +421,17 @@ def generate_map():
                 
                 # Robust extraction for old vs new JSON structures
                 address = tender.get('address', '')
-                project = tender.get('project', '')
-                
-                # Smartly extract the street name if the project is empty or "Unknown"
-                if not project or project.lower() == 'unknown':
+                project = tender.get('project', 'Unknown')
+                if project == 'Unknown' or not project:
+                    # Smart extraction: Grabs the street name instead of the block number
                     parts = [p.strip() for p in address.split(',')]
-                    # If the first part is a block number (has digits), use the second part (Street Name)
-                    if len(parts) > 1 and any(c.isdigit() for c in parts[0]):
-                        project = parts[1]
-                    elif parts:
-                        project = parts[0]
+                    if len(parts) > 1:
+                        project = parts[1] # e.g. "Upper Cross Street"
                     else:
-                        project = "Commercial Unit"
-                
-                raw_price = tender.get('price', tender.get('rent', 'TBA'))
-                size_sqft = tender.get('size_sqft', tender.get('sqft', tender.get('size', 'N/A')))
+                        project = address.split(',')[0] if address else 'Commercial Unit'
+                        
+                raw_price = tender.get('price', 'TBA')
+                size_sqft = tender.get('size_sqft', tender.get('sqft', 'N/A'))
                 psf = tender.get('psf', 'N/A')
                 
                 # If PSF is missing but we have price and sqft, do the math!
@@ -454,14 +443,9 @@ def generate_map():
                             psf = round(clean_price / clean_sqft, 2)
                     except:
                         pass
-                
+                        
                 psf_display = f"${psf:.2f}" if isinstance(psf, (int, float)) else (f"${psf}" if psf != 'N/A' else "TBA")
-                
-                try:
-                    size_display = f"{int(float(str(size_sqft).replace(',', ''))):,} sqft"
-                except:
-                    size_display = f"{size_sqft} sqft" if size_sqft != 'N/A' else "N/A sqft"
-                    
+                size_display = f"{size_sqft} sqft" if size_sqft != 'N/A' else "N/A sqft"
                 link_url = tender.get('url', tender.get('link', 'https://place2lease.hdb.gov.sg/'))
                 
                 popup_html = f"""
@@ -478,11 +462,14 @@ def generate_map():
                 </div>
                 """
                 
+                # Custom Storefront SVG Icon
+                store_svg = '''<svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round" style="width:16px; height:16px; stroke:#FFF; fill:none; stroke-width:2;"><path d="M2 7h20"/><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><path d="M15 22v-4a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4"/><path d="m2 7 4.41-4.41A2 2 0 0 1 7.83 2h8.34a2 2 0 0 1 1.42.59L22 7"/></svg>'''
+                
                 folium.Marker(
                     location=[lat, lon],
                     popup=folium.Popup(popup_html, max_width=250),
                     tooltip="🟢 Live HDB Tender",
-                    icon=folium.DivIcon(html=f"<div class='tender-pulse'>{store_svg}</div>", icon_anchor=(16, 16))
+                    icon=folium.DivIcon(html=f"<div class='tender-pulse' style='display:flex; align-items:center; justify-content:center;'>{store_svg}</div>", icon_anchor=(16, 16))
                 ).add_to(tenders_group)
             except Exception as e:
                 print(f"Error mapping tender: {e}")
@@ -531,14 +518,14 @@ def generate_map():
         """
 
     regions_setup = [
-        ("NORTH", [1.485, 103.82], [1.44, 103.82]),
-        ("EAST",  [1.35, 104.02], [1.35, 103.95]),
-        ("WEST",  [1.364, 103.64], [1.364, 103.72]),
-        ("CENTRAL",[1.225, 103.82], [1.28, 103.82])
+        ("NORTH", [1.485, 103.82]),
+        ("EAST",  [1.35, 104.02]),
+        ("WEST",  [1.364, 103.64]),
+        ("CENTRAL",[1.225, 103.82])
     ]
 
-    for reg_name, box_coord, map_coord in regions_setup:
-        # Removed PolyLine entirely to keep boxes clean and floating
+    # Cleaned up UI: No dashed lines pointing into the map
+    for reg_name, box_coord in regions_setup:
         folium.Marker(
             location=box_coord,
             icon=folium.DivIcon(html=create_box(reg_name, stats[reg_name][0], stats[reg_name][1], stats[reg_name][2]), icon_size=(160, 100), icon_anchor=(80, 50))
@@ -581,10 +568,7 @@ def generate_map():
             <span style="display:inline-block; width:12px; height:12px; border:2px solid #00C9FF; border-radius:50%; margin-right:10px;"></span> 1.5km Branch Catchment
         </div>
         <div style="display: flex; align-items: center; margin-top: 6px;">
-            <div style="display:inline-flex; align-items:center; justify-content:center; width:18px; height:18px; background:#10B981; border:1px solid #FFF; border-radius:50%; margin-right:10px; box-shadow: 0 0 8px #10B981;">
-                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#FFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 7h20"/><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><path d="M15 22v-4a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4"/><path d="m2 7 4.41-4.41A2 2 0 0 1 7.83 2h8.34a2 2 0 0 1 1.42.59L22 7"/></svg>
-            </div>
-            <b style="color: #10B981;">Live HDB Tender</b>
+            <span style="display:inline-block; width:12px; height:12px; background:#10B981; border:2px solid #FFF; border-radius:50%; margin-right:10px; box-shadow: 0 0 8px #10B981;"></span> <b style="color: #10B981;">Live HDB Tender</b>
         </div>
         <div style="display: flex; align-items: center; margin-top: 6px;">
             <span style="display:inline-block; width:12px; height:12px; border:2px dashed #FFFF00; background:rgba(255,255,0,0.2); border-radius:50%; margin-right:10px;"></span> Simulated Catchment
@@ -597,27 +581,24 @@ def generate_map():
     <script>
     window.addEventListener('load', function() {
         setTimeout(function() {
-            // MENU SEPARATORS INJECTION
-            var layerLists = document.querySelectorAll('.leaflet-control-layers-overlays');
-            if(layerLists.length > 0) {
-                var labels = layerLists[0].querySelectorAll('label');
-                function insertSeparator(textToFind, sectionTitle) {
-                    for(var i=0; i<labels.length; i++) {
-                        if(labels[i].textContent.includes(textToFind)) {
-                            var sep = document.createElement('div');
-                            sep.style.cssText = 'font-weight: 800; font-size: 11px; color: #00E5FF; text-transform: uppercase; letter-spacing: 1px; margin-top: 16px; margin-bottom: 4px; padding-bottom: 4px; border-bottom: 1px solid rgba(255,255,255,0.15); pointer-events: none;';
-                            sep.textContent = sectionTitle;
-                            labels[i].parentNode.insertBefore(sep, labels[i]);
-                            break;
-                        }
+            // Menu Separator Injection
+            var overlays = document.querySelector('.leaflet-control-layers-overlays');
+            if (overlays) {
+                var labels = overlays.querySelectorAll('label');
+                labels.forEach(function(lbl) {
+                    var txt = lbl.textContent;
+                    if (txt.includes('Acer Academy Branches')) {
+                        lbl.insertAdjacentHTML('beforebegin', '<div style="color:#00E5FF; font-size:11px; font-weight:800; margin-top:5px; margin-bottom:5px; text-transform:uppercase; letter-spacing:1px;">Core Strategy</div>');
                     }
-                }
-                insertSeparator('Acer Academy Branches', 'Core Strategy & Planning');
-                insertSeparator('Primary Schools', 'Education Network');
-                insertSeparator('Regional Boundaries', 'Analytics & Geography');
+                    if (txt.includes('Primary Schools')) {
+                        lbl.insertAdjacentHTML('beforebegin', '<div style="color:#00E5FF; font-size:11px; font-weight:800; margin-top:15px; margin-bottom:5px; text-transform:uppercase; letter-spacing:1px;">Education Network</div>');
+                    }
+                    if (txt.includes('Regional Boundaries')) {
+                        lbl.insertAdjacentHTML('beforebegin', '<div style="color:#00E5FF; font-size:11px; font-weight:800; margin-top:15px; margin-bottom:5px; text-transform:uppercase; letter-spacing:1px;">Analytics & Geography</div>');
+                    }
+                });
             }
 
-            // SIMULATION LAYER LOGIC
             for (var key in window) {
                 if (key.startsWith('map_')) {
                     var map = window[key];
@@ -654,6 +635,47 @@ def generate_map():
     </script>
     """
     m.get_root().html.add_child(Element(legend_and_sim_js))
+
+    # --- ENDER DRAGON HEATMAP BAR ---
+    ender_dragon_js = """
+    <div id="heatmap-health-bar" style="
+        display: none;
+        position: fixed; top: 20px; left: 50%; transform: translateX(-50%); z-index: 9999;
+        background: rgba(15, 15, 15, 0.90); backdrop-filter: blur(10px);
+        padding: 12px 24px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.15);
+        font-family: 'Montserrat', sans-serif; color: #fff; text-align: center;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.8); pointer-events: none;
+    ">
+        <div style="font-weight: 800; font-size: 13px; color: #fff; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 10px; text-shadow: 0 2px 4px rgba(0,0,0,0.8);">
+            Student Density Heatmap
+        </div>
+        <div style="width: 350px; height: 14px; border-radius: 7px; background: linear-gradient(to right, #00E5FF, #4ADE80, #FFFF00, #FF3344); margin-bottom: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.6); border: 1px solid rgba(255,255,255,0.2);"></div>
+        <div style="display: flex; justify-content: space-between; font-size: 11px; color: #ccc; font-weight: 700; text-transform: uppercase;">
+            <span>Cold (Low)</span>
+            <span>Hot (High)</span>
+        </div>
+    </div>
+    <script>
+    window.addEventListener('load', function() {
+        setTimeout(function() {
+            var bar = document.getElementById('heatmap-health-bar');
+            for (var key in window) {
+                if (key.startsWith('map_')) {
+                    var map = window[key];
+                    // Listen for when layers are turned on or off
+                    map.on('overlayadd', function(e) {
+                        if (e.name.includes('Heatmap')) bar.style.display = 'block';
+                    });
+                    map.on('overlayremove', function(e) {
+                        if (e.name.includes('Heatmap')) bar.style.display = 'none';
+                    });
+                }
+            }
+        }, 1000);
+    });
+    </script>
+    """
+    m.get_root().html.add_child(Element(ender_dragon_js))
 
     # The order added here dictates the order they appear in the top right menu
     branch_group.add_to(m)
