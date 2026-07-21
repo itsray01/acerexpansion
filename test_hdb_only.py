@@ -326,7 +326,7 @@ def format_display_address(raw_address):
 def extract_starting_bid(item_id):
     """
     Spins up Playwright exclusively for E-Bidding units to render Angular
-    and extract the hidden starting bid from the DOM.
+    and extract the hidden starting bid from the DOM using robust Regex.
     """
     if not item_id:
         return 0.0
@@ -352,23 +352,21 @@ def extract_starting_bid(item_id):
             page = context.new_page()
             
             page.goto(url, wait_until="networkidle", timeout=45000)
+            page.wait_for_timeout(3000) # Give Angular an extra 3s to hydrate text
             
-            # Wait for the TABLE ROW containing "Starting Bid" to appear
-            page.wait_for_selector("tr:has-text('Starting Bid')", timeout=15000)
+            # Extract ALL text on the page and hunt for the bid using aggressive Regex
+            text_content = page.inner_text("body")
             
-            # Extract the text from that entire row
-            row_locator = page.locator("tr", has_text="Starting Bid").first
+            # Looks for "Starting Bid", "Guide Rent", or "Tender Price", followed by up to 50 random characters, then a $ amount
+            match = re.search(r'(?:Starting Bid|Guide Rent|Tender Price)[\s\S]{0,50}?\$?\s*([0-9]{1,3}(?:,[0-9]{3})*(?:\.\d{2})?)', text_content, re.IGNORECASE)
             
-            if row_locator:
-                text = row_locator.inner_text().strip()
-                match = re.search(r'([0-9]{1,3}(?:,[0-9]{3})*(?:\.\d{2})?)', text)
-                if match:
-                    clean_val = match.group(1).replace(',', '')
-                    bid_value = float(clean_val)
-                    if bid_value > 500:
-                        browser.close()
-                        debug_log(f"    -> Successfully extracted Playwright DOM Bid: ${bid_value}")
-                        return bid_value
+            if match:
+                clean_val = match.group(1).replace(',', '')
+                bid_value = float(clean_val)
+                if bid_value > 500:
+                    browser.close()
+                    debug_log(f"    -> Successfully extracted Playwright DOM Bid: ${bid_value}")
+                    return bid_value
 
             browser.close()
     except Exception as e:
