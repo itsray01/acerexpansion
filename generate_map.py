@@ -490,10 +490,7 @@ def generate_map():
     ]
 
     for reg_name, box_coord, map_coord in regions_setup:
-        folium.PolyLine(
-            locations=[box_coord, map_coord],
-            color=region_colors.get(reg_name, "#00E5FF"), weight=2, dash_array="5, 10", opacity=0.6
-        ).add_to(boxes_group)
+        # Removed the dashed PolyLine to keep the map clean and remove vertical line clutter
         folium.Marker(
             location=box_coord,
             icon=folium.DivIcon(html=create_box(reg_name, stats[reg_name][0], stats[reg_name][1], stats[reg_name][2]), icon_size=(160, 100), icon_anchor=(80, 50))
