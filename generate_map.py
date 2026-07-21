@@ -416,25 +416,51 @@ def generate_map():
                 lon = tender.get("lon")
                 if not lat or not lon: continue
                 
+                # Robust extraction for old vs new JSON structures
+                address = tender.get('address', '')
+                project = tender.get('project', 'Unknown')
+                if project == 'Unknown' or not project:
+                    project = address.split(',')[0] if address else 'Commercial Unit'
+                    
+                raw_price = tender.get('price', 'TBA')
+                size_sqft = tender.get('size_sqft', tender.get('sqft', 'N/A'))
+                psf = tender.get('psf', 'N/A')
+                
+                # If PSF is missing but we have price and sqft, do the math!
+                if psf == 'N/A' and raw_price != 'TBA' and size_sqft != 'N/A':
+                    try:
+                        clean_price = float(str(raw_price).replace('$', '').replace('/mo', '').replace(',', ''))
+                        clean_sqft = float(size_sqft)
+                        if clean_sqft > 0:
+                            psf = round(clean_price / clean_sqft, 2)
+                    except:
+                        pass
+                        
+                psf_display = f"${psf:.2f}" if isinstance(psf, (int, float)) else (f"${psf}" if psf != 'N/A' else "TBA")
+                size_display = f"{size_sqft} sqft" if size_sqft != 'N/A' else "N/A sqft"
+                link_url = tender.get('url', tender.get('link', 'https://place2lease.hdb.gov.sg/'))
+                
                 popup_html = f"""
                 <div style="font-family: 'Montserrat', sans-serif; width: 220px;">
                     <h4 style="margin: 0 0 5px 0; color: #10B981; font-weight: 800;">🟢 LIVE TENDER</h4>
-                    <b style="font-size: 14px;">{tender.get('project', 'Unknown')}</b><br>
-                    <span style="color: #ccc; font-size: 12px;">{tender.get('address', '')}</span>
+                    <b style="font-size: 14px;">{project}</b><br>
+                    <span style="color: #ccc; font-size: 12px;">{address}</span>
                     <hr style="margin: 8px 0; border: 0; border-top: 1px solid rgba(255,255,255,0.2);">
-                    <b>Rent:</b> {tender.get('price', 'N/A')}<br>
-                    <b>Size:</b> {tender.get('size_sqft', 'N/A')} sqft<br>
-                    <b>PSF:</b> ${tender.get('psf', 'N/A')}<br>
+                    <b>Rent:</b> {raw_price}<br>
+                    <b>Size:</b> {size_display}<br>
+                    <b>PSF:</b> {psf_display}<br>
                     <hr style="margin: 8px 0; border: 0; border-top: 1px solid rgba(255,255,255,0.2);">
-                    <a href="{tender.get('url', 'https://place2lease.hdb.gov.sg/')}" target="_blank" style="display: inline-block; background: #10B981; color: #000; padding: 6px 12px; border-radius: 6px; font-size: 11px; font-weight: 800; text-decoration: none; margin-top: 5px;">Bid on Portal &rarr;</a>
+                    <a href="{link_url}" target="_blank" style="display: inline-block; background: #10B981; color: #000; padding: 6px 12px; border-radius: 6px; font-size: 11px; font-weight: 800; text-decoration: none; margin-top: 5px;">Bid on Portal &rarr;</a>
                 </div>
                 """
+                
+                store_svg = '''<svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round" style="width:16px; height:16px; stroke:#FFF; fill:none; stroke-width:2;"><path d="M2 7h20"/><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><path d="M15 22v-4a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4"/><path d="m2 7 4.41-4.41A2 2 0 0 1 7.83 2h8.34a2 2 0 0 1 1.42.59L22 7"/></svg>'''
                 
                 folium.Marker(
                     location=[lat, lon],
                     popup=folium.Popup(popup_html, max_width=250),
                     tooltip="🟢 Live HDB Tender",
-                    icon=folium.DivIcon(html=f"<div class='tender-pulse'>{store_svg}</div>", icon_anchor=(16, 16))
+                    icon=folium.DivIcon(html=f"<div class='tender-pulse' style='display:flex; align-items:center; justify-content:center; width:32px; height:32px;'>{store_svg}</div>", icon_anchor=(16, 16))
                 ).add_to(tenders_group)
             except Exception as e:
                 print(f"Error mapping tender: {e}")
