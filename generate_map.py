@@ -156,17 +156,20 @@ def generate_map():
         animation: pulse-white 2s infinite;
     }
     
-    /* PULSING ANIMATION FOR LIVE TENDERS */
+    /* PULSING ANIMATION FOR LIVE TENDERS WITH STOREFRONT ICON */
     @keyframes pulse-green {
         0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
         70% { transform: scale(1); box-shadow: 0 0 0 15px rgba(16, 185, 129, 0); }
         100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
     }
     .tender-pulse {
-        width: 16px; height: 16px; background-color: #10B981;
+        width: 32px; height: 32px; background-color: #10B981;
         border-radius: 50%; border: 2px solid #FFFFFF;
         animation: pulse-green 2s infinite;
+        display: flex; align-items: center; justify-content: center;
+        box-shadow: 0 4px 12px rgba(16, 185, 129, 0.5);
     }
+    .tender-pulse svg { width: 16px; height: 16px; stroke: #FFFFFF; fill: none; stroke-width: 2; }
 
     .competitor-pin {
         width: 10px; height: 10px; background-color: #555;
@@ -243,7 +246,7 @@ def generate_map():
 
     print("[*] Plotting URA Regions (Bug Fixed: Strict Keyword Filtering)...")
 
-    ura_group = folium.FeatureGroup(name="Regional Boundaries (Choropleth)", show=True)
+    ura_group = folium.FeatureGroup(name="Regional Boundaries", show=True)
     
     ura_data = None
     if os.path.exists("ura_regions.json"):
@@ -282,10 +285,10 @@ def generate_map():
     ).add_to(heatmap_group)
 
     print(f"[*] Plotting {len(schools)} schools with organic student estimates...")
-    primary_group = folium.FeatureGroup(name="Primary Schools (Sky Blue)", show=True)
-    secondary_group = folium.FeatureGroup(name="Secondary Schools (Violet)", show=True)
-    jc_group = folium.FeatureGroup(name="Junior Colleges (Amber)", show=True)
-    intl_group = folium.FeatureGroup(name="International Schools (Rose Pink)", show=True)
+    primary_group = folium.FeatureGroup(name="Primary Schools", show=True)
+    secondary_group = folium.FeatureGroup(name="Secondary Schools", show=True)
+    jc_group = folium.FeatureGroup(name="Junior Colleges", show=True)
+    intl_group = folium.FeatureGroup(name="International Schools", show=True)
     
     stats = {"NORTH": [0,0,0], "EAST": [0,0,0], "WEST": [0,0,0], "CENTRAL": [0,0,0]}
 
@@ -344,21 +347,13 @@ def generate_map():
     for comp in competitors:
         brand = comp.get('brand', '')
         
-        # Color mapping logic
-        if brand == "Kumon":
-            fill_color = "#0B132B" # Dark Dark Blue
-        elif brand == "Mind Stretcher":
-            fill_color = "#FAECA8" # Very Light Gold
-        elif brand == "Zenith":
-            fill_color = "#808080" # Gray
-        elif brand == "Aspire Hub":
-            fill_color = "#F97316" # Orange (Assigned for Aspire)
-        elif brand == "The Learning Lab":
-            fill_color = "#A28E5C" # Muted Gold
-        else:
-            fill_color = "#FFFFFF"
+        if brand == "Kumon": fill_color = "#0B132B"
+        elif brand == "Mind Stretcher": fill_color = "#FAECA8"
+        elif brand == "Zenith": fill_color = "#808080"
+        elif brand == "Aspire Hub": fill_color = "#F97316"
+        elif brand == "The Learning Lab": fill_color = "#A28E5C"
+        else: fill_color = "#FFFFFF"
 
-        # Sharp, scalable SVG Triangles
         svg_html = f'''
         <div style="transform: translate(-50%, -50%); filter: drop-shadow(0px 3px 4px rgba(0,0,0,0.8));">
             <svg width="22" height="20" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -376,7 +371,7 @@ def generate_map():
         ).add_to(comp_group)
 
     print("[*] Plotting Upcoming BTO Mega-Estates...")
-    bto_group = folium.FeatureGroup(name="Upcoming BTO Estates (2026-2030)", show=False)
+    bto_group = folium.FeatureGroup(name="Upcoming BTO Estates", show=False)
     for bto in UPCOMING_BTOS:
         popup_html = f"""
         <div style="min-width: 180px;">
@@ -394,7 +389,10 @@ def generate_map():
         ).add_to(bto_group)
 
     print("[*] Plotting Live HDB Tenders...")
-    tenders_group = folium.FeatureGroup(name="Live HDB Tenders (Actionable)", show=True)
+    tenders_group = folium.FeatureGroup(name="Live HDB Tenders", show=True)
+    
+    # Storefront SVG icon for Live Tenders
+    store_svg = '<svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M2 7h20"/><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><path d="M15 22v-4a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4"/><path d="m2 7 4.41-4.41A2 2 0 0 1 7.83 2h8.34a2 2 0 0 1 1.42.59L22 7"/></svg>'
     
     live_tenders = []
     if os.path.exists("live_tenders.json"):
@@ -436,7 +434,7 @@ def generate_map():
                     location=[lat, lon],
                     popup=folium.Popup(popup_html, max_width=250),
                     tooltip="🟢 Live HDB Tender",
-                    icon=folium.DivIcon(html="<div class='tender-pulse'></div>", icon_anchor=(8, 8))
+                    icon=folium.DivIcon(html=f"<div class='tender-pulse'>{store_svg}</div>", icon_anchor=(16, 16))
                 ).add_to(tenders_group)
             except Exception as e:
                 print(f"Error mapping tender: {e}")
@@ -468,7 +466,7 @@ def generate_map():
             location=[lat, lon], radius=1500, color="#00C9FF", weight=2, fill_color="#00C9FF", fill_opacity=0.18
         ).add_to(branch_group)
 
-    sim_group = folium.FeatureGroup(name="Simulate Expansion (Click Map)", show=False)
+    sim_group = folium.FeatureGroup(name="Simulate Expansion (Click)", show=False)
 
     print("[*] Plotting Regional Data Boxes...")
     boxes_group = folium.FeatureGroup(name="Regional Data Boxes", show=True)
@@ -538,7 +536,10 @@ def generate_map():
             <span style="display:inline-block; width:12px; height:12px; border:2px solid #00C9FF; border-radius:50%; margin-right:10px;"></span> 1.5km Branch Catchment
         </div>
         <div style="display: flex; align-items: center; margin-top: 6px;">
-            <span style="display:inline-block; width:12px; height:12px; background:#10B981; border:2px solid #FFF; border-radius:50%; margin-right:10px; box-shadow: 0 0 8px #10B981;"></span> <b style="color: #10B981;">Live HDB Tender</b>
+            <div style="display:inline-flex; align-items:center; justify-content:center; width:18px; height:18px; background:#10B981; border:1px solid #FFF; border-radius:50%; margin-right:10px; box-shadow: 0 0 8px #10B981;">
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#FFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 7h20"/><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><path d="M15 22v-4a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4"/><path d="m2 7 4.41-4.41A2 2 0 0 1 7.83 2h8.34a2 2 0 0 1 1.42.59L22 7"/></svg>
+            </div>
+            <b style="color: #10B981;">Live HDB Tender</b>
         </div>
         <div style="display: flex; align-items: center; margin-top: 6px;">
             <span style="display:inline-block; width:12px; height:12px; border:2px dashed #FFFF00; background:rgba(255,255,0,0.2); border-radius:50%; margin-right:10px;"></span> Simulated Catchment
@@ -551,6 +552,27 @@ def generate_map():
     <script>
     window.addEventListener('load', function() {
         setTimeout(function() {
+            // MENU SEPARATORS INJECTION
+            var layerLists = document.querySelectorAll('.leaflet-control-layers-overlays');
+            if(layerLists.length > 0) {
+                var labels = layerLists[0].querySelectorAll('label');
+                function insertSeparator(textToFind, sectionTitle) {
+                    for(var i=0; i<labels.length; i++) {
+                        if(labels[i].textContent.includes(textToFind)) {
+                            var sep = document.createElement('div');
+                            sep.style.cssText = 'font-weight: 800; font-size: 11px; color: #00E5FF; text-transform: uppercase; letter-spacing: 1px; margin-top: 16px; margin-bottom: 4px; padding-bottom: 4px; border-bottom: 1px solid rgba(255,255,255,0.15); pointer-events: none;';
+                            sep.textContent = sectionTitle;
+                            labels[i].parentNode.insertBefore(sep, labels[i]);
+                            break;
+                        }
+                    }
+                }
+                insertSeparator('Acer Academy Branches', 'Core Strategy & Planning');
+                insertSeparator('Primary Schools', 'Education Network');
+                insertSeparator('Regional Boundaries', 'Analytics & Geography');
+            }
+
+            // SIMULATION LAYER LOGIC
             for (var key in window) {
                 if (key.startsWith('map_')) {
                     var map = window[key];
