@@ -360,7 +360,7 @@ def generate_map():
         elif brand == "Aspire Hub":
             fill_color = "#F97316" # Orange (Assigned for Aspire)
         elif brand == "The Learning Lab":
-            fill_color = "#14B8A6" # Teal (Assigned for TLL)
+            fill_color = "#A28E5C" # Muted Gold
         else:
             fill_color = "#FFFFFF"
 
@@ -490,8 +490,11 @@ def generate_map():
         <div style="display: flex; align-items: center; margin-bottom: 4px;">
             <svg width="12" height="12" viewBox="0 0 24 24" style="margin-right:10px; filter: drop-shadow(0px 2px 2px rgba(0,0,0,0.8));"><polygon points="12,0 24,24 0,24" fill="#808080" stroke="#FFF" stroke-width="2"/></svg> Zenith
         </div>
+        <div style="display: flex; align-items: center; margin-bottom: 4px;">
+            <svg width="12" height="12" viewBox="0 0 24 24" style="margin-right:10px; filter: drop-shadow(0px 2px 2px rgba(0,0,0,0.8));"><polygon points="12,0 24,24 0,24" fill="#F97316" stroke="#FFF" stroke-width="2"/></svg> Aspire Hub
+        </div>
         <div style="display: flex; align-items: center; margin-bottom: 6px;">
-            <svg width="12" height="12" viewBox="0 0 24 24" style="margin-right:10px; filter: drop-shadow(0px 2px 2px rgba(0,0,0,0.8));"><polygon points="12,0 24,24 0,24" fill="#F97316" stroke="#FFF" stroke-width="2"/></svg> Aspire / TLL
+            <svg width="12" height="12" viewBox="0 0 24 24" style="margin-right:10px; filter: drop-shadow(0px 2px 2px rgba(0,0,0,0.8));"><polygon points="12,0 24,24 0,24" fill="#A28E5C" stroke="#FFF" stroke-width="2"/></svg> The Learning Lab
         </div>
 
         <div style="display: flex; align-items: center; margin-top: 8px; border-top: 1px solid rgba(255,255,255,0.15); padding-top: 8px;"><span style="display:inline-block; width:12px; height:12px; border:2px solid #00C9FF; border-radius:50%; margin-right:10px;"></span> 1.5km Branch Catchment</div>
