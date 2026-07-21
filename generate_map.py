@@ -246,7 +246,7 @@ def generate_map():
 
     print("[*] Plotting URA Regions (Bug Fixed: Strict Keyword Filtering)...")
 
-    ura_group = folium.FeatureGroup(name="Regional Boundaries", show=True)
+    ura_group = folium.FeatureGroup(name="Regional Boundaries (Choropleth)", show=True)
     
     ura_data = None
     if os.path.exists("ura_regions.json"):
@@ -261,7 +261,9 @@ def generate_map():
 
     def get_vibrant_style(feature):
         props = str(feature.get('properties', {})).upper()
-        if 'EAST' in props and 'NORTH-EAST' not in props and 'NORTHEAST' not in props:
+        
+        # EXPLICITLY PREVENT JURONG EAST AND MARINA EAST FROM OVERRIDING
+        if 'EAST' in props and 'NORTH-EAST' not in props and 'NORTHEAST' not in props and 'JURONG EAST' not in props and 'MARINA EAST' not in props:
             return {'fillColor': '#FFFF00', 'color': 'transparent', 'weight': 0, 'fillOpacity': 0.38, 'interactive': False}
         elif 'NORTH' in props or 'WOODLANDS' in props or 'SENGKANG' in props or 'PUNGGOL' in props or 'YISHUN' in props or 'ANG MO KIO' in props or 'HOUGANG' in props or 'SERANGOON' in props:
             return {'fillColor': '#00E5FF', 'color': 'transparent', 'weight': 0, 'fillOpacity': 0.22, 'interactive': False}
@@ -285,10 +287,10 @@ def generate_map():
     ).add_to(heatmap_group)
 
     print(f"[*] Plotting {len(schools)} schools with organic student estimates...")
-    primary_group = folium.FeatureGroup(name="Primary Schools", show=True)
-    secondary_group = folium.FeatureGroup(name="Secondary Schools", show=True)
-    jc_group = folium.FeatureGroup(name="Junior Colleges", show=True)
-    intl_group = folium.FeatureGroup(name="International Schools", show=True)
+    primary_group = folium.FeatureGroup(name="Primary Schools (Sky Blue)", show=True)
+    secondary_group = folium.FeatureGroup(name="Secondary Schools (Violet)", show=True)
+    jc_group = folium.FeatureGroup(name="Junior Colleges (Amber)", show=True)
+    intl_group = folium.FeatureGroup(name="International Schools (Rose Pink)", show=True)
     
     stats = {"NORTH": [0,0,0], "EAST": [0,0,0], "WEST": [0,0,0], "CENTRAL": [0,0,0]}
 
@@ -347,13 +349,21 @@ def generate_map():
     for comp in competitors:
         brand = comp.get('brand', '')
         
-        if brand == "Kumon": fill_color = "#0B132B"
-        elif brand == "Mind Stretcher": fill_color = "#FAECA8"
-        elif brand == "Zenith": fill_color = "#808080"
-        elif brand == "Aspire Hub": fill_color = "#F97316"
-        elif brand == "The Learning Lab": fill_color = "#A28E5C"
-        else: fill_color = "#FFFFFF"
+        # Color mapping logic
+        if brand == "Kumon":
+            fill_color = "#0B132B" # Dark Dark Blue
+        elif brand == "Mind Stretcher":
+            fill_color = "#FAECA8" # Very Light Gold
+        elif brand == "Zenith":
+            fill_color = "#808080" # Gray
+        elif brand == "Aspire Hub":
+            fill_color = "#F97316" # Orange (Assigned for Aspire)
+        elif brand == "The Learning Lab":
+            fill_color = "#A28E5C" # Muted Gold
+        else:
+            fill_color = "#FFFFFF"
 
+        # Sharp, scalable SVG Triangles
         svg_html = f'''
         <div style="transform: translate(-50%, -50%); filter: drop-shadow(0px 3px 4px rgba(0,0,0,0.8));">
             <svg width="22" height="20" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -371,7 +381,7 @@ def generate_map():
         ).add_to(comp_group)
 
     print("[*] Plotting Upcoming BTO Mega-Estates...")
-    bto_group = folium.FeatureGroup(name="Upcoming BTO Estates", show=False)
+    bto_group = folium.FeatureGroup(name="Upcoming BTO Estates (2026-2030)", show=False)
     for bto in UPCOMING_BTOS:
         popup_html = f"""
         <div style="min-width: 180px;">
@@ -389,7 +399,7 @@ def generate_map():
         ).add_to(bto_group)
 
     print("[*] Plotting Live HDB Tenders...")
-    tenders_group = folium.FeatureGroup(name="Live HDB Tenders", show=True)
+    tenders_group = folium.FeatureGroup(name="Live HDB Tenders (Actionable)", show=True)
     
     # Storefront SVG icon for Live Tenders
     store_svg = '<svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M2 7h20"/><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><path d="M15 22v-4a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4"/><path d="m2 7 4.41-4.41A2 2 0 0 1 7.83 2h8.34a2 2 0 0 1 1.42.59L22 7"/></svg>'
@@ -418,12 +428,21 @@ def generate_map():
                 
                 # Robust extraction for old vs new JSON structures
                 address = tender.get('address', '')
-                project = tender.get('project', 'Unknown')
-                if project == 'Unknown' or not project:
-                    project = address.split(',')[0] if address else 'Commercial Unit'
-                    
-                raw_price = tender.get('price', 'TBA')
-                size_sqft = tender.get('size_sqft', tender.get('sqft', 'N/A'))
+                project = tender.get('project', '')
+                
+                # Smartly extract the street name if the project is empty or "Unknown"
+                if not project or project.lower() == 'unknown':
+                    parts = [p.strip() for p in address.split(',')]
+                    # If the first part is a block number (has digits), use the second part (Street Name)
+                    if len(parts) > 1 and any(c.isdigit() for c in parts[0]):
+                        project = parts[1]
+                    elif parts:
+                        project = parts[0]
+                    else:
+                        project = "Commercial Unit"
+                
+                raw_price = tender.get('price', tender.get('rent', 'TBA'))
+                size_sqft = tender.get('size_sqft', tender.get('sqft', tender.get('size', 'N/A')))
                 psf = tender.get('psf', 'N/A')
                 
                 # If PSF is missing but we have price and sqft, do the math!
@@ -435,9 +454,14 @@ def generate_map():
                             psf = round(clean_price / clean_sqft, 2)
                     except:
                         pass
-                        
+                
                 psf_display = f"${psf:.2f}" if isinstance(psf, (int, float)) else (f"${psf}" if psf != 'N/A' else "TBA")
-                size_display = f"{size_sqft} sqft" if size_sqft != 'N/A' else "N/A sqft"
+                
+                try:
+                    size_display = f"{int(float(str(size_sqft).replace(',', ''))):,} sqft"
+                except:
+                    size_display = f"{size_sqft} sqft" if size_sqft != 'N/A' else "N/A sqft"
+                    
                 link_url = tender.get('url', tender.get('link', 'https://place2lease.hdb.gov.sg/'))
                 
                 popup_html = f"""
@@ -454,13 +478,11 @@ def generate_map():
                 </div>
                 """
                 
-                store_svg = '''<svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round" style="width:16px; height:16px; stroke:#FFF; fill:none; stroke-width:2;"><path d="M2 7h20"/><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><path d="M15 22v-4a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4"/><path d="m2 7 4.41-4.41A2 2 0 0 1 7.83 2h8.34a2 2 0 0 1 1.42.59L22 7"/></svg>'''
-                
                 folium.Marker(
                     location=[lat, lon],
                     popup=folium.Popup(popup_html, max_width=250),
                     tooltip="🟢 Live HDB Tender",
-                    icon=folium.DivIcon(html=f"<div class='tender-pulse' style='display:flex; align-items:center; justify-content:center; width:32px; height:32px;'>{store_svg}</div>", icon_anchor=(16, 16))
+                    icon=folium.DivIcon(html=f"<div class='tender-pulse'>{store_svg}</div>", icon_anchor=(16, 16))
                 ).add_to(tenders_group)
             except Exception as e:
                 print(f"Error mapping tender: {e}")
@@ -492,7 +514,7 @@ def generate_map():
             location=[lat, lon], radius=1500, color="#00C9FF", weight=2, fill_color="#00C9FF", fill_opacity=0.18
         ).add_to(branch_group)
 
-    sim_group = folium.FeatureGroup(name="Simulate Expansion (Click)", show=False)
+    sim_group = folium.FeatureGroup(name="Simulate Expansion (Click Map)", show=False)
 
     print("[*] Plotting Regional Data Boxes...")
     boxes_group = folium.FeatureGroup(name="Regional Data Boxes", show=True)
@@ -516,7 +538,7 @@ def generate_map():
     ]
 
     for reg_name, box_coord, map_coord in regions_setup:
-        # Removed the dashed PolyLine to keep the map clean and remove vertical line clutter
+        # Removed PolyLine entirely to keep boxes clean and floating
         folium.Marker(
             location=box_coord,
             icon=folium.DivIcon(html=create_box(reg_name, stats[reg_name][0], stats[reg_name][1], stats[reg_name][2]), icon_size=(160, 100), icon_anchor=(80, 50))
