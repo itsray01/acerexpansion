@@ -6,6 +6,9 @@ on:
     - cron: '16 1 * * *'
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   run-bot:
     runs-on: ubuntu-latest
@@ -19,14 +22,12 @@ jobs:
           python-version: '3.10'
 
       - name: Install Dependencies
-        # Added pandas for CSV fetching and playwright for E-Bidding DOM scraping
         run: |
-          pip install requests pandas playwright
+          pip install requests pandas playwright python-dotenv
           python -m playwright install chromium
 
       - name: Run HDB Bidding Bot
         env:
-          # Pulls your secure secrets from GitHub settings
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           PROXY_HOST: ${{ secrets.PROXY_HOST }}
@@ -34,3 +35,12 @@ jobs:
           PROXY_USER: ${{ secrets.PROXY_USER }}
           PROXY_PASS: ${{ secrets.PROXY_PASS }}
         run: python test_hdb_only.py
+
+      - name: Commit Live Tenders and Ledger
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add live_tenders.json || echo "No live tenders file generated"
+          git add seen_hdb_listings.json || echo "No state file generated"
+          git commit -m "Auto-update live HDB tenders and ledger" || exit 0
+          git push
