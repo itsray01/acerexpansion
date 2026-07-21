@@ -341,7 +341,8 @@ def generate_map():
         ).add_to(group)
 
     print("[*] Plotting Competitors (Triangles)...")
-    comp_group = folium.FeatureGroup(name="Competitor Network", show=False)
+    # Kept ON for the website natively 
+    comp_group = folium.FeatureGroup(name="Competitor Network", show=True)
     for comp in competitors:
         brand = comp.get('brand', '')
         
@@ -377,7 +378,8 @@ def generate_map():
         ).add_to(comp_group)
 
     print("[*] Plotting Upcoming BTO Mega-Estates...")
-    bto_group = folium.FeatureGroup(name="Upcoming BTO Estates (2026-2030)", show=False)
+    # Kept ON for the website natively 
+    bto_group = folium.FeatureGroup(name="Upcoming BTO Estates (2026-2030)", show=True)
     for bto in UPCOMING_BTOS:
         popup_html = f"""
         <div style="min-width: 180px;">
@@ -504,6 +506,7 @@ def generate_map():
     sim_group = folium.FeatureGroup(name="Simulate Expansion (Click Map)", show=False)
 
     print("[*] Plotting Regional Data Boxes...")
+    # Kept ON natively for the Website
     boxes_group = folium.FeatureGroup(name="Regional Data Boxes", show=True)
     
     def create_box(region, b_count, s_count, total_students):
@@ -524,7 +527,6 @@ def generate_map():
         ("CENTRAL",[1.225, 103.82])
     ]
 
-    # Cleaned up UI: No dashed lines pointing into the map
     for reg_name, box_coord in regions_setup:
         folium.Marker(
             location=box_coord,
