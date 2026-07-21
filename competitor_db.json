@@ -1,0 +1,765 @@
+[
+    {
+        "brand": "Zenith",
+        "branch": "Bishan",
+        "postal": "579799",
+        "lat": 1.34947834623064,
+        "lon": 103.8507462049
+    },
+    {
+        "brand": "Zenith",
+        "branch": "Bukit Panjang",
+        "postal": "677743",
+        "lat": 1.37948804026655,
+        "lon": 103.764594965051
+    },
+    {
+        "brand": "Zenith",
+        "branch": "Bukit Timah",
+        "postal": "269713",
+        "lat": 1.32431495028991,
+        "lon": 103.809444978629
+    },
+    {
+        "brand": "Zenith",
+        "branch": "Buona Vista",
+        "postal": "138639",
+        "lat": 1.30541103549045,
+        "lon": 103.788371152389
+    },
+    {
+        "brand": "Zenith",
+        "branch": "Jurong East",
+        "postal": "608546",
+        "lat": 1.33503600662426,
+        "lon": 103.739670168956
+    },
+    {
+        "brand": "Zenith",
+        "branch": "King Albert Park",
+        "postal": "589472",
+        "lat": 1.33669726404395,
+        "lon": 103.783723416319
+    },
+    {
+        "brand": "Zenith",
+        "branch": "Kovan",
+        "postal": "534733",
+        "lat": 1.36147765901135,
+        "lon": 103.887207500102
+    },
+    {
+        "brand": "Zenith",
+        "branch": "Marymount",
+        "postal": "574408",
+        "lat": 1.35466902496424,
+        "lon": 103.830919782333
+    },
+    {
+        "brand": "Zenith",
+        "branch": "Paya Lebar",
+        "postal": "409051",
+        "lat": 1.31881487007651,
+        "lon": 103.892580778514
+    },
+    {
+        "brand": "Zenith",
+        "branch": "Potong Pasir",
+        "postal": "347856",
+        "lat": 1.32911706740463,
+        "lon": 103.869714610432
+    },
+    {
+        "brand": "Zenith",
+        "branch": "Serangoon",
+        "postal": "556129",
+        "lat": 1.35161225499691,
+        "lon": 103.870367873327
+    },
+    {
+        "brand": "Zenith",
+        "branch": "Tampines",
+        "postal": "529508",
+        "lat": 1.35310035168191,
+        "lon": 103.943743442836
+    },
+    {
+        "brand": "Aspire Hub",
+        "branch": "Alexandra Village (ARC)",
+        "postal": "119974",
+        "lat": 1.27355046548649,
+        "lon": 103.803594402514
+    },
+    {
+        "brand": "Aspire Hub",
+        "branch": "AMK Hub",
+        "postal": "569814",
+        "lat": 1.37178551879642,
+        "lon": 103.847775723803
+    },
+    {
+        "brand": "Aspire Hub",
+        "branch": "Bedok Mall",
+        "postal": "467360",
+        "lat": 1.32473632812103,
+        "lon": 103.929256259726
+    },
+    {
+        "brand": "Aspire Hub",
+        "branch": "Bukit Timah Plaza",
+        "postal": "588996",
+        "lat": 1.33875930729064,
+        "lon": 103.778600077834
+    },
+    {
+        "brand": "Aspire Hub",
+        "branch": "Clementi Mall",
+        "postal": "129588",
+        "lat": 1.31496652285558,
+        "lon": 103.764270467593
+    },
+    {
+        "brand": "Aspire Hub",
+        "branch": "Great World",
+        "postal": "237994",
+        "lat": 1.29380235105066,
+        "lon": 103.831757911057
+    },
+    {
+        "brand": "Aspire Hub",
+        "branch": "Harbourfront Centre",
+        "postal": "099253",
+        "lat": 1.26401293230767,
+        "lon": 103.82005101011
+    },
+    {
+        "brand": "Aspire Hub",
+        "branch": "Jurong Point",
+        "postal": "648886",
+        "lat": 1.3394520043632,
+        "lon": 103.706685012926
+    },
+    {
+        "brand": "Aspire Hub",
+        "branch": "NEX Serangoon",
+        "postal": "556083",
+        "lat": 1.35067551435975,
+        "lon": 103.871861623874
+    },
+    {
+        "brand": "Aspire Hub",
+        "branch": "Parkway Parade",
+        "postal": "449269",
+        "lat": 1.301041960873,
+        "lon": 103.905505005847
+    },
+    {
+        "brand": "Aspire Hub",
+        "branch": "Paya Lebar Quarter (PLQ)",
+        "postal": "409057",
+        "lat": 1.31770886898996,
+        "lon": 103.893414663597
+    },
+    {
+        "brand": "Aspire Hub",
+        "branch": "Rochester Mall",
+        "postal": "138639",
+        "lat": 1.30541103549045,
+        "lon": 103.788371152389
+    },
+    {
+        "brand": "Aspire Hub",
+        "branch": "Seletar Mall",
+        "postal": "797653",
+        "lat": 1.39130622992517,
+        "lon": 103.876085067727
+    },
+    {
+        "brand": "Aspire Hub",
+        "branch": "United Square",
+        "postal": "307591",
+        "lat": 1.31742800767635,
+        "lon": 103.843670754851
+    },
+    {
+        "brand": "Aspire Hub",
+        "branch": "Waterway Point",
+        "postal": "828761",
+        "lat": 1.40640964880099,
+        "lon": 103.902130352627
+    },
+    {
+        "brand": "Aspire Hub",
+        "branch": "West Mall",
+        "postal": "658713",
+        "lat": 1.34992152880216,
+        "lon": 103.749171990184
+    },
+    {
+        "brand": "The Learning Lab",
+        "branch": "United Square",
+        "postal": "307591",
+        "lat": 1.31742800767635,
+        "lon": 103.843670754851
+    },
+    {
+        "brand": "The Learning Lab",
+        "branch": "Marine Parade",
+        "postal": "449269",
+        "lat": 1.301041960873,
+        "lon": 103.905505005847
+    },
+    {
+        "brand": "The Learning Lab",
+        "branch": "JEM Jurong",
+        "postal": "608549",
+        "lat": 1.33329334473462,
+        "lon": 103.743278742341
+    },
+    {
+        "brand": "The Learning Lab",
+        "branch": "Tampines Mall",
+        "postal": "529510",
+        "lat": 1.35250468330971,
+        "lon": 103.944682574769
+    },
+    {
+        "brand": "The Learning Lab",
+        "branch": "Seletar Mall",
+        "postal": "797653",
+        "lat": 1.39130622992517,
+        "lon": 103.876085067727
+    },
+    {
+        "brand": "The Learning Lab",
+        "branch": "Century Square",
+        "postal": "529509",
+        "lat": 1.35236829566862,
+        "lon": 103.943812302253
+    },
+    {
+        "brand": "The Learning Lab",
+        "branch": "Choa Chu Kang Centre",
+        "postal": "689810",
+        "lat": 1.38536316540225,
+        "lon": 103.744370779756
+    },
+    {
+        "brand": "The Learning Lab",
+        "branch": "Woodlands Civic Centre",
+        "postal": "730900",
+        "lat": 1.43505698925938,
+        "lon": 103.787004308703
+    },
+    {
+        "brand": "The Learning Lab",
+        "branch": "Woodleigh Mall",
+        "postal": "367804",
+        "lat": 1.33821440339182,
+        "lon": 103.872089964143
+    },
+    {
+        "brand": "Mind Stretcher",
+        "branch": "Waterway Point",
+        "postal": "828761",
+        "lat": 1.40640964880099,
+        "lon": 103.902130352627
+    },
+    {
+        "brand": "Mind Stretcher",
+        "branch": "Bishan",
+        "postal": "579837",
+        "lat": 1.35042215656701,
+        "lon": 103.848826189269
+    },
+    {
+        "brand": "Mind Stretcher",
+        "branch": "Tampines",
+        "postal": "529509",
+        "lat": 1.35236829566862,
+        "lon": 103.943812302253
+    },
+    {
+        "brand": "Mind Stretcher",
+        "branch": "Hougang",
+        "postal": "538766",
+        "lat": 1.37253315637342,
+        "lon": 103.893883460466
+    },
+    {
+        "brand": "Mind Stretcher",
+        "branch": "Causeway Point",
+        "postal": "738099",
+        "lat": 1.4360700650803,
+        "lon": 103.785981524253
+    },
+    {
+        "brand": "Mind Stretcher",
+        "branch": "Westgate",
+        "postal": "608532",
+        "lat": 1.33402529481694,
+        "lon": 103.742586014944
+    },
+    {
+        "brand": "Mind Stretcher",
+        "branch": "Clementi",
+        "postal": "129588",
+        "lat": 1.31496652285558,
+        "lon": 103.764270467593
+    },
+    {
+        "brand": "Mind Stretcher",
+        "branch": "Bukit Panjang",
+        "postal": "677743",
+        "lat": 1.37948804026655,
+        "lon": 103.764594965051
+    },
+    {
+        "brand": "Mind Stretcher",
+        "branch": "Toa Payoh HDB Hub",
+        "postal": "310530",
+        "lat": 1.33216810552095,
+        "lon": 103.847086433041
+    },
+    {
+        "brand": "Mind Stretcher",
+        "branch": "Compass One",
+        "postal": "545078",
+        "lat": 1.39205314156706,
+        "lon": 103.89507054384
+    },
+    {
+        "brand": "Mind Stretcher",
+        "branch": "Northpoint Yishun",
+        "postal": "769098",
+        "lat": 1.42969848626288,
+        "lon": 103.835776491468
+    },
+    {
+        "brand": "Mind Stretcher",
+        "branch": "Yew Tee",
+        "postal": "680624",
+        "lat": 1.39804736153015,
+        "lon": 103.747084778932
+    },
+    {
+        "brand": "Mind Stretcher",
+        "branch": "Balmoral Plaza",
+        "postal": "259708",
+        "lat": 1.31643963008359,
+        "lon": 103.835487584433
+    },
+    {
+        "brand": "Mind Stretcher",
+        "branch": "Seletar Mall",
+        "postal": "797653",
+        "lat": 1.39130622992517,
+        "lon": 103.876085067727
+    },
+    {
+        "brand": "Mind Stretcher",
+        "branch": "Punggol Coast",
+        "postal": "828627",
+        "lat": 1.41069269259053,
+        "lon": 103.898959874347
+    },
+    {
+        "brand": "Mind Stretcher",
+        "branch": "Jurong Point",
+        "postal": "648886",
+        "lat": 1.3394520043632,
+        "lon": 103.706685012926
+    },
+    {
+        "brand": "Mind Stretcher",
+        "branch": "Marine Parade",
+        "postal": "449269",
+        "lat": 1.301041960873,
+        "lon": 103.905505005847
+    },
+    {
+        "brand": "Mind Stretcher",
+        "branch": "Bedok",
+        "postal": "467360",
+        "lat": 1.32473632812103,
+        "lon": 103.929256259726
+    },
+    {
+        "brand": "Mind Stretcher",
+        "branch": "Choa Chu Kang",
+        "postal": "689812",
+        "lat": 1.38493874036122,
+        "lon": 103.745022476677
+    },
+    {
+        "brand": "Mind Stretcher",
+        "branch": "Tiong Bahru",
+        "postal": "168732",
+        "lat": 1.28646345355064,
+        "lon": 103.826935079694
+    },
+    {
+        "brand": "Mind Stretcher",
+        "branch": "Bukit Timah",
+        "postal": "588996",
+        "lat": 1.33875930729064,
+        "lon": 103.778600077834
+    },
+    {
+        "brand": "Mind Stretcher",
+        "branch": "Paya Lebar",
+        "postal": "409051",
+        "lat": 1.31881487007651,
+        "lon": 103.892580778514
+    },
+    {
+        "brand": "Mind Stretcher",
+        "branch": "Sembawang",
+        "postal": "757713",
+        "lat": 1.44819535371132,
+        "lon": 103.819502127155
+    },
+    {
+        "brand": "Mind Stretcher",
+        "branch": "Pasir Ris",
+        "postal": "519599",
+        "lat": 1.37912717878008,
+        "lon": 103.955444758145
+    },
+    {
+        "brand": "Kumon",
+        "branch": "Junction 9",
+        "postal": "768897",
+        "lat": 1.4331228398318,
+        "lon": 103.84166098599
+    },
+    {
+        "brand": "Kumon",
+        "branch": "Sun Plaza",
+        "postal": "757713",
+        "lat": 1.44819666623789,
+        "lon": 103.819498634275
+    },
+    {
+        "brand": "Kumon",
+        "branch": "Woodlands Civic Centre",
+        "postal": "730900",
+        "lat": 1.43505698925938,
+        "lon": 103.787004308703
+    },
+    {
+        "brand": "Kumon",
+        "branch": "Bukit Panjang Plaza",
+        "postal": "677743",
+        "lat": 1.37948804026655,
+        "lon": 103.764594965051
+    },
+    {
+        "brand": "Kumon",
+        "branch": "Lot One",
+        "postal": "689812",
+        "lat": 1.38493874036122,
+        "lon": 103.745022476677
+    },
+    {
+        "brand": "Kumon",
+        "branch": "Jurong Point",
+        "postal": "648886",
+        "lat": 1.3394520043632,
+        "lon": 103.706685012926
+    },
+    {
+        "brand": "Kumon",
+        "branch": "Clementi Mall",
+        "postal": "129588",
+        "lat": 1.31496652285558,
+        "lon": 103.764270467593
+    },
+    {
+        "brand": "Kumon",
+        "branch": "West Mall",
+        "postal": "658713",
+        "lat": 1.34992152880216,
+        "lon": 103.749171990184
+    },
+    {
+        "brand": "Kumon",
+        "branch": "Tiong Bahru Plaza",
+        "postal": "168732",
+        "lat": 1.28646345355064,
+        "lon": 103.826935079694
+    },
+    {
+        "brand": "Kumon",
+        "branch": "Toa Payoh HDB Hub",
+        "postal": "310530",
+        "lat": 1.33216810552095,
+        "lon": 103.847086433041
+    },
+    {
+        "brand": "Kumon",
+        "branch": "Bishan Junction 8",
+        "postal": "579837",
+        "lat": 1.35042215656701,
+        "lon": 103.848826189269
+    },
+    {
+        "brand": "Kumon",
+        "branch": "AMK Hub",
+        "postal": "569814",
+        "lat": 1.37178551879642,
+        "lon": 103.847775723803
+    },
+    {
+        "brand": "Kumon",
+        "branch": "NEX Serangoon",
+        "postal": "556083",
+        "lat": 1.35067551435975,
+        "lon": 103.871861623874
+    },
+    {
+        "brand": "Kumon",
+        "branch": "Hougang Mall",
+        "postal": "538766",
+        "lat": 1.37253315637342,
+        "lon": 103.893883460466
+    },
+    {
+        "brand": "Kumon",
+        "branch": "Compass One",
+        "postal": "545078",
+        "lat": 1.39205314156706,
+        "lon": 103.89507054384
+    },
+    {
+        "brand": "Kumon",
+        "branch": "Punggol Plaza",
+        "postal": "828815",
+        "lat": 1.39351971529878,
+        "lon": 103.913582341491
+    },
+    {
+        "brand": "Kumon",
+        "branch": "White Sands",
+        "postal": "519599",
+        "lat": 1.3766980678365,
+        "lon": 103.95514122442
+    },
+    {
+        "brand": "Kumon",
+        "branch": "Tampines Mall",
+        "postal": "529510",
+        "lat": 1.35250468330971,
+        "lon": 103.944682574769
+    },
+    {
+        "brand": "Kumon",
+        "branch": "Bedok Mall",
+        "postal": "467360",
+        "lat": 1.32473632812103,
+        "lon": 103.929256259726
+    },
+    {
+        "brand": "Kumon",
+        "branch": "Marine Parade Central",
+        "postal": "440087",
+        "lat": 1.30242019809177,
+        "lon": 103.905662252175
+    },
+    {
+        "brand": "Kumon",
+        "branch": "Paya Lebar Square",
+        "postal": "409051",
+        "lat": 1.31881487007651,
+        "lon": 103.892580778514
+    },
+    {
+        "brand": "Kumon",
+        "branch": "Kallang Wave",
+        "postal": "397628",
+        "lat": 1.30307515150401,
+        "lon": 103.873149707591
+    },
+    {
+        "brand": "Kumon",
+        "branch": "City Square Mall",
+        "postal": "208539",
+        "lat": 1.3113051711141,
+        "lon": 103.856421771626
+    },
+    {
+        "brand": "Kumon",
+        "branch": "Bukit Timah Plaza",
+        "postal": "588996",
+        "lat": 1.33875930729064,
+        "lon": 103.778600077834
+    },
+    {
+        "brand": "Kumon",
+        "branch": "Yishun Ring Road",
+        "postal": "760239",
+        "lat": 1.43364273451288,
+        "lon": 103.839634571008
+    },
+    {
+        "brand": "Kumon",
+        "branch": "Jurong West Frontier CC",
+        "postal": "648346",
+        "lat": 1.34056124596453,
+        "lon": 103.704526876366
+    },
+    {
+        "brand": "Kumon",
+        "branch": "Rivervale Mall",
+        "postal": "545082",
+        "lat": 1.39250410994833,
+        "lon": 103.904483668323
+    },
+    {
+        "brand": "Kumon",
+        "branch": "Buangkok Square",
+        "postal": "533991",
+        "lat": 1.35690014741653,
+        "lon": 103.88254801167
+    },
+    {
+        "brand": "Kumon",
+        "branch": "Greenwich V",
+        "postal": "807011",
+        "lat": 1.38739538356829,
+        "lon": 103.869135979261
+    },
+    {
+        "brand": "Kumon",
+        "branch": "Anchorpoint",
+        "postal": "119598",
+        "lat": 1.29101187069803,
+        "lon": 103.773269305242
+    },
+    {
+        "brand": "Kumon",
+        "branch": "Thomson Plaza",
+        "postal": "574408",
+        "lat": 1.35466902496424,
+        "lon": 103.830919782333
+    },
+    {
+        "brand": "Kumon",
+        "branch": "Beauty World",
+        "postal": "588177",
+        "lat": 1.34239508820554,
+        "lon": 103.776468301093
+    },
+    {
+        "brand": "Kumon",
+        "branch": "Hillion Mall",
+        "postal": "678278",
+        "lat": 1.37834972034942,
+        "lon": 103.76274117487
+    },
+    {
+        "brand": "Kumon",
+        "branch": "Wisteria Mall",
+        "postal": "768698",
+        "lat": 1.41795288501536,
+        "lon": 103.841268831617
+    },
+    {
+        "brand": "Kumon",
+        "branch": "Northshore Plaza",
+        "postal": "820418",
+        "lat": 1.41796176594116,
+        "lon": 103.901323351032
+    },
+    {
+        "brand": "Kumon",
+        "branch": "Oasis Terraces",
+        "postal": "820681",
+        "lat": 1.40287845827053,
+        "lon": 103.913195741417
+    },
+    {
+        "brand": "Kumon",
+        "branch": "Elias Mall",
+        "postal": "510625",
+        "lat": 1.37860717882538,
+        "lon": 103.941916363447
+    },
+    {
+        "brand": "Kumon",
+        "branch": "Downtown East",
+        "postal": "519599",
+        "lat": 1.3766980678365,
+        "lon": 103.95514122442
+    },
+    {
+        "brand": "Kumon",
+        "branch": "Changi City Point",
+        "postal": "519846",
+        "lat": 1.37267683098571,
+        "lon": 103.940849020159
+    },
+    {
+        "brand": "Kumon",
+        "branch": "Eastpoint Mall",
+        "postal": "486038",
+        "lat": 1.33403637902708,
+        "lon": 103.962917615531
+    },
+    {
+        "brand": "Kumon",
+        "branch": "KINEX",
+        "postal": "409006",
+        "lat": 1.31811149224527,
+        "lon": 103.893060771576
+    },
+    {
+        "brand": "Kumon",
+        "branch": "MacPherson Mall",
+        "postal": "368219",
+        "lat": 1.33233958632003,
+        "lon": 103.884446745793
+    },
+    {
+        "brand": "Kumon",
+        "branch": "Novena Square 2",
+        "postal": "307506",
+        "lat": 1.32070510956845,
+        "lon": 103.844160709661
+    },
+    {
+        "brand": "Kumon",
+        "branch": "Tanglin Mall",
+        "postal": "247933",
+        "lat": 1.30484344196915,
+        "lon": 103.823852794772
+    },
+    {
+        "brand": "Kumon",
+        "branch": "Dawson Place",
+        "postal": "142057",
+        "lat": 1.29270339855062,
+        "lon": 103.810958956467
+    },
+    {
+        "brand": "Kumon",
+        "branch": "Taman Jurong CC",
+        "postal": "610399",
+        "lat": 1.334828322199235,
+        "lon": 103.7210513399446
+    },
+    {
+        "brand": "Kumon",
+        "branch": "Keat Hong CC",
+        "postal": "689687",
+        "lat": 1.38409587235577,
+        "lon": 103.744949359275
+    },
+    {
+        "brand": "Kumon",
+        "branch": "Boon Lay Shopping Centre",
+        "postal": "640221",
+        "lat": 1.34639604683977,
+        "lon": 103.712387709421
+    }
+]
