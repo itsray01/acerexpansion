@@ -42,6 +42,23 @@ region_colors = {
     "CENTRAL": "#F472B6"  # Rose Pink
 }
 
+# The 6 Largest Upcoming BTO Mega-Estates (2026 - 2030)
+UPCOMING_BTOS = [
+    {"name": "Tengah Mega-Estate", "lat": 1.3690, "lon": 103.7300, "yield": "30,000", "year": "2026-2028"},
+    {"name": "Bayshore Precinct", "lat": 1.3142, "lon": 103.9400, "yield": "10,000", "year": "2027-2029"},
+    {"name": "Mount Pleasant", "lat": 1.3283, "lon": 103.8340, "yield": "5,000", "year": "2027-2028"},
+    {"name": "Ulu Pandan (Dover)", "lat": 1.3090, "lon": 103.7740, "yield": "3,000", "year": "2026-2027"},
+    {"name": "Chencharu (Yishun)", "lat": 1.4080, "lon": 103.8200, "yield": "10,000", "year": "2027-2030"},
+    {"name": "Woodlands North", "lat": 1.4450, "lon": 103.7900, "yield": "10,000", "year": "2028-2030"}
+]
+
+def load_competitors():
+    """Loads the new competitor JSON database."""
+    if os.path.exists("competitor_db.json"):
+        with open("competitor_db.json", 'r', encoding='utf-8') as f:
+            return json.load(f)
+    return []
+
 def load_schools():
     """Strictly loads GPS from school_db.json. Cross-references CSV for extra text data."""
     schools = []
@@ -104,6 +121,7 @@ def load_schools():
 def generate_map():
     print("[*] Booting up Map Engine...")
     schools = load_schools()
+    competitors = load_competitors()
     
     # SEAMLESS ZOOM: zoom_control=False removes +/- buttons. Micro-steps (0.2) ensure gentle scrolling.
     m = folium.Map(
@@ -124,8 +142,23 @@ def generate_map():
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap');
 
-    /* Guarantee default Leaflet zoom buttons are completely eradicated */
     .leaflet-control-zoom { display: none !important; }
+
+    /* PULSING ANIMATION FOR BTO ZONES */
+    @keyframes pulse-white {
+        0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.7); }
+        70% { transform: scale(1); box-shadow: 0 0 0 15px rgba(255, 255, 255, 0); }
+        100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(255, 255, 255, 0); }
+    }
+    .bto-pulse {
+        width: 14px; height: 14px; background-color: #FFFFFF;
+        border-radius: 50%; border: 2px solid #000;
+        animation: pulse-white 2s infinite;
+    }
+    .competitor-pin {
+        width: 10px; height: 10px; background-color: #555;
+        border: 2px solid #FF3344; border-radius: 50%; box-shadow: 0 2px 4px rgba(0,0,0,0.5);
+    }
 
     .leaflet-tooltip {
         font-family: 'Montserrat', sans-serif !important;
@@ -191,36 +224,32 @@ def generate_map():
     input[type="radio"].leaflet-control-layers-selector:checked::after {
         content: ""; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 6px; height: 6px; background: #000; border-radius: 50%;
     }
+    
+    /* PULSING ANIMATION FOR BTO ZONES */
+    @keyframes pulse-white {
+        0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.7); }
+        70% { transform: scale(1); box-shadow: 0 0 0 15px rgba(255, 255, 255, 0); }
+        100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(255, 255, 255, 0); }
+    }
+    .bto-pulse {
+        width: 14px; height: 14px; background-color: #FFFFFF;
+        border-radius: 50%; border: 2px solid #000;
+        animation: pulse-white 2s infinite;
+    }
     </style>
     """
     m.get_root().header.add_child(Element(custom_css))
 
     print("[*] Plotting URA Regions (Bug Fixed: Strict Keyword Filtering)...")
-    ura_group = folium.FeatureGroup(name="Regional Boundaries (Choropleth)", show=True)
-    
-    ura_data = None
-    if os.path.exists("ura_regions.json"):
-        with open("ura_regions.json", "r") as f:
-            ura_data = json.load(f)
-    else:
-        try:
-            res = requests.get("https://raw.githubusercontent.com/itsray01/acerexpansion/main/ura_regions.json", timeout=10)
-            if res.status_code == 200: ura_data = res.json()
-        except Exception as e:
-            print(f"[!] URA network fetch failed: {e}")
 
     def get_vibrant_style(feature):
         props = str(feature.get('properties', {})).upper()
-        # 1. STRICT WEST CHECK FIRST (Traps Jurong East so it never turns yellow!)
-        if 'WEST REGION' in props or any(k in props for k in ['JURONG', 'CLEMENTI', 'BUKIT BATOK', 'BUKIT PANJANG', 'CHOA CHU KANG', 'TUAS', 'PIONEER', 'BOON LAY', 'TENGAH', 'WESTERN']):
-            return {'fillColor': '#4ADE80', 'color': 'transparent', 'weight': 0, 'fillOpacity': 0.22, 'interactive': False}
-        # 2. STRICT NORTH + NE CHECK
-        elif 'NORTH REGION' in props or 'NORTH-EAST REGION' in props or 'NORTHEAST' in props or any(k in props for k in ['WOODLANDS', 'SEMBAWANG', 'YISHUN', 'MANDAI', 'SIMPANG', 'SENGKANG', 'PUNGGOL', 'HOUGANG', 'SERANGOON', 'ANG MO KIO', 'SELETAR']):
-            return {'fillColor': '#00E5FF', 'color': 'transparent', 'weight': 0, 'fillOpacity': 0.22, 'interactive': False}
-        # 3. STRICT EAST CHECK (Only true East towns get Bright Yellow!)
-        elif 'EAST REGION' in props or any(k in props for k in ['TAMPINES', 'PASIR RIS', 'CHANGI', 'BEDOK', 'PAYA LEBAR']):
+        if 'EAST' in props and 'NORTH-EAST' not in props and 'NORTHEAST' not in props:
             return {'fillColor': '#FFFF00', 'color': 'transparent', 'weight': 0, 'fillOpacity': 0.38, 'interactive': False}
-        # 4. CENTRAL FALLBACK (Traps Marina East/South cleanly into Pink!)
+        elif 'NORTH' in props or 'WOODLANDS' in props or 'SENGKANG' in props or 'PUNGGOL' in props or 'YISHUN' in props or 'ANG MO KIO' in props or 'HOUGANG' in props or 'SERANGOON' in props:
+            return {'fillColor': '#00E5FF', 'color': 'transparent', 'weight': 0, 'fillOpacity': 0.22, 'interactive': False}
+        elif 'WEST' in props or 'JURONG' in props or 'CLEMENTI' in props or 'BUKIT BATOK' in props or 'BUKIT PANJANG' in props or 'CHOA CHU KANG' in props:
+            return {'fillColor': '#4ADE80', 'color': 'transparent', 'weight': 0, 'fillOpacity': 0.22, 'interactive': False}
         else:
             return {'fillColor': '#F472B6', 'color': 'transparent', 'weight': 0, 'fillOpacity': 0.22, 'interactive': False}
 
@@ -246,7 +275,6 @@ def generate_map():
     jc_group = folium.FeatureGroup(name="Junior Colleges (Amber)", show=True)
     intl_group = folium.FeatureGroup(name="International Schools (Rose Pink)", show=True)
     
-    # Format: [Branches, Schools, Total Students]
     stats = {"NORTH": [0,0,0], "EAST": [0,0,0], "WEST": [0,0,0], "CENTRAL": [0,0,0]}
 
     for school in schools:
@@ -254,18 +282,15 @@ def generate_map():
         lat, lon = school["lat"], school["lon"]
         name, address, website = school["name"], school["address"], school["website"]
         
-        # Organic, realistic enrollment calculation based on actual level + stable school variance
         base_enrollment = 1350
         if "PRIMARY" in level: base_enrollment = 1280
         elif "SECONDARY" in level: base_enrollment = 1320
         elif "JUNIOR COLLEGE" in level: base_enrollment = 1850
         elif "INTERNATIONAL" in level: base_enrollment = 920
         
-        # Stable deterministic variance (-120 to +140) so numbers look 100% realistic and non-flat
         variance = (sum(ord(c) for c in name) * 17) % 261 - 120
         school_students = base_enrollment + variance
         
-        # Robust bounding box assigning schools accurately across regions
         if (lon > 103.86 and lat > 1.36) or (lat > 1.375 and lon > 103.77):
             stats["NORTH"][1] += 1
             stats["NORTH"][2] += school_students
@@ -307,6 +332,62 @@ def generate_map():
     jc_group.add_to(m)
     intl_group.add_to(m)
 
+    print("[*] Plotting Competitors (Triangles)...")
+    comp_group = folium.FeatureGroup(name="Competitor Network", show=False)
+    for comp in competitors:
+        brand = comp.get('brand', '')
+        
+        # Color mapping logic
+        if brand == "Kumon":
+            fill_color = "#0B132B" # Dark Dark Blue
+        elif brand == "Mind Stretcher":
+            fill_color = "#FAECA8" # Very Light Gold
+        elif brand == "Zenith":
+            fill_color = "#808080" # Gray
+        elif brand == "Aspire Hub":
+            fill_color = "#F97316" # Orange (Assigned for Aspire)
+        elif brand == "The Learning Lab":
+            fill_color = "#14B8A6" # Teal (Assigned for TLL)
+        else:
+            fill_color = "#FFFFFF"
+
+        # Sharp, scalable SVG Triangles
+        svg_html = f'''
+        <div style="transform: translate(-50%, -50%); filter: drop-shadow(0px 3px 4px rgba(0,0,0,0.8));">
+            <svg width="22" height="20" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <polygon points="12,0 24,24 0,24" fill="{fill_color}" stroke="#FFFFFF" stroke-width="1.5" stroke-linejoin="round"/>
+            </svg>
+        </div>
+        '''
+        
+        popup_html = f"<b style='color: {fill_color}; text-shadow: 1px 1px 2px #000;'>{brand}</b><br>{comp.get('branch', '')}"
+        folium.Marker(
+            location=[comp['lat'], comp['lon']],
+            popup=folium.Popup(popup_html, max_width=200),
+            tooltip=f"{brand} ({comp.get('branch', '')})",
+            icon=folium.DivIcon(html=svg_html, icon_anchor=(11, 10))
+        ).add_to(comp_group)
+    comp_group.add_to(m)
+
+    print("[*] Plotting Upcoming BTO Mega-Estates...")
+    bto_group = folium.FeatureGroup(name="Upcoming BTO Estates (2026-2030)", show=False)
+    for bto in UPCOMING_BTOS:
+        popup_html = f"""
+        <div style="min-width: 180px;">
+            <b style="color: #FFF; font-size: 14px;">{bto['name']}</b><br>
+            <div style="font-size: 11px; color: #00E5FF; text-transform: uppercase; margin-bottom: 6px; font-weight: 600;">Upcoming Mega-Estate</div>
+            <div style="font-size: 12px; color: #ccc;"><b>Yield:</b> {bto['yield']} Units</div>
+            <div style="font-size: 12px; color: #ccc;"><b>Completion:</b> {bto['year']}</div>
+        </div>
+        """
+        folium.Marker(
+            location=[bto['lat'], bto['lon']],
+            popup=folium.Popup(popup_html, max_width=250),
+            tooltip=bto['name'],
+            icon=folium.DivIcon(html="<div class='bto-pulse'></div>", icon_anchor=(7, 7))
+        ).add_to(bto_group)
+    bto_group.add_to(m)
+
     print(f"[*] Plotting {len(EXISTING_BRANCHES)} Acer Branches...")
     branch_group = folium.FeatureGroup(name="Acer Academy Branches", show=True)
     
@@ -338,7 +419,7 @@ def generate_map():
     sim_group = folium.FeatureGroup(name="Simulate Expansion (Click Map)", show=False)
     sim_group.add_to(m)
 
-    print("[*] Plotting Regional Data Boxes (Pulled closer to mainland)...")
+    print("[*] Plotting Regional Data Boxes...")
     boxes_group = folium.FeatureGroup(name="Regional Data Boxes", show=True)
     
     def create_box(region, b_count, s_count, total_students):
@@ -352,7 +433,6 @@ def generate_map():
         </div>
         """
 
-    # Coordinates pulled ~40% closer to the mainland coastlines for better visual balance
     regions_setup = [
         ("NORTH", [1.485, 103.82], [1.44, 103.82]),
         ("EAST",  [1.35, 104.02], [1.35, 103.95]),
@@ -371,7 +451,7 @@ def generate_map():
         ).add_to(boxes_group)
     boxes_group.add_to(m)
 
-    # Legend scaled up: 13px font, larger dots, wider padding, pinned to top-left
+    # Legend moved to TOP LEFT (top: 20px; left: 20px;) filling the clean open space
     legend_and_sim_js = """
     <div id="map-legend" style="
         position: fixed; top: 20px; left: 20px; z-index: 9999;
@@ -379,14 +459,31 @@ def generate_map():
         padding: 14px 18px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.15);
         font-family: 'Montserrat', sans-serif; font-size: 13px; color: #fff;
         box-shadow: 0 8px 20px rgba(0,0,0,0.6); pointer-events: auto;
+        max-height: 85vh; overflow-y: auto;
     ">
         <div style="font-weight: 800; font-size: 13px; color: #00E5FF; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.15); padding-bottom: 6px;">Map Legend</div>
         <div style="display: flex; align-items: center; margin-bottom: 6px;"><span style="display:inline-block; width:10px; height:10px; background:#38BDF8; border-radius:50%; margin-right:10px;"></span> Primary School</div>
         <div style="display: flex; align-items: center; margin-bottom: 6px;"><span style="display:inline-block; width:10px; height:10px; background:#A78BFA; border-radius:50%; margin-right:10px;"></span> Secondary School</div>
         <div style="display: flex; align-items: center; margin-bottom: 6px;"><span style="display:inline-block; width:10px; height:10px; background:#FBBF24; border-radius:50%; margin-right:10px;"></span> Junior College</div>
         <div style="display: flex; align-items: center; margin-bottom: 6px;"><span style="display:inline-block; width:10px; height:10px; background:#F472B6; border-radius:50%; margin-right:10px;"></span> International School</div>
+        
+        <div style="font-weight: 800; font-size: 11px; color: #FF3344; text-transform: uppercase; letter-spacing: 1px; margin-top: 10px; margin-bottom: 6px; border-top: 1px solid rgba(255,255,255,0.15); padding-top: 8px;">Competitor Network</div>
+        <div style="display: flex; align-items: center; margin-bottom: 4px;">
+            <svg width="12" height="12" viewBox="0 0 24 24" style="margin-right:10px; filter: drop-shadow(0px 2px 2px rgba(0,0,0,0.8));"><polygon points="12,0 24,24 0,24" fill="#0B132B" stroke="#FFF" stroke-width="2"/></svg> Kumon
+        </div>
+        <div style="display: flex; align-items: center; margin-bottom: 4px;">
+            <svg width="12" height="12" viewBox="0 0 24 24" style="margin-right:10px; filter: drop-shadow(0px 2px 2px rgba(0,0,0,0.8));"><polygon points="12,0 24,24 0,24" fill="#FAECA8" stroke="#FFF" stroke-width="2"/></svg> Mind Stretcher
+        </div>
+        <div style="display: flex; align-items: center; margin-bottom: 4px;">
+            <svg width="12" height="12" viewBox="0 0 24 24" style="margin-right:10px; filter: drop-shadow(0px 2px 2px rgba(0,0,0,0.8));"><polygon points="12,0 24,24 0,24" fill="#808080" stroke="#FFF" stroke-width="2"/></svg> Zenith
+        </div>
+        <div style="display: flex; align-items: center; margin-bottom: 6px;">
+            <svg width="12" height="12" viewBox="0 0 24 24" style="margin-right:10px; filter: drop-shadow(0px 2px 2px rgba(0,0,0,0.8));"><polygon points="12,0 24,24 0,24" fill="#F97316" stroke="#FFF" stroke-width="2"/></svg> Aspire / TLL
+        </div>
+
         <div style="display: flex; align-items: center; margin-top: 8px; border-top: 1px solid rgba(255,255,255,0.15); padding-top: 8px;"><span style="display:inline-block; width:12px; height:12px; border:2px solid #00C9FF; border-radius:50%; margin-right:10px;"></span> 1.5km Branch Catchment</div>
         <div style="display: flex; align-items: center; margin-top: 6px;"><span style="display:inline-block; width:12px; height:12px; border:2px dashed #FFFF00; background:rgba(255,255,0,0.2); border-radius:50%; margin-right:10px;"></span> Simulated Catchment</div>
+        <div style="display: flex; align-items: center; margin-top: 6px;"><span style="display:inline-block; width:12px; height:12px; background:#FFF; border-radius:50%; margin-right:10px; box-shadow: 0 0 6px #FFF;"></span> Upcoming BTO Estate</div>
     </div>
     <script>
     window.addEventListener('load', function() {
