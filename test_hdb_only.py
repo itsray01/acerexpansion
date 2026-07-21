@@ -7,10 +7,6 @@ import csv
 import requests
 import pandas as pd
 from playwright.sync_api import sync_playwright
-from dotenv import load_dotenv
-
-# Force load the .env file so the scraper has the Telegram token!
-load_dotenv()
 
 # ==========================================
 # 1. CONFIGURATION & SECRETS  
@@ -148,41 +144,21 @@ def fetch_latest_commercial_data():
         debug_log(f"[!] Error fetching CSV from GitHub: {e}")
 
 def load_school_db():
-    """Upgraded to read the new All_Schools_Geocoded.csv with smart fuzzy matching!"""
-    db_path = "All_Schools_Geocoded.csv"
-    schools = []
-    
-    if os.path.exists(db_path):
-        try:
-            with open(db_path, "r", encoding="utf-8-sig") as f:
-                reader = csv.DictReader(f)
-                headers = reader.fieldnames
+    possible_paths = [
+        "school_db.json",
+        os.path.join(os.path.dirname(__file__), "school_db.json") if "__file__" in globals() else None
+    ]
+    for path in possible_paths:
+        if path and os.path.exists(path):
+            try:
+                with open(path, "r", encoding="utf-8") as f:
+                    schools = json.load(f)
+                    if schools:
+                        return schools
+            except Exception as e:
+                debug_log(f"[!] Warning reading '{path}': {e}")
                 
-                # Fuzzy match headers
-                h_map = {}
-                for h in headers:
-                    h_lower = str(h).strip().lower()
-                    if 'name' in h_lower or 'school' in h_lower: h_map['name'] = h
-                    elif 'lat' in h_lower: h_map['lat'] = h
-                    elif 'lon' in h_lower or 'lng' in h_lower: h_map['lon'] = h
-                    
-                for row in reader:
-                    name = row.get(h_map.get('name', ''), '').strip()
-                    if not name: continue
-                    try:
-                        lat = float(row.get(h_map.get('lat', ''), '').strip())
-                        lon = float(row.get(h_map.get('lon', ''), '').strip())
-                        schools.append({"name": name, "lat": lat, "lon": lon})
-                    except ValueError:
-                        continue
-                        
-            if schools:
-                debug_log(f"[+] Successfully loaded {len(schools)} schools from CSV.")
-                return schools
-        except Exception as e:
-            debug_log(f"[!] Warning reading '{db_path}': {e}")
-            
-    debug_log("[!] All_Schools_Geocoded.csv missing or failed. Using micro-fallback database.")
+    debug_log("[!] school_db.json missing. Using micro-fallback database.")
     return [
         {"name": "Nanyang Primary School", "lat": 1.3210, "lon": 103.8060, "level": "PRIMARY"},
         {"name": "Rulang Primary School", "lat": 1.3468, "lon": 103.7190, "level": "PRIMARY"},
@@ -551,6 +527,8 @@ def save_price_ledger(ledger_dict):
     with open(STATE_FILE, "w") as f: json.dump(ledger_dict, f, indent=2)
 
 def main():
+    send_telegram_alert("🟢 *System Test:* Direct HDB API Pipeline live. Fetching active inventory...")
+    
     # 1. ALWAYS download the latest commercial benchmark file directly from GitHub
     fetch_latest_commercial_data()
     
@@ -560,15 +538,23 @@ def main():
     
     debug_log(f"[*] Found {len(all_units)} qualified active HDB properties.")
     
+    # === CRITICAL FIX: MAP WIPE LOGIC ===
     if not all_units:
         log_text = "\n".join(DEBUG_LOGS[-15:])
         error_msg = f"ℹ️ *HDB Feed Diagnostic:* 0 properties matched criteria.\n\n*Auto-Debug Logs:*\n```text\n{log_text}\n```"
         send_telegram_alert(error_msg)
+        
+        # Overwrite map file with empty array so map deletes expired pins
+        with open("live_tenders.json", "w", encoding="utf-8") as f:
+            json.dump([], f)
+        debug_log("[+] Zero active listings. Map cleared. Exiting safely.")
         return
 
     # Container to hold all processed alerts
     property_alerts = []
-    live_tenders_export = []
+    
+    # === NEW: CONTAINER FOR MAP EXPORT ===
+    map_tenders = []
 
     for unit in all_units:
         lid = unit["id"]
@@ -603,6 +589,8 @@ def main():
             
         if unit["is_sealed"]:
             price_status = "🔒 Sealed Tender"
+            display_price = 0
+            psf = 0
         else:
             display_price = unit["price"] if unit["price"] > 0 else unit.get("starting_bid", 0)
             psf = round(display_price / unit["sqft"], 2) if unit["sqft"] > 0 else 0.0
@@ -623,6 +611,20 @@ def main():
 
         lat, lon = get_robust_gps(unit["address"], cluster_key=unit["cluster_key"])
         display_address = format_display_address(unit['address'])
+
+        # === NEW: APPEND TO MAP EXPORT ===
+        if lat and lon:
+            map_tenders.append({
+                "id": str(unit["id"]),
+                "project": unit["cluster_key"].title(),
+                "address": display_address,
+                "price": f"${display_price:,.0f}/mo" if display_price > 0 else "TBA",
+                "size_sqft": int(unit['sqft']),
+                "psf": psf,
+                "lat": lat,
+                "lon": lon,
+                "url": unit['link']
+            })
 
         # Catchment analysis strings
         if lat and lon:
@@ -668,31 +670,6 @@ def main():
             "image_url": unit.get("image_url")
         })
 
-        # --- EXPORT TO MAP ---
-        if lat and lon:
-            d_price = unit["price"] if unit["price"] > 0 else unit.get("starting_bid", 0)
-            price_val = f"${d_price:,.0f}/mo" if d_price > 0 else "TBA"
-            if unit["is_sealed"]: price_val = "Sealed Tender"
-            
-            live_tenders_export.append({
-                "id": lid,
-                "address": display_address,
-                "lat": lat,
-                "lon": lon,
-                "price": price_val,
-                "sqft": int(unit['sqft']),
-                "trade": trade_type_str,
-                "link": unit['link']
-            })
-
-    # Save JSON for the Map Generator
-    try:
-        with open("live_tenders.json", "w", encoding="utf-8") as f:
-            json.dump(live_tenders_export, f, indent=4)
-        debug_log(f"[*] Exported {len(live_tenders_export)} live tenders to JSON for the map.")
-    except Exception as e:
-        debug_log(f"[!] Failed to export live tenders: {e}")
-
     # Send Introduction Message
     header_text = f"🏢 *ACER ACADEMY: ACTIVE HDB INVENTORY* 🏢\n_{len(all_units)} Target Matches Currently Open for Bidding/Tender_"
     send_telegram_alert(header_text)
@@ -704,7 +681,12 @@ def main():
         time.sleep(1.5) # Slight delay to prevent Telegram rate-limiting
 
     save_price_ledger(price_ledger)
-    debug_log("[+] Pipeline finished successfully.")
+    
+    # === NEW: SAVE MAP EXPORT TO DISK ===
+    with open("live_tenders.json", "w", encoding="utf-8") as f:
+        json.dump(map_tenders, f, indent=4)
+        
+    debug_log(f"[+] Pipeline finished successfully. Exported {len(map_tenders)} live tenders for the map.")
 
 if __name__ == "__main__":
     main()
