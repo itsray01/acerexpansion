@@ -1,0 +1,132 @@
+[
+    {
+        "id": "HDB_3504_579",
+        "address": "61, Lengkok Bahru, #01-452, S(150061)",
+        "lat": 1.28986335040382,
+        "lon": 103.813806462827,
+        "price": "TBA",
+        "sqft": 579,
+        "trade": "Open Trade",
+        "link": "https://place2lease.hdb.gov.sg/public/view-properties/true/ebid-unit-details/3504"
+    },
+    {
+        "id": "HDB_3506_839",
+        "address": "462, Crawford Lane, #02-45, S(190462)",
+        "lat": 1.30458618988007,
+        "lon": 103.860840751642,
+        "price": "$2,000/mo",
+        "sqft": 839,
+        "trade": "Open Trade",
+        "link": "https://place2lease.hdb.gov.sg/public/view-properties/true/ebid-unit-details/3506"
+    },
+    {
+        "id": "HDB_3507_663",
+        "address": "501, Hougang Avenue 8, #01-634, S(530501)",
+        "lat": 1.37205269626364,
+        "lon": 103.886531403839,
+        "price": "$2,400/mo",
+        "sqft": 663,
+        "trade": "Open Trade",
+        "link": "https://place2lease.hdb.gov.sg/public/view-properties/true/ebid-unit-details/3507"
+    },
+    {
+        "id": "HDB_3499_527",
+        "address": "76, Circuit Road, #01-08, S(370076)",
+        "lat": 1.32551693484516,
+        "lon": 103.889903603926,
+        "price": "$2,600/mo",
+        "sqft": 527,
+        "trade": "Open Trade",
+        "link": "https://place2lease.hdb.gov.sg/public/view-properties/true/ebid-unit-details/3499"
+    },
+    {
+        "id": "HDB_3502_1636",
+        "address": "5000F, Marine Parade Road, #01-24, S(449289)",
+        "lat": 1.30958127085337,
+        "lon": 103.930753958495,
+        "price": "TBA",
+        "sqft": 1636,
+        "trade": "Open Trade",
+        "link": "https://place2lease.hdb.gov.sg/public/view-properties/true/ebid-unit-details/3502"
+    },
+    {
+        "id": "HDB_3508_1883",
+        "address": "29A, Chai Chee Avenue, #01-74, S(461029)",
+        "lat": 1.32488632174354,
+        "lon": 103.924132068906,
+        "price": "TBA",
+        "sqft": 1883,
+        "trade": "Open Trade",
+        "link": "https://place2lease.hdb.gov.sg/public/view-properties/true/ebid-unit-details/3508"
+    },
+    {
+        "id": "HDB_3509_1905",
+        "address": "80A, Lorong 4 Toa Payoh, #01-454, S(311080)",
+        "lat": 1.33529628956914,
+        "lon": 103.849257795765,
+        "price": "$3,000/mo",
+        "sqft": 1905,
+        "trade": "Open Trade",
+        "link": "https://place2lease.hdb.gov.sg/public/view-properties/true/ebid-unit-details/3509"
+    },
+    {
+        "id": "HDB_3510_2045",
+        "address": "233, Bishan Street 22, #B1-134, S(570233)",
+        "lat": 1.35857600459413,
+        "lon": 103.845592706619,
+        "price": "TBA",
+        "sqft": 2045,
+        "trade": "Open Trade",
+        "link": "https://place2lease.hdb.gov.sg/public/view-properties/true/ebid-unit-details/3510"
+    },
+    {
+        "id": "HDB_3511_2400",
+        "address": "444, Hougang Avenue 8, #B1-1599, S(530444)",
+        "lat": 1.37948875169894,
+        "lon": 103.893848534648,
+        "price": "$2,100/mo",
+        "sqft": 2400,
+        "trade": "Open Trade",
+        "link": "https://place2lease.hdb.gov.sg/public/view-properties/true/ebid-unit-details/3511"
+    },
+    {
+        "id": "HDB_3500_538",
+        "address": "351, Anchorvale Road, #01-04, S(540351)",
+        "lat": 1.39332786581517,
+        "lon": 103.886617625113,
+        "price": "TBA",
+        "sqft": 538,
+        "trade": "Open Trade",
+        "link": "https://place2lease.hdb.gov.sg/public/view-properties/true/ebid-unit-details/3500"
+    },
+    {
+        "id": "HDB_3501_495",
+        "address": "808, French Road, #02-24, S(200808)",
+        "lat": 1.3088060941423,
+        "lon": 103.861311954595,
+        "price": "$1,200/mo",
+        "sqft": 495,
+        "trade": "Open Trade",
+        "link": "https://place2lease.hdb.gov.sg/public/view-properties/true/ebid-unit-details/3501"
+    },
+    {
+        "id": "HDB_3503_710",
+        "address": "34, Upper Cross Street, #03-154, S(050034)",
+        "lat": 1.2862352148315,
+        "lon": 103.842303340846,
+        "price": "$1,600/mo",
+        "sqft": 710,
+        "trade": "Open Trade",
+        "link": "https://place2lease.hdb.gov.sg/public/view-properties/true/ebid-unit-details/3503"
+    },
+    {
+        "id": "HDB_3275_4154",
+        "address": "852, Jurong West Street 81, #01-317, S(640852)",
+        "lat": 1.34744620469093,
+        "lon": 103.692827944039,
+        "price": "$7,500/mo",
+        "sqft": 4154,
+        "trade": "Tuition Centre, Enrichment Centre, Student Care Centre",
+        "link": "https://place2lease.hdb.gov.sg/public/view-properties/true/ebid-unit-details/3275"
+    }
+]
