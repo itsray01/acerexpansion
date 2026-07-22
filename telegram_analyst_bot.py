@@ -14,6 +14,8 @@ import uuid
 import requests
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from telegram import ReplyKeyboardMarkup, KeyboardButton, Update, InlineQueryResultArticle, InputTextMessageContent, InlineQueryResultCachedPhoto
+from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes, InlineQueryHandler
+from dotenv import load_dotenv
 
 # 1. Force load credentials
 load_dotenv()
@@ -30,6 +32,12 @@ logging.basicConfig(
 IS_INSTALLING = True
 # A Threading Lock ensures Render's 512MB RAM is never overwhelmed by multiple Chrome instances
 BROWSER_LOCK = threading.Lock() 
+
+# Cache to hold Telegram's internal file IDs for instant inline sharing
+INLINE_PHOTO_CACHE = {
+    "map": None,
+    "report": None
+}
 
 # ==========================================
 # RENDER.COM 24/7 CLOUD SURVIVAL ENGINE
@@ -184,7 +192,7 @@ def get_cached_tenders():
     """Instantly fetches the latest tender data exported by the daily GitHub Action."""
     try:
         # Fetch from GitHub raw to ensure Render always has the absolute latest daily scrape
-        res = requests.get("https://raw.githubusercontent.com/itsray01/acerexpansion/main/live_tenders.json", timeout=2)
+        res = requests.get("https://raw.githubusercontent.com/itsray01/acerexpansion/main/live_tenders.json", timeout=5)
         if res.status_code == 200:
             return res.json()
     except:
@@ -319,6 +327,117 @@ async def report(update: Update, context: ContextTypes.DEFAULT_TYPE):
     err = None
     
     try:
+        loop = asyncio.get_running_loop()
+        # force_refresh=True to make sure it captures the newly forced ON BTOs and Competitors
+        img_path, err = await loop.run_in_executor(None, get_map_screenshot, "report_preview.png", True, True)
+        
+        if img_path and os.path.exists(img_path):
+            with open(img_path, 'rb') as photo:
+                msg = await update.message.reply_photo(photo=photo, caption=intel_summary, parse_mode="Markdown")
+                # Memorize the file_id for inline mode
+                INLINE_PHOTO_CACHE["report"] = msg.photo[-1].file_id
+            return
+    except Exception as e:
+        err = str(e)
+        logging.error(f"Failed to send photo report: {e}")
+        
+    if err:
+        intel_summary += f"\n\n⚠️ *Debug - Screenshot Error:*\n`{err[:250]}`"
+        
+    await update.message.reply_text(intel_summary, parse_mode="Markdown")
+
+async def map_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Sends an HD map screenshot (Standard) and provides web link."""
+    await update.message.reply_text("🗺️ *Loading live interactive map snapshot...*", parse_mode="Markdown")
+    
+    err = None
+    caption_text = (
+        "🗺️ *LIVE EXPANSION MAP PREVIEW*\n"
+        "━━━━━━━━━━━━━━━━━━━━━━━━\n"
+        "Visualizing Acer Academy branches & 331 school zones across Singapore.\n\n"
+        "🌐 *Live Interactive Web Map:*\n"
+        "[👉 Click Here to Open Interactive Map](https://itsray01.github.io/acerexpansion/acer_expansion_map.html)"
+    )
+    
+    try:
+        loop = asyncio.get_running_loop()
+        # force_refresh=True to make sure it captures the newly forced ON BTOs and Competitors
+        img_path, err = await loop.run_in_executor(None, get_map_screenshot, "map_preview.png", False, True)
+        
+        if img_path and os.path.exists(img_path):
+            with open(img_path, 'rb') as photo:
+                msg = await update.message.reply_photo(photo=photo, caption=caption_text, parse_mode="Markdown")
+                # Memorize the file_id for inline mode
+                INLINE_PHOTO_CACHE["map"] = msg.photo[-1].file_id
+            return
+    except Exception as e:
+        err = str(e)
+        logging.error(f"Error executing map command: {e}")
+        
+    if err:
+        caption_text += f"\n\n⚠️ *Debug - Screenshot Error:*\n`{err[:250]}`"
+        
+    await update.message.reply_text(caption_text, parse_mode="Markdown", disable_web_page_preview=True)
+
+async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Sends a professional guide on how to read the bot's data."""
+    help_text = (
+        "📖 *ACER ACADEMY: SYSTEM GUIDE*\n"
+        "━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+        "🎯 *The 1.5km Radius Rule*\n"
+        "We use a 1.5km protective radius around existing branches. If a school falls outside this zone, it is considered an *Unserved School*. The `/report` ranks the towns with the most unserved schools.\n\n"
+        "💵 *Understanding PSF (Per Square Foot)*\n"
+        "The bot automatically cross-references HDB bids against the private commercial market:\n"
+        "• *Market Rate:* The median rent for similar private units in that specific cluster.\n"
+        "• *Target Bid:* Our suggested maximum bid, calculated at *65% of the private market rate*.\n"
+        "• ⚠️ *(Above Market):* Flags if the current HDB bid is already higher than our target.\n\n"
+        "🚦 *Cannibalization Warning*\n"
+        "If a new HDB tender is less than 800m from an existing Acer Academy branch, the bot will flag it as ⚠️ *(Too Close)* to prevent stealing our own students."
+    )
+    await update.message.reply_text(help_text, parse_mode="Markdown")
+
+# ==========================================
+# INLINE MODE ENGINE
+# ==========================================
+async def inline_query(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handles inline queries when a user types @BotName in any chat."""
+    results = []
+    
+    # 1. Map Link Option
+    if INLINE_PHOTO_CACHE.get("map"):
+        results.append(
+            InlineQueryResultCachedPhoto(
+                id=str(uuid.uuid4()),
+                photo_file_id=INLINE_PHOTO_CACHE["map"],
+                title="🗺️ Share Interactive Map",
+                description="Sends the HD Map snapshot",
+                caption=(
+                    "🗺️ *LIVE EXPANSION MAP PREVIEW*\n"
+                    "━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                    "Visualizing Acer Academy branches & 331 school zones across Singapore.\n\n"
+                    "🌐 *Live Interactive Web Map:*\n"
+                    "[👉 Click Here to Open Interactive Map](https://itsray01.github.io/acerexpansion/acer_expansion_map.html)"
+                ),
+                parse_mode="Markdown"
+            )
+        )
+    else:
+        results.append(
+            InlineQueryResultArticle(
+                id=str(uuid.uuid4()),
+                title="🗺️ Share Interactive Map Link",
+                description="Send the live Acer Expansion map (Text Mode).",
+                input_message_content=InputTextMessageContent(
+                    "🗺️ *LIVE EXPANSION MAP*\n"
+                    "━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                    "Visualizing Acer Academy branches & 331 school zones.\n\n"
+                    "[👉 Click Here to Open Interactive Map](https://itsray01.github.io/acerexpansion/acer_expansion_map.html)",
+                    parse_mode="Markdown",
+                    disable_web_page_preview=False
+                )
+            )
+        )
+
     # 2. Text-only Intelligence Report
     intel_summary = generate_intelligence_report()
     if INLINE_PHOTO_CACHE.get("report"):
@@ -387,9 +506,9 @@ async def report(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # ==========================================
 # BACKGROUND GHOST TASK
 # ==========================================
-async def auto_cache_maps_background():
+async def auto_cache_maps_background(application):
     """Runs forever in the background, updating the map caches every 12 hours."""
-    global IS_INSTALLING
+    global IS_INSTALLING, INLINE_PHOTO_CACHE
     logging.info("[*] GHOST TASK: Verifying Playwright Browser Binaries in background...")
     loop = asyncio.get_running_loop()
     
@@ -412,17 +531,30 @@ async def auto_cache_maps_background():
     while True:
         logging.info("[*] GHOST TASK: Generating fresh map caches in the background...")
         try:
-            await loop.run_in_executor(None, get_map_screenshot, "map_preview.png", False, True)
-            await loop.run_in_executor(None, get_map_screenshot, "report_preview.png", True, True)
+            map_path, _ = await loop.run_in_executor(None, get_map_screenshot, "map_preview.png", False, True)
+            report_path, _ = await loop.run_in_executor(None, get_map_screenshot, "report_preview.png", True, True)
+            
+            chat_id = os.getenv("TELEGRAM_CHAT_ID")
+            if chat_id:
+                if map_path and os.path.exists(map_path):
+                    with open(map_path, 'rb') as f:
+                        msg = await application.bot.send_photo(chat_id=chat_id, photo=f, caption="⚙️ *System Refresh:* Map snapshot cached.", parse_mode="Markdown", disable_notification=True)
+                        INLINE_PHOTO_CACHE["map"] = msg.photo[-1].file_id
+                
+                if report_path and os.path.exists(report_path):
+                    with open(report_path, 'rb') as f:
+                        msg = await application.bot.send_photo(chat_id=chat_id, photo=f, caption="⚙️ *System Refresh:* Heatmap report cached.", parse_mode="Markdown", disable_notification=True)
+                        INLINE_PHOTO_CACHE["report"] = msg.photo[-1].file_id
+
             logging.info("[*] GHOST TASK: Map caches successfully updated! Sleeping for 12 hours.")
         except Exception as e:
             logging.error(f"[!] GHOST TASK FAILED: {e}")
             
         await asyncio.sleep(43200)
 
-async def post_init(application: ApplicationBuilder):
+async def post_init(application):
     """Fires automatically the exact second the bot connects to Telegram."""
-    asyncio.create_task(auto_cache_maps_background())
+    asyncio.create_task(auto_cache_maps_background(application))
 
 if __name__ == '__main__':
     # 1. Start the Render web server instantly
@@ -442,6 +574,9 @@ if __name__ == '__main__':
     app.add_handler(CommandHandler("report", report))
     app.add_handler(CommandHandler("map", map_command))
     app.add_handler(CommandHandler("help", help_command))
+    
+    # Add the Inline Query Handler to the application
+    app.add_handler(InlineQueryHandler(inline_query))
     
     print("[*] Bot is running and polling... Press Ctrl+C to stop.")
     app.run_polling()
