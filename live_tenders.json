@@ -3,9 +3,9 @@
         "id": "HDB_3504_579",
         "project": "Bukit Merah",
         "address": "61, Lengkok Bahru, #01-452, S(150061)",
-        "price": "TBA",
+        "price": "$2,000/mo",
         "size_sqft": 579,
-        "psf": 0.0,
+        "psf": 3.45,
         "lat": 1.28986335040382,
         "lon": 103.813806462827,
         "url": "https://place2lease.hdb.gov.sg/public/view-properties/true/ebid-unit-details/3504"
@@ -14,9 +14,9 @@
         "id": "HDB_3506_839",
         "project": "Kallang / Whampoa",
         "address": "462, Crawford Lane, #02-45, S(190462)",
-        "price": "$2,350/mo",
+        "price": "$2,500/mo",
         "size_sqft": 839,
-        "psf": 2.8,
+        "psf": 2.98,
         "lat": 1.30458618988007,
         "lon": 103.860840751642,
         "url": "https://place2lease.hdb.gov.sg/public/view-properties/true/ebid-unit-details/3506"
@@ -36,9 +36,9 @@
         "id": "HDB_3496_957",
         "project": "Kallang / Whampoa",
         "address": "72, Geylang Bahru, #01-3000, S(330072)",
-        "price": "TBA",
+        "price": "$2,200/mo",
         "size_sqft": 957,
-        "psf": 0.0,
+        "psf": 2.3,
         "lat": 1.32158321590245,
         "lon": 103.871419569078,
         "url": "https://place2lease.hdb.gov.sg/public/view-properties/true/ebid-unit-details/3496"
@@ -113,9 +113,9 @@
         "id": "HDB_3500_538",
         "project": "Sengkang",
         "address": "351, Anchorvale Road, #01-04, S(540351)",
-        "price": "TBA",
+        "price": "$3,100/mo",
         "size_sqft": 538,
-        "psf": 0.0,
+        "psf": 5.76,
         "lat": 1.39332786581517,
         "lon": 103.886617625113,
         "url": "https://place2lease.hdb.gov.sg/public/view-properties/true/ebid-unit-details/3500"
@@ -149,8 +149,8 @@
         "price": "$7,500/mo",
         "size_sqft": 4154,
         "psf": 1.81,
-        "lat": 1.34744620469093,
-        "lon": 103.692827944039,
+        "lat": 1.34744619538436,
+        "lon": 103.692827949751,
         "url": "https://place2lease.hdb.gov.sg/public/view-properties/true/ebid-unit-details/3275"
     }
 ]
