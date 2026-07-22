@@ -241,6 +241,10 @@ def generate_map():
     """
     m.get_root().header.add_child(Element(custom_css))
 
+    # --- INJECT ACER FAVICON ---
+    favicon_html = '<link rel="icon" type="image/png" href="https://i.imgur.com/YhyOq9V.png">'
+    m.get_root().header.add_child(Element(favicon_html))
+
     print("[*] Plotting URA Regions (Bug Fixed: Strict Keyword Filtering)...")
 
     ura_group = folium.FeatureGroup(name="Regional Boundaries (Choropleth)", show=True)
