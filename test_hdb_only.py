@@ -126,12 +126,23 @@ def send_telegram_alert(markdown_message, image_url=None):
 
 def get_proxies():
     """Constructs the standard proxy dictionary for requests from your env variables."""
+    # 1. Try Ziny Proxy
     if PROXY_HOST and PROXY_PORT:
         proxy_url = f"http://{PROXY_USER}:{PROXY_PASS}@{PROXY_HOST}:{PROXY_PORT}"
         return {
             "http": proxy_url,
             "https": proxy_url
         }
+        
+    # 2. Fallback to ZenRows Premium Proxy
+    ZENROWS_API_KEY = os.getenv("ZENROWS_API_KEY")
+    if ZENROWS_API_KEY:
+        proxy_url = f"http://{ZENROWS_API_KEY}:@proxy.zenrows.com:8001"
+        return {
+            "http": proxy_url,
+            "https": proxy_url
+        }
+        
     return None
 
 def fetch_latest_commercial_data():
@@ -242,7 +253,7 @@ def lookup_market_psf(project_name, cluster_key):
 def fetch_json_safe(url, use_sg_proxy=False):
     """Safely fetches JSON using standard Python Requests with your native Proxy"""
     headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
         "Accept": "application/json",
         "Referer": "https://www.hdb.gov.sg/"
     }
@@ -351,30 +362,40 @@ def extract_starting_bid(item_id):
                     "password": PROXY_PASS
                 }
 
-            browser = p.chromium.launch(headless=True)
+            # Add evasion args to bypass basic bot mitigation
+            browser = p.chromium.launch(
+                headless=True,
+                args=[
+                    "--disable-blink-features=AutomationControlled",
+                    "--no-sandbox",
+                    "--disable-setuid-sandbox"
+                ]
+            )
             context = browser.new_context(
                 proxy=proxy_settings,
                 user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"
             )
             page = context.new_page()
             
-            page.goto(url, wait_until="networkidle", timeout=45000)
-            page.wait_for_timeout(3000) # Give Angular an extra 3s to hydrate text
+            # Wait for domcontentloaded, then wait an absolute 5 seconds for Angular API hydration
+            page.goto(url, wait_until="domcontentloaded", timeout=60000)
+            page.wait_for_timeout(5000) 
             
-            # Extract ALL text on the page and hunt for the bid using aggressive Regex
+            # Extract ALL text on the page to hunt for the bid
             text_content = page.inner_text("body")
             
-            # Looks for "Starting Bid", "Guide Rent", or "Tender Price", followed by up to 50 random characters, then a $ amount
-            match = re.search(r'(?:Starting Bid|Guide Rent|Tender Price)[\s\S]{0,50}?\$?\s*([0-9]{1,3}(?:,[0-9]{3})*(?:\.\d{2})?)', text_content, re.IGNORECASE)
+            # Aggressive Regex: Look across 150 characters to find the $ amount
+            match = re.search(r'(?:Starting Bid|Guide Rent|Tender Price|Bidding Price|Minimum Bid|Base Rent)[\s\S]{0,150}?\$?\s*([0-9]{1,3}(?:,[0-9]{3})*(?:\.\d{2})?)', text_content, re.IGNORECASE)
             
             if match:
                 clean_val = match.group(1).replace(',', '')
                 bid_value = float(clean_val)
-                if bid_value > 500:
+                if bid_value > 50:
                     browser.close()
                     debug_log(f"    -> Successfully extracted Playwright DOM Bid: ${bid_value}")
                     return bid_value
 
+            debug_log(f"    [!] Regex failed to find bid. Body text preview: {text_content[:200]}")
             browser.close()
     except Exception as e:
         debug_log(f"[!] Playwright scrape failed for {item_id}: {e}")
@@ -471,9 +492,13 @@ def scrape_hdb_place2lease():
                 
                 is_sealed = ("price only" in tender_type or "sealed" in tender_type)
                 
-                # === PLAYWRIGHT INTEGRATION ===
-                starting_bid = 0.0
-                if "e-bidding" in tender_type:
+                # === STARTING BID INTEGRATION ===
+                # Natively check the JSON payload first to save time if HDB exposes it
+                json_start = float(item.get("guideRent") or item.get("startingBid") or item.get("baseRent") or 0.0)
+                starting_bid = json_start
+                
+                # If missing from JSON, boot up Playwright
+                if starting_bid <= 0 and "e-bidding" in tender_type:
                     starting_bid = extract_starting_bid(item_id)
                 
                 # End Date directly from JSON
