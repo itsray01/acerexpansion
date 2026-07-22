@@ -10,10 +10,10 @@ import json
 import math
 import threading
 import time 
+import uuid
+import requests
 from http.server import BaseHTTPRequestHandler, HTTPServer
-from telegram import ReplyKeyboardMarkup, KeyboardButton, Update
-from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
-from dotenv import load_dotenv
+from telegram import ReplyKeyboardMarkup, KeyboardButton, Update, InlineQueryResultArticle, InputTextMessageContent, InlineQueryResultCachedPhoto
 
 # 1. Force load credentials
 load_dotenv()
@@ -180,6 +180,25 @@ def calculate_haversine(lat1, lon1, lat2, lon2):
     a = math.sin(delta_phi / 2.0)**2 + math.cos(phi1) * math.cos(phi2) * math.sin(delta_lambda / 2.0)**2
     return R * (2 * math.atan2(math.sqrt(a), math.sqrt(1 - a)))
 
+def get_cached_tenders():
+    """Instantly fetches the latest tender data exported by the daily GitHub Action."""
+    try:
+        # Fetch from GitHub raw to ensure Render always has the absolute latest daily scrape
+        res = requests.get("https://raw.githubusercontent.com/itsray01/acerexpansion/main/live_tenders.json", timeout=2)
+        if res.status_code == 200:
+            return res.json()
+    except:
+        pass
+        
+    # Fallback to local file if GitHub fetch fails
+    if os.path.exists("live_tenders.json"):
+        try:
+            with open("live_tenders.json", "r", encoding="utf-8") as f:
+                return json.load(f)
+        except:
+            pass
+    return []
+
 def generate_intelligence_report():
     try:
         import test_hdb_only
@@ -300,70 +319,70 @@ async def report(update: Update, context: ContextTypes.DEFAULT_TYPE):
     err = None
     
     try:
-        loop = asyncio.get_running_loop()
-        # force_refresh=True to make sure it captures the newly forced ON BTOs and Competitors
-        img_path, err = await loop.run_in_executor(None, get_map_screenshot, "report_preview.png", True, True)
-        
-        if img_path and os.path.exists(img_path):
-            with open(img_path, 'rb') as photo:
-                await update.message.reply_photo(photo=photo, caption=intel_summary, parse_mode="Markdown")
-            return
-    except Exception as e:
-        err = str(e)
-        logging.error(f"Failed to send photo report: {e}")
-        
-    if err:
-        intel_summary += f"\n\n⚠️ *Debug - Screenshot Error:*\n`{err[:250]}`"
-        
-    await update.message.reply_text(intel_summary, parse_mode="Markdown")
+    # 2. Text-only Intelligence Report
+    intel_summary = generate_intelligence_report()
+    if INLINE_PHOTO_CACHE.get("report"):
+        results.append(
+            InlineQueryResultCachedPhoto(
+                id=str(uuid.uuid4()),
+                photo_file_id=INLINE_PHOTO_CACHE["report"],
+                title="📊 Share Intelligence Report",
+                description="Sends the heatmap and coverage stats",
+                caption=intel_summary,
+                parse_mode="Markdown"
+            )
+        )
+    else:
+        results.append(
+            InlineQueryResultArticle(
+                id=str(uuid.uuid4()),
+                title="📊 Share Intelligence Report",
+                description="Send the latest coverage stats & untapped towns.",
+                input_message_content=InputTextMessageContent(
+                    intel_summary,
+                    parse_mode="Markdown"
+                )
+            )
+        )
 
-async def map_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Sends an HD map screenshot (Standard) and provides web link."""
-    await update.message.reply_text("🗺️ *Loading live interactive map snapshot...*", parse_mode="Markdown")
-    
-    err = None
-    caption_text = (
-        "🗺️ *LIVE EXPANSION MAP PREVIEW*\n"
-        "━━━━━━━━━━━━━━━━━━━━━━━━\n"
-        "Visualizing Acer Academy branches & 331 school zones across Singapore.\n\n"
-        "🌐 *Live Interactive Web Map:*\n"
-        "[👉 Click Here to Open Interactive Map](https://itsray01.github.io/acerexpansion/acer_expansion_map.html)"
-    )
-    
-    try:
-        loop = asyncio.get_running_loop()
-        # force_refresh=True to make sure it captures the newly forced ON BTOs and Competitors
-        img_path, err = await loop.run_in_executor(None, get_map_screenshot, "map_preview.png", False, True)
-        
-        if img_path and os.path.exists(img_path):
-            with open(img_path, 'rb') as photo:
-                await update.message.reply_photo(photo=photo, caption=caption_text, parse_mode="Markdown")
-            return
-    except Exception as e:
-        err = str(e)
-        logging.error(f"Error executing map command: {e}")
-        
-    if err:
-        caption_text += f"\n\n⚠️ *Debug - Screenshot Error:*\n`{err[:250]}`"
-        
-    await update.message.reply_text(caption_text, parse_mode="Markdown", disable_web_page_preview=True)
+    # 3. Active Tenders List
+    tenders_data = get_cached_tenders()
+    if tenders_data:
+        for tender in tenders_data:
+            psf_display = f"${tender['psf']:.2f} psf" if isinstance(tender['psf'], (int, float)) else tender['psf']
+            
+            results.append(
+                InlineQueryResultArticle(
+                    id=str(uuid.uuid4()), 
+                    title=f"🟢 {tender['project']} ({tender['size_sqft']} sqft)",
+                    description=f"Rent: {tender['price']} | PSF: {psf_display} | {tender['address']}",
+                    input_message_content=InputTextMessageContent(
+                        f"🏢 *{tender['project']}*\n"
+                        f"📍 {tender['address']}\n\n"
+                        f"📐 *Size:* {tender['size_sqft']} sqft\n"
+                        f"💵 *Rent:* {tender['price']}\n"
+                        f"📊 *PSF:* {psf_display}\n\n"
+                        f"[🔗 View Listing on HDB Place2Lease]({tender['url']})",
+                        parse_mode="Markdown",
+                        disable_web_page_preview=True
+                    )
+                )
+            )
+    else:
+        results.append(
+            InlineQueryResultArticle(
+                id=str(uuid.uuid4()),
+                title="🏢 No Active HDB Tenders",
+                description="The database is currently empty.",
+                input_message_content=InputTextMessageContent(
+                    "ℹ️ *HDB Feed Diagnostic:* There are currently 0 active HDB tenders matching the criteria.",
+                    parse_mode="Markdown"
+                )
+            )
+        )
 
-async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Sends a professional guide on how to read the bot's data."""
-    help_text = (
-        "📖 *ACER ACADEMY: SYSTEM GUIDE*\n"
-        "━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
-        "🎯 *The 1.5km Radius Rule*\n"
-        "We use a 1.5km protective radius around existing branches. If a school falls outside this zone, it is considered an *Unserved School*. The `/report` ranks the towns with the most unserved schools.\n\n"
-        "💵 *Understanding PSF (Per Square Foot)*\n"
-        "The bot automatically cross-references HDB bids against the private commercial market:\n"
-        "• *Market Rate:* The median rent for similar private units in that specific cluster.\n"
-        "• *Target Bid:* Our suggested maximum bid, calculated at *65% of the private market rate*.\n"
-        "• ⚠️ *(Above Market):* Flags if the current HDB bid is already higher than our target.\n\n"
-        "🚦 *Cannibalization Warning*\n"
-        "If a new HDB tender is less than 800m from an existing Acer Academy branch, the bot will flag it as ⚠️ *(Too Close)* to prevent stealing our own students."
-    )
-    await update.message.reply_text(help_text, parse_mode="Markdown")
+    # Respond to the user's inline query
+    await update.inline_query.answer(results, cache_time=5)
 
 # ==========================================
 # BACKGROUND GHOST TASK
