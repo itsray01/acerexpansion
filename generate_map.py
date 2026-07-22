@@ -32,7 +32,8 @@ EXISTING_BRANCHES = {
     "Greenridge (West)": (1.3856, 103.7663),
     "Hong Kah (West)": (1.3496, 103.7210),
     "Dairy Farm (West)": (1.3655, 103.7744),
-    "Beauty World (West)": (1.3425, 103.7765)
+    "Beauty World (West)": (1.3425, 103.7765),
+    "HillV2 (West)": (1.3635, 103.7643)
 }
 
 region_colors = {
@@ -489,23 +490,46 @@ def generate_map():
         elif "(West)" in name or "West" in name: stats["WEST"][0] += 1
         else: stats["CENTRAL"][0] += 1
         
-        icon_html = """
-        <div style="background-color: transparent; border-radius: 8px; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border: 2px solid #ffffff; box-shadow: 0 4px 10px rgba(0,0,0,0.5); overflow: hidden;">
-            <img src="https://i.imgur.com/YhyOq9V.png" style="width: 100%; height: 100%; object-fit: contain;">
-        </div>
-        """
-        
         safe_branch_name = name.replace("'", "&#39;")
-        folium.Marker(
-            location=[lat, lon],
-            popup=f"<b style='color: #FF9800;'>ACER ACADEMY</b><br>{safe_branch_name}",
-            tooltip=f"★ {safe_branch_name}",
-            icon=folium.DivIcon(html=icon_html, icon_size=(32, 32), icon_anchor=(16, 16))
-        ).add_to(branch_group)
         
-        folium.Circle(
-            location=[lat, lon], radius=1500, color="#00C9FF", weight=2, fill_color="#00C9FF", fill_opacity=0.18
-        ).add_to(branch_group)
+        if "Dairy Farm" in name or "HillV2" in name:
+            # Franchise styling (Orange Circle)
+            icon_html = """
+            <div style="background-color: #F97316; border-radius: 50%; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; border: 2px solid #ffffff; box-shadow: 0 4px 10px rgba(0,0,0,0.5);">
+                <b style="color: white; font-family: 'Montserrat', sans-serif; font-size: 14px;">F</b>
+            </div>
+            """
+            
+            folium.Marker(
+                location=[lat, lon],
+                popup=f"<b style='color: #F97316;'>ACER FRANCHISE</b><br>{safe_branch_name}",
+                tooltip=f"🏢 {safe_branch_name}",
+                icon=folium.DivIcon(html=icon_html, icon_size=(24, 24), icon_anchor=(12, 12))
+            ).add_to(branch_group)
+            
+            # Dashed 1.5km Catchment for Franchises
+            folium.Circle(
+                location=[lat, lon], radius=1500, color="#F97316", weight=2, fill_color="#F97316", fill_opacity=0.15, dash_array="5, 5"
+            ).add_to(branch_group)
+        else:
+            # Core Branch styling (Standard Logo)
+            icon_html = """
+            <div style="background-color: transparent; border-radius: 8px; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border: 2px solid #ffffff; box-shadow: 0 4px 10px rgba(0,0,0,0.5); overflow: hidden;">
+                <img src="https://i.imgur.com/YhyOq9V.png" style="width: 100%; height: 100%; object-fit: contain;">
+            </div>
+            """
+            
+            folium.Marker(
+                location=[lat, lon],
+                popup=f"<b style='color: #FF9800;'>ACER ACADEMY</b><br>{safe_branch_name}",
+                tooltip=f"★ {safe_branch_name}",
+                icon=folium.DivIcon(html=icon_html, icon_size=(32, 32), icon_anchor=(16, 16))
+            ).add_to(branch_group)
+            
+            # Solid 1.5km Catchment for Core Branches
+            folium.Circle(
+                location=[lat, lon], radius=1500, color="#00C9FF", weight=2, fill_color="#00C9FF", fill_opacity=0.18
+            ).add_to(branch_group)
 
     sim_group = folium.FeatureGroup(name="Simulate Expansion (Click Map)", show=False)
 
@@ -572,6 +596,9 @@ def generate_map():
 
         <div style="display: flex; align-items: center; margin-top: 8px; border-top: 1px solid rgba(255,255,255,0.15); padding-top: 8px;">
             <span style="display:inline-block; width:12px; height:12px; border:2px solid #00C9FF; border-radius:50%; margin-right:10px;"></span> 1.5km Branch Catchment
+        </div>
+        <div style="display: flex; align-items: center; margin-top: 6px;">
+            <span style="display:inline-block; width:12px; height:12px; border:2px dashed #F97316; background:rgba(249,115,22,0.15); border-radius:50%; margin-right:10px;"></span> 1.5km Franchise Catchment
         </div>
         <div style="display: flex; align-items: center; margin-top: 6px;">
             <span style="display:inline-block; width:12px; height:12px; background:#10B981; border:2px solid #FFF; border-radius:50%; margin-right:10px; box-shadow: 0 0 8px #10B981;"></span> <b style="color: #10B981;">Live HDB Tender</b>
