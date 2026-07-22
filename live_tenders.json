@@ -1,1 +1,156 @@
-[]
+[
+    {
+        "id": "HDB_3504_579",
+        "project": "Bukit Merah",
+        "address": "61, Lengkok Bahru, #01-452, S(150061)",
+        "price": "TBA",
+        "size_sqft": 579,
+        "psf": 0.0,
+        "lat": 1.28986335040382,
+        "lon": 103.813806462827,
+        "url": "https://place2lease.hdb.gov.sg/public/view-properties/true/ebid-unit-details/3504"
+    },
+    {
+        "id": "HDB_3506_839",
+        "project": "Kallang / Whampoa",
+        "address": "462, Crawford Lane, #02-45, S(190462)",
+        "price": "$2,350/mo",
+        "size_sqft": 839,
+        "psf": 2.8,
+        "lat": 1.30458618988007,
+        "lon": 103.860840751642,
+        "url": "https://place2lease.hdb.gov.sg/public/view-properties/true/ebid-unit-details/3506"
+    },
+    {
+        "id": "HDB_3507_663",
+        "project": "Hougang",
+        "address": "501, Hougang Avenue 8, #01-634, S(530501)",
+        "price": "$2,400/mo",
+        "size_sqft": 663,
+        "psf": 3.62,
+        "lat": 1.37205269626364,
+        "lon": 103.886531403839,
+        "url": "https://place2lease.hdb.gov.sg/public/view-properties/true/ebid-unit-details/3507"
+    },
+    {
+        "id": "HDB_3496_957",
+        "project": "Kallang / Whampoa",
+        "address": "72, Geylang Bahru, #01-3000, S(330072)",
+        "price": "TBA",
+        "size_sqft": 957,
+        "psf": 0.0,
+        "lat": 1.32158321590245,
+        "lon": 103.871419569078,
+        "url": "https://place2lease.hdb.gov.sg/public/view-properties/true/ebid-unit-details/3496"
+    },
+    {
+        "id": "HDB_3499_527",
+        "project": "Geylang",
+        "address": "76, Circuit Road, #01-08, S(370076)",
+        "price": "$2,600/mo",
+        "size_sqft": 527,
+        "psf": 4.93,
+        "lat": 1.32551693484516,
+        "lon": 103.889903603926,
+        "url": "https://place2lease.hdb.gov.sg/public/view-properties/true/ebid-unit-details/3499"
+    },
+    {
+        "id": "HDB_3502_1636",
+        "project": "Bedok",
+        "address": "5000F, Marine Parade Road, #01-24, S(449289)",
+        "price": "$3,550/mo",
+        "size_sqft": 1636,
+        "psf": 2.17,
+        "lat": 1.30958127085337,
+        "lon": 103.930753958495,
+        "url": "https://place2lease.hdb.gov.sg/public/view-properties/true/ebid-unit-details/3502"
+    },
+    {
+        "id": "HDB_3508_1883",
+        "project": "Bedok",
+        "address": "29A, Chai Chee Avenue, #01-74, S(461029)",
+        "price": "$3,600/mo",
+        "size_sqft": 1883,
+        "psf": 1.91,
+        "lat": 1.32488632174354,
+        "lon": 103.924132068906,
+        "url": "https://place2lease.hdb.gov.sg/public/view-properties/true/ebid-unit-details/3508"
+    },
+    {
+        "id": "HDB_3509_1905",
+        "project": "Toa Payoh",
+        "address": "80A, Lorong 4 Toa Payoh, #01-454, S(311080)",
+        "price": "$3,000/mo",
+        "size_sqft": 1905,
+        "psf": 1.57,
+        "lat": 1.33529628956914,
+        "lon": 103.849257795765,
+        "url": "https://place2lease.hdb.gov.sg/public/view-properties/true/ebid-unit-details/3509"
+    },
+    {
+        "id": "HDB_3510_2045",
+        "project": "Bishan",
+        "address": "233, Bishan Street 22, #B1-134, S(570233)",
+        "price": "$1,800/mo",
+        "size_sqft": 2045,
+        "psf": 0.88,
+        "lat": 1.35857600459413,
+        "lon": 103.845592706619,
+        "url": "https://place2lease.hdb.gov.sg/public/view-properties/true/ebid-unit-details/3510"
+    },
+    {
+        "id": "HDB_3511_2400",
+        "project": "Hougang",
+        "address": "444, Hougang Avenue 8, #B1-1599, S(530444)",
+        "price": "$2,100/mo",
+        "size_sqft": 2400,
+        "psf": 0.87,
+        "lat": 1.37948875169894,
+        "lon": 103.893848534648,
+        "url": "https://place2lease.hdb.gov.sg/public/view-properties/true/ebid-unit-details/3511"
+    },
+    {
+        "id": "HDB_3500_538",
+        "project": "Sengkang",
+        "address": "351, Anchorvale Road, #01-04, S(540351)",
+        "price": "TBA",
+        "size_sqft": 538,
+        "psf": 0.0,
+        "lat": 1.39332786581517,
+        "lon": 103.886617625113,
+        "url": "https://place2lease.hdb.gov.sg/public/view-properties/true/ebid-unit-details/3500"
+    },
+    {
+        "id": "HDB_3501_495",
+        "project": "Kallang / Whampoa",
+        "address": "808, French Road, #02-24, S(200808)",
+        "price": "$1,200/mo",
+        "size_sqft": 495,
+        "psf": 2.42,
+        "lat": 1.3088060941423,
+        "lon": 103.861311954595,
+        "url": "https://place2lease.hdb.gov.sg/public/view-properties/true/ebid-unit-details/3501"
+    },
+    {
+        "id": "HDB_3503_710",
+        "project": "Central Area",
+        "address": "34, Upper Cross Street, #03-154, S(050034)",
+        "price": "$1,600/mo",
+        "size_sqft": 710,
+        "psf": 2.25,
+        "lat": 1.2862352148315,
+        "lon": 103.842303340846,
+        "url": "https://place2lease.hdb.gov.sg/public/view-properties/true/ebid-unit-details/3503"
+    },
+    {
+        "id": "HDB_3275_4154",
+        "project": "Jurong West",
+        "address": "852, Jurong West Street 81, #01-317, S(640852)",
+        "price": "$7,500/mo",
+        "size_sqft": 4154,
+        "psf": 1.81,
+        "lat": 1.34744620469093,
+        "lon": 103.692827944039,
+        "url": "https://place2lease.hdb.gov.sg/public/view-properties/true/ebid-unit-details/3275"
+    }
+]
