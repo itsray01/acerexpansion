@@ -100,10 +100,11 @@ def get_map_screenshot(png_file="map_preview.png", enable_heatmap=False, force_r
                 # Wait for domcontentloaded to ensure the Leaflet JS has actually executed without timing out
                 page.goto(url, wait_until="domcontentloaded", timeout=45000)
                 
+                # BUG FIX: Wait for the main leaflet container, NOT the zoom buttons (which we deleted!)
                 try:
-                    page.wait_for_selector('.leaflet-control-zoom', timeout=15000)
-                except:
-                    pass
+                    page.wait_for_selector('.leaflet-container', timeout=15000)
+                except Exception as e:
+                    logging.warning(f"Timeout waiting for map container: {e}")
                 
                 # Give base map tiles a few seconds to visually populate
                 page.wait_for_timeout(5000)
@@ -111,9 +112,6 @@ def get_map_screenshot(png_file="map_preview.png", enable_heatmap=False, force_r
                 # Inject JS to click buttons like a real human and scale UI elements for Screenshots
                 js_code = """
                 (enableHeatmap) => {
-                    const zoomOutBtn = document.querySelector('.leaflet-control-zoom-out');
-                    if (zoomOutBtn) zoomOutBtn.click();
-
                     // UI OVERRIDE: Scale down the legend exclusively for bot screenshots
                     const legend = document.getElementById('map-legend');
                     if (legend) {
@@ -228,7 +226,7 @@ def generate_intelligence_report():
     protected_count = total_schools - total_unprotected
     coverage_pct = round((protected_count / total_schools) * 100) if total_schools > 0 else 0
 
-    # Phrasing polished from "Unprotected" to "Unserved"
+    # Phrasing polished to Unserved Schools / Zones
     report = ("📊 *ACER ACADEMY: EXPANSION INTELLIGENCE*\n━━━━━━━━━━━━━━━━━━━━━━━━\n\n🎯 *Top Untapped Towns* _(No branch <1.5km)_\n")
     medals = ["1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣"]
     for idx, (town, count) in enumerate(top_towns):
@@ -240,7 +238,7 @@ def generate_intelligence_report():
         f"• Existing Branches: *{len(branches)}*\n"
         f"• Tracked Schools: *{total_schools}*\n"
         f"• Protected (<1.5km): *{protected_count}* ({coverage_pct}%)\n"
-        f"• Unserved Schools: *{total_unprotected}*\n\n"
+        f"• Unserved Zones: *{total_unprotected}*\n\n"
         "💡 *Strategic Takeaway:*\n"
         f"_Prioritize upcoming HDB commercial tenders in *{top_towns[0][0]}* and *{top_towns[1][0]}* to capture the highest density of unserved students._"
     )
