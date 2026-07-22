@@ -189,16 +189,21 @@ def calculate_haversine(lat1, lon1, lat2, lon2):
     return R * (2 * math.atan2(math.sqrt(a), math.sqrt(1 - a)))
 
 def get_cached_tenders():
-    """Instantly fetches the latest tender data exported by the daily GitHub Action."""
+    """Instantly fetches the latest tender data, bypassing GitHub's 5-minute CDN cache."""
     try:
-        # Fetch from GitHub raw to ensure Render always has the absolute latest daily scrape
-        res = requests.get("https://raw.githubusercontent.com/itsray01/acerexpansion/main/live_tenders.json", timeout=5)
+        # Use the GitHub API to bypass the Fastly cache that causes the "TBA" delay
+        headers = {
+            "Accept": "application/vnd.github.v3.raw",
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
+        }
+        res = requests.get("https://api.github.com/repos/itsray01/acerexpansion/contents/live_tenders.json", headers=headers, timeout=5)
         if res.status_code == 200:
             return res.json()
-    except:
+    except Exception as e:
+        logging.error(f"[*] API fetch missed, falling back to local file. {e}")
         pass
         
-    # Fallback to local file if GitHub fetch fails
+    # Fallback to local file if API rate limits us
     if os.path.exists("live_tenders.json"):
         try:
             with open("live_tenders.json", "r", encoding="utf-8") as f:
