@@ -545,11 +545,15 @@ async def auto_cache_maps_background(application):
                     with open(map_path, 'rb') as f:
                         msg = await application.bot.send_photo(chat_id=chat_id, photo=f, caption="⚙️ *System Refresh:* Map snapshot cached.", parse_mode="Markdown", disable_notification=True)
                         INLINE_PHOTO_CACHE["map"] = msg.photo[-1].file_id
+                        # NEW: Instantly delete the message to prevent chat spam!
+                        await msg.delete()
                 
                 if report_path and os.path.exists(report_path):
                     with open(report_path, 'rb') as f:
                         msg = await application.bot.send_photo(chat_id=chat_id, photo=f, caption="⚙️ *System Refresh:* Heatmap report cached.", parse_mode="Markdown", disable_notification=True)
                         INLINE_PHOTO_CACHE["report"] = msg.photo[-1].file_id
+                        # NEW: Instantly delete the message to prevent chat spam!
+                        await msg.delete()
 
             logging.info("[*] GHOST TASK: Map caches successfully updated! Sleeping for 12 hours.")
         except Exception as e:
