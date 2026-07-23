@@ -1,49 +1,5 @@
 [
     {
-        "id": "HDB_3499_527",
-        "project": "Geylang",
-        "address": "76, Circuit Road, #01-08, S(370076)",
-        "price": "$3,350/mo",
-        "size_sqft": 527,
-        "psf": 6.35,
-        "lat": 1.32551693484516,
-        "lon": 103.889903603926,
-        "url": "https://place2lease.hdb.gov.sg/public/view-properties/true/ebid-unit-details/3499"
-    },
-    {
-        "id": "HDB_3500_538",
-        "project": "Sengkang",
-        "address": "351, Anchorvale Road, #01-04, S(540351)",
-        "price": "$4,550/mo",
-        "size_sqft": 538,
-        "psf": 8.45,
-        "lat": 1.39205314156706,
-        "lon": 103.89507054384,
-        "url": "https://place2lease.hdb.gov.sg/public/view-properties/true/ebid-unit-details/3500"
-    },
-    {
-        "id": "HDB_3501_495",
-        "project": "Kallang / Whampoa",
-        "address": "808, French Road, #02-24, S(200808)",
-        "price": "$1,225/mo",
-        "size_sqft": 495,
-        "psf": 2.47,
-        "lat": 1.3088060941423,
-        "lon": 103.861311954595,
-        "url": "https://place2lease.hdb.gov.sg/public/view-properties/true/ebid-unit-details/3501"
-    },
-    {
-        "id": "HDB_3503_710",
-        "project": "Central Area",
-        "address": "34, Upper Cross Street, #03-154, S(050034)",
-        "price": "$2,150/mo",
-        "size_sqft": 710,
-        "psf": 3.03,
-        "lat": 1.2862352148315,
-        "lon": 103.842303340846,
-        "url": "https://place2lease.hdb.gov.sg/public/view-properties/true/ebid-unit-details/3503"
-    },
-    {
         "id": "HDB_3275_4154",
         "project": "Jurong West",
         "address": "852, Jurong West Street 81, #01-317, S(640852)",
@@ -61,8 +17,8 @@
         "price": "$3,600/mo",
         "size_sqft": 1883,
         "psf": 1.91,
-        "lat": 1.32488632174354,
-        "lon": 103.924132068906,
+        "lat": 1.3247011139095,
+        "lon": 103.923851959899,
         "url": "https://place2lease.hdb.gov.sg/public/view-properties/true/ebid-unit-details/3508"
     }
 ]
