@@ -8,7 +8,7 @@ from branca.element import Element
 
 OUTPUT_MAP_PATH = "acer_expansion_map.html"
 
-# Your 21 Active Branches with explicit regional tagging (8 Central Branches)
+# Your Active Branches with explicit regional tagging
 EXISTING_BRANCHES = {
     # North (5)
     "Junction 9 (North)": (1.4325, 103.8408),
@@ -21,13 +21,13 @@ EXISTING_BRANCHES = {
     "Aljunied Maths/Science (East)": (1.3204, 103.8844),
     "Aljunied Languages (East)": (1.3206, 103.8846),
     "Elias Mall (East)": (1.3773, 103.9424),
-    # Central (8)
+    # Central (6)
     "Dawson (Central)": (1.2941, 103.8099),
     "Depot Heights (Central)": (1.2809, 103.8086),
     "Tiong Bahru (Central)": (1.2863, 103.8272),
     "Cantonment (Central)": (1.2766, 103.8413),
     "Commonwealth (Central)": (1.3025, 103.7983),
-    "Bishan (Central)": (1.3585683290994457, 103.84557045776873)
+    "Bishan (Central)": (1.3585683290994457, 103.84557045776873),
     # West (6)
     "Senja Heights (West)": (1.3853, 103.7629),
     "Greenridge (West)": (1.3856, 103.7663),
