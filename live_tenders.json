@@ -1,16 +1,5 @@
 [
     {
-        "id": "HDB_3511_2400",
-        "project": "Hougang",
-        "address": "444, Hougang Avenue 8, #B1-1599, S(530444)",
-        "price": "$4,700/mo",
-        "size_sqft": 2400,
-        "psf": 1.96,
-        "lat": 1.37948875169894,
-        "lon": 103.893848534648,
-        "url": "https://place2lease.hdb.gov.sg/public/view-properties/true/ebid-unit-details/3511"
-    },
-    {
         "id": "HDB_3499_527",
         "project": "Geylang",
         "address": "76, Circuit Road, #01-08, S(370076)",
