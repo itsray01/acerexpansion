@@ -27,9 +27,7 @@ EXISTING_BRANCHES = {
     "Tiong Bahru (Central)": (1.2863, 103.8272),
     "Cantonment (Central)": (1.2766, 103.8413),
     "Commonwealth (Central)": (1.3025, 103.7983),
-    "Toa Payoh (Central)": (1.3326, 103.8474),
-    "Bishan (Central)": (1.3585683290994457, 103.84557045776873),
-    "Kallang (Central)": (1.3113, 103.8713),
+    "Bishan (Central)": (1.3585683290994457, 103.84557045776873)
     # West (6)
     "Senja Heights (West)": (1.3853, 103.7629),
     "Greenridge (West)": (1.3856, 103.7663),
