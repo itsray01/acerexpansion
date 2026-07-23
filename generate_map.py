@@ -21,11 +21,12 @@ EXISTING_BRANCHES = {
     "Aljunied Maths/Science (East)": (1.3204, 103.8844),
     "Aljunied Languages (East)": (1.3206, 103.8846),
     "Elias Mall (East)": (1.3773, 103.9424),
-    # Central (5)
+    # Central (6)
     "Dawson (Central)": (1.2941, 103.8099),
     "Depot Heights (Central)": (1.2809, 103.8086),
     "Tiong Bahru (Central)": (1.2863, 103.8272),
     "Cantonment (Central)": (1.2766, 103.8413),
+    "Bishan (Central)": (1.358562093053001, 103.84556735250528),
     "Commonwealth (Central)": (1.3025, 103.7983),
     # West (5)
     "Senja Heights (West)": (1.3853, 103.7629),
