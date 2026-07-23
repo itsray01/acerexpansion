@@ -8,7 +8,7 @@ from branca.element import Element
 
 OUTPUT_MAP_PATH = "acer_expansion_map.html"
 
-# Your 19 Active Branches with explicit regional tagging
+# Your 21 Active Branches with explicit regional tagging (8 Central Branches)
 EXISTING_BRANCHES = {
     # North (5)
     "Junction 9 (North)": (1.4325, 103.8408),
@@ -21,14 +21,16 @@ EXISTING_BRANCHES = {
     "Aljunied Maths/Science (East)": (1.3204, 103.8844),
     "Aljunied Languages (East)": (1.3206, 103.8846),
     "Elias Mall (East)": (1.3773, 103.9424),
-    # Central (6)
+    # Central (8)
     "Dawson (Central)": (1.2941, 103.8099),
     "Depot Heights (Central)": (1.2809, 103.8086),
     "Tiong Bahru (Central)": (1.2863, 103.8272),
     "Cantonment (Central)": (1.2766, 103.8413),
-    "Bishan (Central)": (1.358562093053001, 103.84556735250528),
     "Commonwealth (Central)": (1.3025, 103.7983),
-    # West (5)
+    "Toa Payoh (Central)": (1.3326, 103.8474),
+    "Bishan (Central)": (1.3585683290994457, 103.84557045776873),
+    "Kallang (Central)": (1.3113, 103.8713),
+    # West (6)
     "Senja Heights (West)": (1.3853, 103.7629),
     "Greenridge (West)": (1.3856, 103.7663),
     "Hong Kah (West)": (1.3496, 103.7210),
@@ -243,13 +245,17 @@ def generate_map():
     """
     m.get_root().header.add_child(Element(custom_css))
 
-    # --- INJECT ACER FAVICON ---
-    favicon_html = '<link rel="icon" type="image/png" href="https://i.imgur.com/YhyOq9V.png">'
-    m.get_root().header.add_child(Element(favicon_html))
+    # --- INJECT ACER FAVICON AND TAB TITLE ---
+    tab_html = """
+    <script>document.title = "Acer Expansion Map";</script>
+    <link rel="icon" type="image/png" href="https://i.imgur.com/YhyOq9V.png">
+    """
+    m.get_root().header.add_child(Element(tab_html))
 
     print("[*] Plotting URA Regions (Bug Fixed: Strict Keyword Filtering)...")
 
-    ura_group = folium.FeatureGroup(name="Regional Boundaries (Choropleth)", show=True)
+    # HIDDEN BY DEFAULT
+    ura_group = folium.FeatureGroup(name="Regional Boundaries (Choropleth)", show=False)
     
     ura_data = None
     if os.path.exists("ura_regions.json"):
@@ -281,6 +287,7 @@ def generate_map():
         ).add_to(ura_group)
 
     print("[*] Plotting Heatmap...")
+    # HIDDEN BY DEFAULT
     heatmap_group = folium.FeatureGroup(name="Expansion Heatmap (Untapped)", show=False)
     heat_data = [[s['lat'], s['lon']] for s in schools]
     plugins.HeatMap(
@@ -289,10 +296,11 @@ def generate_map():
     ).add_to(heatmap_group)
 
     print(f"[*] Plotting {len(schools)} schools with organic student estimates...")
-    primary_group = folium.FeatureGroup(name="Primary Schools (Sky Blue)", show=True)
-    secondary_group = folium.FeatureGroup(name="Secondary Schools (Violet)", show=True)
-    jc_group = folium.FeatureGroup(name="Junior Colleges (Amber)", show=True)
-    intl_group = folium.FeatureGroup(name="International Schools (Rose Pink)", show=True)
+    # ALL SCHOOL LAYERS HIDDEN BY DEFAULT
+    primary_group = folium.FeatureGroup(name="Primary Schools (Sky Blue)", show=False)
+    secondary_group = folium.FeatureGroup(name="Secondary Schools (Violet)", show=False)
+    jc_group = folium.FeatureGroup(name="Junior Colleges (Amber)", show=False)
+    intl_group = folium.FeatureGroup(name="International Schools (Rose Pink)", show=False)
     
     stats = {"NORTH": [0,0,0], "EAST": [0,0,0], "WEST": [0,0,0], "CENTRAL": [0,0,0]}
 
@@ -347,8 +355,8 @@ def generate_map():
         ).add_to(group)
 
     print("[*] Plotting Competitors (Triangles)...")
-    # Kept ON for the website natively 
-    comp_group = folium.FeatureGroup(name="Competitor Network", show=True)
+    # HIDDEN BY DEFAULT
+    comp_group = folium.FeatureGroup(name="Competitor Network", show=False)
     for comp in competitors:
         brand = comp.get('brand', '')
         
@@ -384,8 +392,8 @@ def generate_map():
         ).add_to(comp_group)
 
     print("[*] Plotting Upcoming BTO Mega-Estates...")
-    # Kept ON for the website natively 
-    bto_group = folium.FeatureGroup(name="Upcoming BTO Estates (2026-2030)", show=True)
+    # HIDDEN BY DEFAULT
+    bto_group = folium.FeatureGroup(name="Upcoming BTO Estates (2026-2030)", show=False)
     for bto in UPCOMING_BTOS:
         popup_html = f"""
         <div style="min-width: 180px;">
@@ -403,6 +411,7 @@ def generate_map():
         ).add_to(bto_group)
 
     print("[*] Plotting Live HDB Tenders...")
+    # SHOWN ON LOAD
     tenders_group = folium.FeatureGroup(name="Live HDB Tenders (Actionable)", show=True)
     
     live_tenders = []
@@ -483,9 +492,11 @@ def generate_map():
                 print(f"Error mapping tender: {e}")
 
     print(f"[*] Plotting {len(EXISTING_BRANCHES)} Acer Branches...")
+    # SHOWN ON LOAD
     branch_group = folium.FeatureGroup(name="Acer Academy Branches", show=True)
     
     for name, (lat, lon) in EXISTING_BRANCHES.items():
+        # Counting logic dynamically figures out the regional count!
         if "(North)" in name or "North" in name: stats["NORTH"][0] += 1
         elif "(East)" in name or "East" in name: stats["EAST"][0] += 1
         elif "(West)" in name or "West" in name: stats["WEST"][0] += 1
@@ -494,10 +505,10 @@ def generate_map():
         safe_branch_name = name.replace("'", "&#39;")
         
         if "Dairy Farm" in name or "HillV2" in name:
-            # Franchise styling (Orange Circle)
+            # Franchise styling (Acer Logo but with Orange Border)
             icon_html = """
-            <div style="background-color: #F97316; border-radius: 50%; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; border: 2px solid #ffffff; box-shadow: 0 4px 10px rgba(0,0,0,0.5);">
-                <b style="color: white; font-family: 'Montserrat', sans-serif; font-size: 14px;">F</b>
+            <div style="background-color: transparent; border-radius: 8px; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border: 2px solid #F97316; box-shadow: 0 4px 10px rgba(0,0,0,0.5); overflow: hidden;">
+                <img src="https://i.imgur.com/YhyOq9V.png" style="width: 100%; height: 100%; object-fit: contain;">
             </div>
             """
             
@@ -505,7 +516,7 @@ def generate_map():
                 location=[lat, lon],
                 popup=f"<b style='color: #F97316;'>ACER FRANCHISE</b><br>{safe_branch_name}",
                 tooltip=f"🏢 {safe_branch_name}",
-                icon=folium.DivIcon(html=icon_html, icon_size=(24, 24), icon_anchor=(12, 12))
+                icon=folium.DivIcon(html=icon_html, icon_size=(32, 32), icon_anchor=(16, 16))
             ).add_to(branch_group)
             
             # Dashed 1.5km Catchment for Franchises
@@ -535,7 +546,7 @@ def generate_map():
     sim_group = folium.FeatureGroup(name="Simulate Expansion (Click Map)", show=False)
 
     print("[*] Plotting Regional Data Boxes...")
-    # Kept ON natively for the Website
+    # SHOWN ON LOAD
     boxes_group = folium.FeatureGroup(name="Regional Data Boxes", show=True)
     
     def create_box(region, b_count, s_count, total_students):
