@@ -62,26 +62,7 @@ def load_competitors():
     return []
 
 def load_schools():
-    """Strictly loads GPS from school_db.json. Cross-references CSV for extra text data."""
-    schools = []
-    csv_metadata = {}
-    
-    csv_file = "Generalinformationofschools.csv" if os.path.exists("Generalinformationofschools.csv") else "All_Schools_Geocoded.csv"
-    if os.path.exists(csv_file):
-        print(f"[*] Harvesting metadata from {csv_file}...")
-        with open(csv_file, 'r', encoding='utf-8-sig') as f:
-            reader = csv.DictReader(f)
-            for row in reader:
-                name_key = next((k for k in row.keys() if 'name' in str(k).lower() or 'school' in str(k).lower()), None)
-                if not name_key: continue
-                name = row[name_key].strip().lower()
-                addr_key = next((k for k in row.keys() if 'address' in str(k).lower() and 'url' not in str(k).lower()), None)
-                url_key = next((k for k in row.keys() if 'url' in str(k).lower() or 'website' in str(k).lower()), None)
-                csv_metadata[name] = {
-                    "address": row[addr_key] if addr_key and row[addr_key] else "Address not available",
-                    "website": row[url_key] if url_key and row[url_key] else ""
-                }
-
+    """Strictly loads GPS from school_db.json."""
     json_data = None
     if os.path.exists("school_db.json"):
         print("[*] Loading exact GPS coordinates from local school_db.json...")
@@ -98,30 +79,9 @@ def load_schools():
     if not json_data:
         print("[!] CRITICAL: Could not load school_db.json from anywhere. Map will lack schools.")
         return []
-
-    for item in json_data:
-        name = item.get("name", "").strip()
-        lower_name = name.lower()
-        if "lat" in item and "lon" in item:
-            extra = csv_metadata.get(lower_name, {})
-            website = extra.get("website", "")
-            if website and not website.startswith("http"):
-                website = "http://" + website
-                
-            # PRIORITIZE: Address baked directly into the JSON, fallback to CSV metadata
-            raw_address = item.get("address") or extra.get("address", "Address not available")
-                
-            schools.append({
-                "name": name,
-                "lat": float(item["lat"]),
-                "lon": float(item["lon"]),
-                "level": item.get("level", "PRIMARY"),
-                "address": raw_address,
-                "website": website
-            })
     
-    print(f"[+] Successfully loaded {len(schools)} schools with strict pinpoint accuracy.")
-    return schools
+    print(f"[+] Successfully loaded {len(json_data)} schools with strict pinpoint accuracy.")
+    return json_data
 
 def generate_map():
     print("[*] Booting up Map Engine...")
@@ -173,11 +133,6 @@ def generate_map():
         animation: pulse-green 2s infinite;
     }
 
-    .competitor-pin {
-        width: 10px; height: 10px; background-color: #555;
-        border: 2px solid #FF3344; border-radius: 50%; box-shadow: 0 2px 4px rgba(0,0,0,0.5);
-    }
-
     .leaflet-tooltip {
         font-family: 'Montserrat', sans-serif !important;
         font-size: 13px !important; font-weight: 600 !important;
@@ -192,6 +147,7 @@ def generate_map():
     }
     .leaflet-popup-content { font-family: 'Montserrat', sans-serif !important; margin: 15px !important; }
 
+    /* LAYERS MENU STYLING */
     .leaflet-control-layers {
         border: none !important; background: transparent !important; box-shadow: none !important;
         padding: 15px !important; margin-top: -15px !important; margin-right: -15px !important;
@@ -209,14 +165,17 @@ def generate_map():
     .leaflet-control-layers-toggle:hover {
         background-color: rgba(40, 40, 40, 0.95) !important; transform: scale(1.05) !important; border-color: #00E5FF !important;
     }
+    
+    /* Removed scrolling constraints here */
     .leaflet-control-layers.leaflet-control-layers-expanded {
         margin-top: 5px !important; background: rgba(20, 20, 20, 0.90) !important;
         backdrop-filter: blur(16px) !important; color: #ffffff !important;
         border: 1px solid rgba(255,255,255,0.15) !important; border-radius: 18px !important;
         padding: 20px 24px !important; font-family: 'Montserrat', sans-serif !important;
         box-shadow: 0 15px 40px rgba(0,0,0,0.7) !important; min-width: 250px !important;
-        max-height: 80vh !important; overflow-y: auto !important; z-index: 10000 !important;
+        z-index: 10000 !important;
     }
+    
     .leaflet-control-layers-list::before {
         content: "Map Display Settings"; display: block; font-size: 14px; font-weight: 700; color: #00E5FF;
         text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px;
@@ -380,7 +339,7 @@ def generate_map():
     for school in schools:
         level = school.get("level", "").upper()
         lat, lon = school["lat"], school["lon"]
-        name, address, website = school["name"], school["address"], school["website"]
+        name, address, website = school["name"], school.get("address", "Address not available"), school.get("website", "")
         
         base_enrollment = 1350
         if "PRIMARY" in level: base_enrollment = 1280
@@ -714,6 +673,9 @@ def generate_map():
     </div>
     
     <script>
+    // Set custom tab title
+    document.title = "Acer Expansion Map";
+    
     window.addEventListener('load', function() {
         setTimeout(function() {
             // Menu Separator Injection
@@ -767,13 +729,20 @@ def generate_map():
                         }
                     });
                     
-                    // --- GOOGLE MAPS STYLE SEARCH BAR INJECTION ---
-                    if (typeof L.Control.Geocoder !== 'undefined') {
+                    // --- GOOGLE MAPS STYLE SEARCH BAR INJECTION WITH RETRY ---
+                    function injectSearchBar() {
+                        if (typeof L === 'undefined' || typeof L.Control === 'undefined' || typeof L.Control.Geocoder === 'undefined') {
+                            // Search engine script not fully loaded yet, try again in 200ms
+                            setTimeout(injectSearchBar, 200);
+                            return;
+                        }
+                        
                         L.Control.geocoder({
+                            position: 'topleft', // Positions it perfectly for our custom CSS to hook it to top-center
                             defaultMarkGeocode: false,
                             collapsed: false,
                             placeholder: "Search any estate, mall, or address...",
-                            geocoder: L.Control.Geocoder.nominatim({
+                            geocoder: new L.Control.Geocoder.Nominatim({
                                 geocodingQueryParams: { countrycodes: 'sg' } // Restrict search to Singapore
                             })
                         }).on('markgeocode', function(e) {
@@ -799,6 +768,8 @@ def generate_map():
                             
                         }).addTo(map);
                     }
+                    
+                    injectSearchBar();
                 }
             }
         }, 1000);
@@ -848,7 +819,6 @@ def generate_map():
     """
     m.get_root().html.add_child(Element(ender_dragon_js))
 
-    # The order added here dictates the order they appear in the top right menu
     branch_group.add_to(m)
     tenders_group.add_to(m)
     
