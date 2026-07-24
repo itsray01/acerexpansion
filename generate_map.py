@@ -242,22 +242,36 @@ def generate_map():
         opacity: 0.6 !important;
         margin-left: 4px !important;
     }
+    
+    /* HIDE THE DEFAULT ERROR MESSAGES */
+    .leaflet-control-geocoder-form-no-error,
+    .leaflet-control-geocoder-error {
+        display: none !important;
+    }
+
+    /* FORCE ABSOLUTE POSITIONING ON DROPDOWN */
     .leaflet-control-geocoder-alternatives {
+        position: absolute !important;
+        top: 100% !important;
+        left: 0 !important;
+        width: 100% !important;
         background: rgba(20, 20, 20, 0.95) !important;
         backdrop-filter: blur(16px) !important;
         border: 1px solid rgba(255,255,255,0.15) !important;
         border-radius: 12px !important;
-        margin-top: 12px !important;
+        margin-top: 8px !important;
         box-shadow: 0 10px 25px rgba(0,0,0,0.7) !important;
-        max-width: 400px !important;
         max-height: 400px !important;
         overflow-y: auto !important;
         padding: 0 !important;
         list-style: none !important;
+        z-index: 10000 !important;
     }
     .leaflet-control-geocoder-alternatives li {
         border-bottom: 1px solid rgba(255,255,255,0.05) !important;
         transition: background 0.2s !important;
+        margin: 0 !important;
+        padding: 0 !important;
     }
     .leaflet-control-geocoder-alternatives li:last-child { border-bottom: none !important; }
     .leaflet-control-geocoder-alternatives li:hover,
@@ -765,7 +779,9 @@ def generate_map():
                                             }).join(' ');
                                             
                                             var bbox = L.latLngBounds(L.latLng(lat, lon), L.latLng(lat, lon));
-                                            results.push({ name: address, bbox: bbox, center: L.latLng(lat, lon) });
+                                            
+                                            // ADDED 'html' PARAMETER TO BYPASS PLUGIN FORMATTING
+                                            results.push({ name: address, html: address, bbox: bbox, center: L.latLng(lat, lon) });
                                         }
                                     }
                                     cb.call(context, results);
