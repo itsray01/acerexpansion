@@ -356,24 +356,35 @@ def generate_map():
         ).add_to(group)
 
     print("[*] Plotting Competitors (Triangles)...")
-    # HIDDEN BY DEFAULT
-    comp_group = folium.FeatureGroup(name="Competitor Network", show=False)
+    # Separate layers for competitors, hidden by default to prevent clutter
+    kumon_group = folium.FeatureGroup(name="Kumon", show=False)
+    ms_group = folium.FeatureGroup(name="Mind Stretcher", show=False)
+    zenith_group = folium.FeatureGroup(name="Zenith", show=False)
+    aspire_group = folium.FeatureGroup(name="Aspire Hub", show=False)
+    tll_group = folium.FeatureGroup(name="The Learning Lab", show=False)
+    mavis_group = folium.FeatureGroup(name="Mavis", show=False)
+    stalford_group = folium.FeatureGroup(name="Stalford", show=False)
+
     for comp in competitors:
         brand = comp.get('brand', '')
         
-        # Color mapping logic
+        # Color & Group mapping logic
         if brand == "Kumon":
-            fill_color = "#0B132B" # Dark Dark Blue
+            fill_color, target_group = "#0B132B", kumon_group
         elif brand == "Mind Stretcher":
-            fill_color = "#FAECA8" # Very Light Gold
+            fill_color, target_group = "#FAECA8", ms_group
         elif brand == "Zenith":
-            fill_color = "#808080" # Gray
+            fill_color, target_group = "#808080", zenith_group
         elif brand == "Aspire Hub":
-            fill_color = "#F97316" # Orange (Assigned for Aspire)
+            fill_color, target_group = "#F97316", aspire_group
         elif brand == "The Learning Lab":
-            fill_color = "#A28E5C" # Muted Gold
+            fill_color, target_group = "#A28E5C", tll_group
+        elif brand == "Mavis Tutorial Centre":
+            fill_color, target_group = "#2563EB", mavis_group
+        elif brand == "Stalford Learning Centre":
+            fill_color, target_group = "#DC2626", stalford_group
         else:
-            fill_color = "#FFFFFF"
+            fill_color, target_group = "#FFFFFF", kumon_group
 
         # Sharp, scalable SVG Triangles
         svg_html = f'''
@@ -390,7 +401,7 @@ def generate_map():
             popup=folium.Popup(popup_html, max_width=200),
             tooltip=f"{brand} ({comp.get('branch', '')})",
             icon=folium.DivIcon(html=svg_html, icon_anchor=(11, 10))
-        ).add_to(comp_group)
+        ).add_to(target_group)
 
     print("[*] Plotting Upcoming BTO Mega-Estates...")
     # HIDDEN BY DEFAULT
@@ -603,8 +614,14 @@ def generate_map():
         <div style="display: flex; align-items: center; margin-bottom: 4px;">
             <svg width="12" height="12" viewBox="0 0 24 24" style="margin-right:10px; filter: drop-shadow(0px 2px 2px rgba(0,0,0,0.8));"><polygon points="12,0 24,24 0,24" fill="#F97316" stroke="#FFF" stroke-width="2"/></svg> Aspire Hub
         </div>
-        <div style="display: flex; align-items: center; margin-bottom: 6px;">
+        <div style="display: flex; align-items: center; margin-bottom: 4px;">
             <svg width="12" height="12" viewBox="0 0 24 24" style="margin-right:10px; filter: drop-shadow(0px 2px 2px rgba(0,0,0,0.8));"><polygon points="12,0 24,24 0,24" fill="#A28E5C" stroke="#FFF" stroke-width="2"/></svg> The Learning Lab
+        </div>
+        <div style="display: flex; align-items: center; margin-bottom: 4px;">
+            <svg width="12" height="12" viewBox="0 0 24 24" style="margin-right:10px; filter: drop-shadow(0px 2px 2px rgba(0,0,0,0.8));"><polygon points="12,0 24,24 0,24" fill="#2563EB" stroke="#FFF" stroke-width="2"/></svg> Mavis
+        </div>
+        <div style="display: flex; align-items: center; margin-bottom: 6px;">
+            <svg width="12" height="12" viewBox="0 0 24 24" style="margin-right:10px; filter: drop-shadow(0px 2px 2px rgba(0,0,0,0.8));"><polygon points="12,0 24,24 0,24" fill="#DC2626" stroke="#FFF" stroke-width="2"/></svg> Stalford
         </div>
 
         <div style="display: flex; align-items: center; margin-top: 8px; border-top: 1px solid rgba(255,255,255,0.15); padding-top: 8px;">
@@ -638,6 +655,9 @@ def generate_map():
                     }
                     if (txt.includes('Primary Schools')) {
                         lbl.insertAdjacentHTML('beforebegin', '<div style="color:#00E5FF; font-size:11px; font-weight:800; margin-top:15px; margin-bottom:5px; text-transform:uppercase; letter-spacing:1px;">Education Network</div>');
+                    }
+                    if (txt.includes('Kumon')) {
+                        lbl.insertAdjacentHTML('beforebegin', '<div style="color:#FF3344; font-size:11px; font-weight:800; margin-top:15px; margin-bottom:5px; text-transform:uppercase; letter-spacing:1px;">Competitor Network</div>');
                     }
                     if (txt.includes('Regional Boundaries')) {
                         lbl.insertAdjacentHTML('beforebegin', '<div style="color:#00E5FF; font-size:11px; font-weight:800; margin-top:15px; margin-bottom:5px; text-transform:uppercase; letter-spacing:1px;">Analytics & Geography</div>');
@@ -726,7 +746,15 @@ def generate_map():
     # The order added here dictates the order they appear in the top right menu
     branch_group.add_to(m)
     tenders_group.add_to(m)
-    comp_group.add_to(m)
+    
+    kumon_group.add_to(m)
+    ms_group.add_to(m)
+    zenith_group.add_to(m)
+    aspire_group.add_to(m)
+    tll_group.add_to(m)
+    mavis_group.add_to(m)
+    stalford_group.add_to(m)
+    
     bto_group.add_to(m)
     
     primary_group.add_to(m)
