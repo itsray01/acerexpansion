@@ -1,11 +1,5 @@
 [
   {
-    "name": "United World College of South East Asia (Dover)",
-    "lat": 1.3039,
-    "lon": 103.7801,
-    "level": "INTERNATIONAL"
-  },
-  {
     "name": "United World College of South East Asia (East)",
     "lat": 1.3575,
     "lon": 103.945,
@@ -18,30 +12,6 @@
     "level": "INTERNATIONAL"
   },
   {
-    "name": "Singapore American School",
-    "lat": 1.431,
-    "lon": 103.7788,
-    "level": "INTERNATIONAL"
-  },
-  {
-    "name": "Dulwich College (Singapore)",
-    "lat": 1.349,
-    "lon": 103.7431,
-    "level": "INTERNATIONAL"
-  },
-  {
-    "name": "Tanglin Trust School",
-    "lat": 1.2977,
-    "lon": 103.7972,
-    "level": "INTERNATIONAL"
-  },
-  {
-    "name": "Australian International School",
-    "lat": 1.3516,
-    "lon": 103.8681,
-    "level": "INTERNATIONAL"
-  },
-  {
     "name": "St. Joseph's Institution International",
     "lat": 1.3359,
     "lon": 103.8398,
@@ -49,8 +19,86 @@
   },
   {
     "name": "Stamford American International School",
-    "lat": 1.3325,
-    "lon": 103.8679,
+    "lat": 1.336974,
+    "lon": 103.869709,
+    "level": "INTERNATIONAL"
+  },
+  {
+    "name": "Australian International School",
+    "lat": 1.347707,
+    "lon": 103.859409,
+    "level": "INTERNATIONAL"
+  },
+  {
+    "name": "United World College of South East Asia (Dover)",
+    "lat": 1.302979,
+    "lon": 103.777118,
+    "level": "INTERNATIONAL"
+  },
+  {
+    "name": "Singapore American School",
+    "lat": 1.425383,
+    "lon": 103.774499,
+    "level": "INTERNATIONAL"
+  },
+  {
+    "name": "Tanglin Trust School",
+    "lat": 1.29689,
+    "lon": 103.791991,
+    "level": "INTERNATIONAL"
+  },
+  {
+    "name": "Dulwich College (Singapore)",
+    "lat": 1.351481,
+    "lon": 103.738386,
+    "level": "INTERNATIONAL"
+  },
+  {
+    "name": "Canadian International School (Lakeside)",
+    "lat": 1.345093,
+    "lon": 103.727429,
+    "level": "INTERNATIONAL"
+  },
+  {
+    "name": "Nexus International School",
+    "lat": 1.320803,
+    "lon": 103.878729,
+    "level": "INTERNATIONAL"
+  },
+  {
+    "name": "German European School Singapore (GESS)",
+    "lat": 1.365383,
+    "lon": 103.773181,
+    "level": "INTERNATIONAL"
+  },
+  {
+    "name": "International French School (IFS)",
+    "lat": 1.370251,
+    "lon": 103.866541,
+    "level": "INTERNATIONAL"
+  },
+  {
+    "name": "Global Indian International School (SMART Campus)",
+    "lat": 1.315963,
+    "lon": 103.921303,
+    "level": "INTERNATIONAL"
+  },
+  {
+    "name": "XCL World Academy (XWA)",
+    "lat": 1.424178,
+    "lon": 103.850354,
+    "level": "INTERNATIONAL"
+  },
+  {
+    "name": "Dover Court International School",
+    "lat": 1.30552,
+    "lon": 103.779042,
+    "level": "INTERNATIONAL"
+  },
+  {
+    "name": "Chatsworth International School",
+    "lat": 1.302547,
+    "lon": 103.838472,
     "level": "INTERNATIONAL"
   },
   {
@@ -79,14 +127,14 @@
   },
   {
     "name": "AI TONG SCHOOL",
-    "lat": 1.3605834338904,
-    "lon": 103.833020333986,
+    "lat": 1.36058343005814,
+    "lon": 103.83302033725,
     "level": "PRIMARY"
   },
   {
     "name": "ALEXANDRA PRIMARY SCHOOL",
-    "lat": 1.29133439161334,
-    "lon": 103.824424680531,
+    "lat": 1.2912990413487,
+    "lon": 103.823940802388,
     "level": "PRIMARY"
   },
   {
@@ -115,8 +163,8 @@
   },
   {
     "name": "ANG MO KIO PRIMARY SCHOOL",
-    "lat": 1.36932176584608,
-    "lon": 103.839630858752,
+    "lat": 1.36909205812692,
+    "lon": 103.839041363152,
     "level": "PRIMARY"
   },
   {
@@ -145,8 +193,8 @@
   },
   {
     "name": "ANGLO-CHINESE SCHOOL (JUNIOR)",
-    "lat": 1.30935041274966,
-    "lon": 103.840950265464,
+    "lat": 1.30932252730174,
+    "lon": 103.841552127373,
     "level": "PRIMARY"
   },
   {
@@ -157,8 +205,8 @@
   },
   {
     "name": "ANGSANA PRIMARY SCHOOL",
-    "lat": 1.36360590588314,
-    "lon": 103.9389409004,
+    "lat": 1.3632481897246,
+    "lon": 103.938914821167,
     "level": "PRIMARY"
   },
   {
@@ -181,8 +229,8 @@
   },
   {
     "name": "BEACON PRIMARY SCHOOL",
-    "lat": 1.38394936211823,
-    "lon": 103.773632022975,
+    "lat": 1.38424146547316,
+    "lon": 103.773868475891,
     "level": "PRIMARY"
   },
   {
@@ -223,14 +271,14 @@
   },
   {
     "name": "BENDEMEER SECONDARY SCHOOL",
-    "lat": 1.32461111307996,
-    "lon": 103.860970284401,
+    "lat": 1.32434843114787,
+    "lon": 103.860518349544,
     "level": "SECONDARY (S1-S5)"
   },
   {
     "name": "BLANGAH RISE PRIMARY SCHOOL",
-    "lat": 1.27612047924037,
-    "lon": 103.808628535239,
+    "lat": 1.27614522920998,
+    "lon": 103.80861316604,
     "level": "PRIMARY"
   },
   {
@@ -301,8 +349,8 @@
   },
   {
     "name": "CANBERRA PRIMARY SCHOOL",
-    "lat": 1.45125024371543,
-    "lon": 103.815858858929,
+    "lat": 1.45123288382933,
+    "lon": 103.81588941317,
     "level": "PRIMARY"
   },
   {
@@ -379,8 +427,8 @@
   },
   {
     "name": "CHIJ OUR LADY OF GOOD COUNSEL",
-    "lat": 1.35742952269615,
-    "lon": 103.864009397373,
+    "lat": 1.35799494859112,
+    "lon": 103.864152052213,
     "level": "PRIMARY"
   },
   {
@@ -397,8 +445,8 @@
   },
   {
     "name": "CHIJ PRIMARY (TOA PAYOH)",
-    "lat": 1.33275264711587,
-    "lon": 103.841847263786,
+    "lat": 1.33275263726147,
+    "lon": 103.841847268953,
     "level": "PRIMARY"
   },
   {
@@ -421,8 +469,8 @@
   },
   {
     "name": "CHONGFU SCHOOL",
-    "lat": 1.43839562897006,
-    "lon": 103.839309173817,
+    "lat": 1.43846230429529,
+    "lon": 103.839070714229,
     "level": "PRIMARY"
   },
   {
@@ -451,8 +499,8 @@
   },
   {
     "name": "CHUNG CHENG HIGH SCHOOL (MAIN)",
-    "lat": 1.30509154753048,
-    "lon": 103.891653229373,
+    "lat": 1.30483557242719,
+    "lon": 103.890712775053,
     "level": "SECONDARY (S1-S4)"
   },
   {
@@ -481,8 +529,8 @@
   },
   {
     "name": "COMPASSVALE PRIMARY SCHOOL",
-    "lat": 1.39444529636566,
-    "lon": 103.897812229905,
+    "lat": 1.39443093598545,
+    "lon": 103.897904958974,
     "level": "PRIMARY"
   },
   {
@@ -583,14 +631,14 @@
   },
   {
     "name": "ELIAS PARK PRIMARY SCHOOL",
-    "lat": 1.37505696315817,
-    "lon": 103.945289416873,
+    "lat": 1.37451269377776,
+    "lon": 103.945128117139,
     "level": "PRIMARY"
   },
   {
     "name": "ENDEAVOUR PRIMARY SCHOOL",
-    "lat": 1.45403837499301,
-    "lon": 103.817436231731,
+    "lat": 1.45388170417263,
+    "lon": 103.817174701639,
     "level": "PRIMARY"
   },
   {
@@ -613,8 +661,8 @@
   },
   {
     "name": "FAIRFIELD METHODIST SCHOOL (PRIMARY)",
-    "lat": 1.30100441916733,
-    "lon": 103.785455606827,
+    "lat": 1.30054082453424,
+    "lon": 103.785438270044,
     "level": "PRIMARY"
   },
   {
@@ -631,14 +679,14 @@
   },
   {
     "name": "FENGSHAN PRIMARY SCHOOL",
-    "lat": 1.32980598760785,
-    "lon": 103.931710293058,
+    "lat": 1.3297844580718,
+    "lon": 103.931824413157,
     "level": "PRIMARY"
   },
   {
     "name": "FERN GREEN PRIMARY SCHOOL",
-    "lat": 1.39726966050479,
-    "lon": 103.880330305684,
+    "lat": 1.39744694871873,
+    "lon": 103.88012374173,
     "level": "PRIMARY"
   },
   {
@@ -661,8 +709,8 @@
   },
   {
     "name": "FUCHUN PRIMARY SCHOOL",
-    "lat": 1.43047990810126,
-    "lon": 103.778192944298,
+    "lat": 1.43063975763573,
+    "lon": 103.778175192579,
     "level": "PRIMARY"
   },
   {
@@ -679,8 +727,8 @@
   },
   {
     "name": "GAN ENG SENG PRIMARY SCHOOL",
-    "lat": 1.28595540299542,
-    "lon": 103.815228209494,
+    "lat": 1.28559516494962,
+    "lon": 103.815547410064,
     "level": "PRIMARY"
   },
   {
@@ -691,8 +739,8 @@
   },
   {
     "name": "GEYLANG METHODIST SCHOOL (PRIMARY)",
-    "lat": 1.31814416827374,
-    "lon": 103.883628501601,
+    "lat": 1.31759126757284,
+    "lon": 103.883845744916,
     "level": "PRIMARY"
   },
   {
@@ -703,8 +751,8 @@
   },
   {
     "name": "GONGSHANG PRIMARY SCHOOL",
-    "lat": 1.35711606790292,
-    "lon": 103.949144797277,
+    "lat": 1.35707534737744,
+    "lon": 103.949237910522,
     "level": "PRIMARY"
   },
   {
@@ -721,8 +769,8 @@
   },
   {
     "name": "GREENRIDGE PRIMARY SCHOOL",
-    "lat": 1.3858892193692,
-    "lon": 103.767794469258,
+    "lat": 1.38593108948507,
+    "lon": 103.767803387989,
     "level": "PRIMARY"
   },
   {
@@ -733,8 +781,8 @@
   },
   {
     "name": "GREENWOOD PRIMARY SCHOOL",
-    "lat": 1.43989958331782,
-    "lon": 103.804725587384,
+    "lat": 1.4401104867196,
+    "lon": 103.804515180606,
     "level": "PRIMARY"
   },
   {
@@ -757,8 +805,8 @@
   },
   {
     "name": "HENRY PARK PRIMARY SCHOOL",
-    "lat": 1.31667646178347,
-    "lon": 103.784296227747,
+    "lat": 1.31674735173514,
+    "lon": 103.784129850316,
     "level": "PRIMARY"
   },
   {
@@ -775,8 +823,8 @@
   },
   {
     "name": "HOLY INNOCENTS' PRIMARY SCHOOL",
-    "lat": 1.36693830877349,
-    "lon": 103.894114899795,
+    "lat": 1.36700366732013,
+    "lon": 103.89424605689,
     "level": "PRIMARY"
   },
   {
@@ -817,8 +865,8 @@
   },
   {
     "name": "INNOVA PRIMARY SCHOOL",
-    "lat": 1.42896700684852,
-    "lon": 103.790607539185,
+    "lat": 1.42927790140509,
+    "lon": 103.790592723808,
     "level": "PRIMARY"
   },
   {
@@ -835,8 +883,8 @@
   },
   {
     "name": "JUNYUAN PRIMARY SCHOOL",
-    "lat": 1.34787074766746,
-    "lon": 103.939221709073,
+    "lat": 1.34787050871599,
+    "lon": 103.939327626661,
     "level": "PRIMARY"
   },
   {
@@ -865,8 +913,8 @@
   },
   {
     "name": "JURONG WEST PRIMARY SCHOOL",
-    "lat": 1.33917519796104,
-    "lon": 103.698803732244,
+    "lat": 1.33971273175894,
+    "lon": 103.698743607058,
     "level": "PRIMARY"
   },
   {
@@ -889,8 +937,8 @@
   },
   {
     "name": "KEMING PRIMARY SCHOOL",
-    "lat": 1.34552849960874,
-    "lon": 103.756449399351,
+    "lat": 1.34506349843091,
+    "lon": 103.75592322797,
     "level": "PRIMARY"
   },
   {
@@ -907,8 +955,8 @@
   },
   {
     "name": "KONG HWA SCHOOL",
-    "lat": 1.31099674009193,
-    "lon": 103.888352029067,
+    "lat": 1.31094193836138,
+    "lon": 103.888259342632,
     "level": "PRIMARY"
   },
   {
@@ -943,8 +991,8 @@
   },
   {
     "name": "LIANHUA PRIMARY SCHOOL",
-    "lat": 1.35424191127295,
-    "lon": 103.754165828711,
+    "lat": 1.35416294645557,
+    "lon": 103.754130177522,
     "level": "PRIMARY"
   },
   {
@@ -955,8 +1003,8 @@
   },
   {
     "name": "MAHA BODHI SCHOOL",
-    "lat": 1.32847086658384,
-    "lon": 103.901298737314,
+    "lat": 1.32858023873554,
+    "lon": 103.901306904157,
     "level": "PRIMARY"
   },
   {
@@ -985,8 +1033,8 @@
   },
   {
     "name": "MAYFLOWER PRIMARY SCHOOL",
-    "lat": 1.37637683547682,
-    "lon": 103.843252803742,
+    "lat": 1.37639873282244,
+    "lon": 103.843165756947,
     "level": "PRIMARY"
   },
   {
@@ -1015,8 +1063,8 @@
   },
   {
     "name": "METHODIST GIRLS' SCHOOL (PRIMARY)",
-    "lat": 1.33266213599636,
-    "lon": 103.783382114018,
+    "lat": 1.33292998864414,
+    "lon": 103.782962649043,
     "level": "PRIMARY"
   },
   {
@@ -1045,8 +1093,8 @@
   },
   {
     "name": "NAN CHIAU PRIMARY SCHOOL",
-    "lat": 1.39221149906592,
-    "lon": 103.891180928186,
+    "lat": 1.39206468147602,
+    "lon": 103.890924984558,
     "level": "PRIMARY"
   },
   {
@@ -1057,8 +1105,8 @@
   },
   {
     "name": "NAN HUA PRIMARY SCHOOL",
-    "lat": 1.31920159956387,
-    "lon": 103.761095065761,
+    "lat": 1.31919648268012,
+    "lon": 103.761179518517,
     "level": "PRIMARY"
   },
   {
@@ -1075,8 +1123,8 @@
   },
   {
     "name": "NANYANG PRIMARY SCHOOL",
-    "lat": 1.32107094241153,
-    "lon": 103.807681852799,
+    "lat": 1.32084749904532,
+    "lon": 103.807750155296,
     "level": "PRIMARY"
   },
   {
@@ -1093,8 +1141,8 @@
   },
   {
     "name": "NEW TOWN PRIMARY SCHOOL",
-    "lat": 1.29981138884057,
-    "lon": 103.799964819895,
+    "lat": 1.29964188181021,
+    "lon": 103.80010216304,
     "level": "PRIMARY"
   },
   {
@@ -1117,8 +1165,8 @@
   },
   {
     "name": "NORTH SPRING PRIMARY SCHOOL",
-    "lat": 1.38706146494859,
-    "lon": 103.903202683028,
+    "lat": 1.38707582424175,
+    "lon": 103.903088569789,
     "level": "PRIMARY"
   },
   {
@@ -1129,8 +1177,8 @@
   },
   {
     "name": "NORTH VISTA PRIMARY SCHOOL",
-    "lat": 1.38289339218536,
-    "lon": 103.895854162476,
+    "lat": 1.38255066171151,
+    "lon": 103.89626457548,
     "level": "PRIMARY"
   },
   {
@@ -1165,14 +1213,14 @@
   },
   {
     "name": "NORTHOAKS PRIMARY SCHOOL",
-    "lat": 1.45732867302094,
-    "lon": 103.814075611175,
+    "lat": 1.45673147161879,
+    "lon": 103.813659945178,
     "level": "PRIMARY"
   },
   {
     "name": "NORTHSHORE PRIMARY SCHOOL",
-    "lat": 1.41842322079348,
-    "lon": 103.905147201163,
+    "lat": 1.41813803336667,
+    "lon": 103.904416909742,
     "level": "PRIMARY"
   },
   {
@@ -1201,8 +1249,8 @@
   },
   {
     "name": "PALM VIEW PRIMARY SCHOOL",
-    "lat": 1.38376923022123,
-    "lon": 103.891354675017,
+    "lat": 1.3838407564383,
+    "lon": 103.891215110737,
     "level": "PRIMARY"
   },
   {
@@ -1231,8 +1279,8 @@
   },
   {
     "name": "PAYA LEBAR METHODIST GIRLS' SCHOOL (PRIMARY)",
-    "lat": 1.3502545600894,
-    "lon": 103.884846876112,
+    "lat": 1.34947276268396,
+    "lon": 103.884971343143,
     "level": "PRIMARY"
   },
   {
@@ -1297,8 +1345,8 @@
   },
   {
     "name": "PRESBYTERIAN HIGH SCHOOL",
-    "lat": 1.38201194250223,
-    "lon": 103.843149382823,
+    "lat": 1.38175437421949,
+    "lon": 103.842382968794,
     "level": "SECONDARY (S1-S5)"
   },
   {
@@ -1351,8 +1399,8 @@
   },
   {
     "name": "QUEENSTOWN PRIMARY SCHOOL",
-    "lat": 1.29552905587752,
-    "lon": 103.807648475656,
+    "lat": 1.29559365009015,
+    "lon": 103.807548617332,
     "level": "PRIMARY"
   },
   {
@@ -1387,8 +1435,8 @@
   },
   {
     "name": "RED SWASTIKA SCHOOL",
-    "lat": 1.33324297847732,
-    "lon": 103.934332314404,
+    "lat": 1.33367448359173,
+    "lon": 103.93450966846,
     "level": "PRIMARY"
   },
   {
@@ -1405,8 +1453,8 @@
   },
   {
     "name": "RIVERSIDE PRIMARY SCHOOL",
-    "lat": 1.44700426493785,
-    "lon": 103.801889031334,
+    "lat": 1.44783369895684,
+    "lon": 103.80197619401,
     "level": "PRIMARY"
   },
   {
@@ -1441,8 +1489,8 @@
   },
   {
     "name": "SEMBAWANG PRIMARY SCHOOL",
-    "lat": 1.4457453096024,
-    "lon": 103.821152676215,
+    "lat": 1.4450436428697,
+    "lon": 103.82102151409,
     "level": "PRIMARY"
   },
   {
@@ -1465,8 +1513,8 @@
   },
   {
     "name": "SENGKANG GREEN PRIMARY SCHOOL",
-    "lat": 1.3925400930811,
-    "lon": 103.874984869551,
+    "lat": 1.39283924999573,
+    "lon": 103.875158826938,
     "level": "PRIMARY"
   },
   {
@@ -1483,8 +1531,8 @@
   },
   {
     "name": "SHUQUN PRIMARY SCHOOL",
-    "lat": 1.34686967259067,
-    "lon": 103.721559387203,
+    "lat": 1.34760285244673,
+    "lon": 103.721459527674,
     "level": "PRIMARY"
   },
   {
@@ -1603,8 +1651,8 @@
   },
   {
     "name": "ST. MARGARET'S SCHOOL (SECONDARY)",
-    "lat": 1.31977464050584,
-    "lon": 103.809602215402,
+    "lat": 1.32006821363359,
+    "lon": 103.80995114006,
     "level": "SECONDARY (S1-S5)"
   },
   {
@@ -1615,8 +1663,8 @@
   },
   {
     "name": "ST. STEPHEN'S SCHOOL",
-    "lat": 1.31878997295135,
-    "lon": 103.917258129598,
+    "lat": 1.31878279235375,
+    "lon": 103.917372254203,
     "level": "PRIMARY"
   },
   {
@@ -1639,8 +1687,8 @@
   },
   {
     "name": "TAMPINES PRIMARY SCHOOL",
-    "lat": 1.34977870805929,
-    "lon": 103.944004684986,
+    "lat": 1.3504863946694,
+    "lon": 103.943573098509,
     "level": "PRIMARY"
   },
   {
@@ -1657,8 +1705,8 @@
   },
   {
     "name": "TANJONG KATONG PRIMARY SCHOOL",
-    "lat": 1.30525783246242,
-    "lon": 103.900162653092,
+    "lat": 1.30498489044822,
+    "lon": 103.899999965407,
     "level": "PRIMARY"
   },
   {
@@ -1669,14 +1717,14 @@
   },
   {
     "name": "TAO NAN SCHOOL",
-    "lat": 1.30528528687321,
-    "lon": 103.911553152326,
+    "lat": 1.30460898085751,
+    "lon": 103.911502213437,
     "level": "PRIMARY"
   },
   {
     "name": "TECK GHEE PRIMARY SCHOOL",
-    "lat": 1.36565018546903,
-    "lon": 103.851009800453,
+    "lat": 1.36558782075966,
+    "lon": 103.850957126982,
     "level": "PRIMARY"
   },
   {
@@ -1747,14 +1795,14 @@
   },
   {
     "name": "WELLINGTON PRIMARY SCHOOL",
-    "lat": 1.45168517614776,
-    "lon": 103.822516208087,
+    "lat": 1.45189083282189,
+    "lon": 103.822341940714,
     "level": "PRIMARY"
   },
   {
     "name": "WEST GROVE PRIMARY SCHOOL",
-    "lat": 1.34471211768915,
-    "lon": 103.698964212988,
+    "lat": 1.3448790560014,
+    "lon": 103.699286360581,
     "level": "PRIMARY"
   },
   {
@@ -1777,8 +1825,8 @@
   },
   {
     "name": "WESTWOOD PRIMARY SCHOOL",
-    "lat": 1.3477109654722,
-    "lon": 103.700467520791,
+    "lat": 1.34715462510442,
+    "lon": 103.700526720098,
     "level": "PRIMARY"
   },
   {
@@ -1861,14 +1909,14 @@
   },
   {
     "name": "XISHAN PRIMARY SCHOOL",
-    "lat": 1.43347186925064,
-    "lon": 103.837755319448,
+    "lat": 1.43347186049118,
+    "lon": 103.837755326519,
     "level": "PRIMARY"
   },
   {
     "name": "YANGZHENG PRIMARY SCHOOL",
-    "lat": 1.34864575840923,
-    "lon": 103.868595527042,
+    "lat": 1.3489768083841,
+    "lon": 103.868467129954,
     "level": "PRIMARY"
   },
   {
@@ -1915,8 +1963,8 @@
   },
   {
     "name": "YU NENG PRIMARY SCHOOL",
-    "lat": 1.33398037894072,
-    "lon": 103.932015036296,
+    "lat": 1.33388930344069,
+    "lon": 103.932144857355,
     "level": "PRIMARY"
   },
   {
@@ -1957,8 +2005,8 @@
   },
   {
     "name": "ZHANGDE PRIMARY SCHOOL",
-    "lat": 1.28421153855474,
-    "lon": 103.825951884637,
+    "lat": 1.28421153335379,
+    "lon": 103.825951875662,
     "level": "PRIMARY"
   },
   {
