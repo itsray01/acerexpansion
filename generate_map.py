@@ -16,12 +16,12 @@ EXISTING_BRANCHES = {
     "The Woodgrove (North)": (1.4311, 103.7844),
     "Vista Point (North)": (1.4315, 103.7937),
     "Canberra Plaza (North)": (1.4431, 103.8297),
-    # East (4)
+    # East (2)
     "Tampines West (East)": (1.3486, 103.9360),
-    "Aljunied Maths/Science (East)": (1.3204, 103.8844),
-    "Aljunied Languages (East)": (1.3206, 103.8846),
     "Elias Mall (East)": (1.3773, 103.9424),
-    # Central (6)
+    # Central (8)
+    "Aljunied Maths/Science (Central)": (1.3204, 103.8844),
+    "Aljunied Languages (Central)": (1.3206, 103.8846),
     "Dawson (Central)": (1.2941, 103.8099),
     "Depot Heights (Central)": (1.2809, 103.8086),
     "Tiong Bahru (Central)": (1.2863, 103.8272),
