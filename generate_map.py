@@ -108,12 +108,15 @@ def load_schools():
             if website and not website.startswith("http"):
                 website = "http://" + website
                 
+            # PRIORITIZE: Address baked directly into the JSON, fallback to CSV metadata
+            raw_address = item.get("address") or extra.get("address", "Address not available")
+                
             schools.append({
                 "name": name,
                 "lat": float(item["lat"]),
                 "lon": float(item["lon"]),
                 "level": item.get("level", "PRIMARY"),
-                "address": extra.get("address", "Address not available"),
+                "address": raw_address,
                 "website": website
             })
     
