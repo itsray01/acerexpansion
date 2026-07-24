@@ -278,11 +278,11 @@ def generate_map():
     favicon_html = '<link rel="icon" type="image/png" href="https://i.imgur.com/YhyOq9V.png">'
     m.get_root().header.add_child(Element(favicon_html))
     
-    # --- INJECT GEOCODER SEARCH BAR ---
-    geocoder_css = '<link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css" />'
-    geocoder_js = '<script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>'
+    # --- INJECT GEOCODER SEARCH BAR (Version Pinned & Body Injected) ---
+    geocoder_css = '<link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder@2.4.0/dist/Control.Geocoder.css" />'
+    geocoder_js = '<script src="https://unpkg.com/leaflet-control-geocoder@2.4.0/dist/Control.Geocoder.js"></script>'
     m.get_root().header.add_child(Element(geocoder_css))
-    m.get_root().header.add_child(Element(geocoder_js))
+    m.get_root().html.add_child(Element(geocoder_js)) # Placed in HTML body to guarantee Leaflet loads first
 
     print("[*] Plotting URA Regions (Bug Fixed: Strict Keyword Filtering)...")
 
