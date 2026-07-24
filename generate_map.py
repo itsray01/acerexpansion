@@ -215,17 +215,18 @@ def generate_map():
         border: 1px solid rgba(255,255,255,0.15) !important; border-radius: 18px !important;
         padding: 20px 24px !important; font-family: 'Montserrat', sans-serif !important;
         box-shadow: 0 15px 40px rgba(0,0,0,0.7) !important; min-width: 250px !important;
+        max-height: 80vh !important; overflow-y: auto !important; z-index: 10000 !important;
     }
     .leaflet-control-layers-list::before {
         content: "Map Display Settings"; display: block; font-size: 14px; font-weight: 700; color: #00E5FF;
         text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px;
-        border-bottom: 1px solid rgba(255,255,255,0.15); padding-bottom: 8px;
+        border-bottom: 1px solid rgba(255,255,255,0.15); padding-bottom: 8px; pointer-events: none !important;
     }
     .leaflet-control-layers-base label, .leaflet-control-layers-overlays label {
         display: flex !important; align-items: center !important; margin: 12px 0 !important; cursor: pointer !important; font-weight: 500 !important; font-size: 13px !important; transition: color 0.2s !important;
     }
     .leaflet-control-layers-base label:hover, .leaflet-control-layers-overlays label:hover { color: #FFD700 !important; }
-    .leaflet-control-layers-separator { border-top: 1px solid rgba(255,255,255,0.15) !important; margin: 14px 0 !important; }
+    .leaflet-control-layers-separator { border-top: 1px solid rgba(255,255,255,0.15) !important; margin: 14px 0 !important; height: 0 !important; pointer-events: none !important; }
 
     input[type="checkbox"].leaflet-control-layers-selector,
     input[type="radio"].leaflet-control-layers-selector {
@@ -237,21 +238,92 @@ def generate_map():
     input[type="checkbox"].leaflet-control-layers-selector:checked,
     input[type="radio"].leaflet-control-layers-selector:checked { background: #00E5FF !important; border-color: #00E5FF !important; }
     input[type="checkbox"].leaflet-control-layers-selector:checked::after {
-        content: "✔"; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #000; font-size: 10px; font-weight: bold;
+        content: "✔"; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #000; font-size: 10px; font-weight: bold; pointer-events: none !important;
     }
     input[type="radio"].leaflet-control-layers-selector:checked::after {
-        content: ""; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 6px; height: 6px; background: #000; border-radius: 50%;
+        content: ""; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 6px; height: 6px; background: #000; border-radius: 50%; pointer-events: none !important;
     }
+    
+    /* --- GOOGLE MAPS STYLE SEARCH BAR --- */
+    .leaflet-top.leaflet-left .leaflet-control-geocoder {
+        position: fixed !important;
+        top: 20px !important;
+        left: 50% !important;
+        transform: translateX(-50%) !important;
+        margin: 0 !important;
+        width: 400px !important;
+        background: rgba(20, 20, 20, 0.90) !important;
+        backdrop-filter: blur(16px) !important;
+        border-radius: 12px !important;
+        border: 1px solid rgba(255,255,255,0.15) !important;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.6) !important;
+        z-index: 9999 !important;
+        padding: 4px !important;
+    }
+    .leaflet-control-geocoder-form {
+        display: flex !important;
+        align-items: center !important;
+    }
+    .leaflet-control-geocoder-form input {
+        background: transparent !important;
+        color: #FFF !important;
+        font-family: 'Montserrat', sans-serif !important;
+        font-size: 14px !important;
+        font-weight: 500 !important;
+        width: 100% !important;
+        padding: 8px 12px !important;
+        border: none !important;
+        outline: none !important;
+    }
+    .leaflet-control-geocoder-form input::placeholder { color: #888 !important; }
+    .leaflet-control-geocoder-icon {
+        border-radius: 12px !important;
+        background-color: transparent !important;
+        filter: invert(1) !important; /* Make the magnifying glass white */
+        opacity: 0.6 !important;
+        margin-left: 4px !important;
+    }
+    .leaflet-control-geocoder-alternatives {
+        background: rgba(20, 20, 20, 0.95) !important;
+        backdrop-filter: blur(16px) !important;
+        border: 1px solid rgba(255,255,255,0.15) !important;
+        border-radius: 12px !important;
+        margin-top: 12px !important;
+        box-shadow: 0 10px 25px rgba(0,0,0,0.7) !important;
+        max-width: 400px !important;
+        overflow: hidden !important;
+    }
+    .leaflet-control-geocoder-alternatives li {
+        color: white !important;
+        font-family: 'Montserrat', sans-serif !important;
+        font-size: 13px !important;
+        padding: 10px 14px !important;
+        border-bottom: 1px solid rgba(255,255,255,0.05) !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+    }
+    .leaflet-control-geocoder-alternatives li:last-child { border-bottom: none !important; }
+    .leaflet-control-geocoder-alternatives li:hover,
+    .leaflet-control-geocoder-selected {
+        background: rgba(0, 229, 255, 0.15) !important;
+        color: #00E5FF !important;
+    }
+    .leaflet-control-geocoder-alternatives a { color: inherit !important; text-decoration: none !important; }
+    .leaflet-control-geocoder-throbber .leaflet-control-geocoder-icon { background-image: none !important; }
     </style>
     """
     m.get_root().header.add_child(Element(custom_css))
 
-    # --- INJECT ACER FAVICON AND TAB TITLE ---
-    tab_html = """
-    <script>document.title = "Acer Expansion Map";</script>
-    <link rel="icon" type="image/png" href="https://i.imgur.com/YhyOq9V.png">
-    """
-    m.get_root().header.add_child(Element(tab_html))
+    # --- INJECT ACER FAVICON ---
+    favicon_html = '<link rel="icon" type="image/png" href="https://i.imgur.com/YhyOq9V.png">'
+    m.get_root().header.add_child(Element(favicon_html))
+    
+    # --- INJECT GEOCODER SEARCH BAR ---
+    geocoder_css = '<link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css" />'
+    geocoder_js = '<script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>'
+    m.get_root().header.add_child(Element(geocoder_css))
+    m.get_root().header.add_child(Element(geocoder_js))
 
     print("[*] Plotting URA Regions (Bug Fixed: Strict Keyword Filtering)...")
 
@@ -651,16 +723,16 @@ def generate_map():
                 labels.forEach(function(lbl) {
                     var txt = lbl.textContent;
                     if (txt.includes('Acer Academy Branches')) {
-                        lbl.insertAdjacentHTML('beforebegin', '<div style="color:#00E5FF; font-size:11px; font-weight:800; margin-top:5px; margin-bottom:5px; text-transform:uppercase; letter-spacing:1px;">Core Strategy</div>');
+                        lbl.insertAdjacentHTML('beforebegin', '<div style="pointer-events:none; color:#00E5FF; font-size:11px; font-weight:800; margin-top:5px; margin-bottom:5px; text-transform:uppercase; letter-spacing:1px;">Core Strategy</div>');
                     }
                     if (txt.includes('Primary Schools')) {
-                        lbl.insertAdjacentHTML('beforebegin', '<div style="color:#00E5FF; font-size:11px; font-weight:800; margin-top:15px; margin-bottom:5px; text-transform:uppercase; letter-spacing:1px;">Education Network</div>');
+                        lbl.insertAdjacentHTML('beforebegin', '<div style="pointer-events:none; color:#00E5FF; font-size:11px; font-weight:800; margin-top:15px; margin-bottom:5px; text-transform:uppercase; letter-spacing:1px;">Education Network</div>');
                     }
                     if (txt.includes('Kumon')) {
-                        lbl.insertAdjacentHTML('beforebegin', '<div style="color:#FF3344; font-size:11px; font-weight:800; margin-top:15px; margin-bottom:5px; text-transform:uppercase; letter-spacing:1px;">Competitor Network</div>');
+                        lbl.insertAdjacentHTML('beforebegin', '<div style="pointer-events:none; color:#FF3344; font-size:11px; font-weight:800; margin-top:15px; margin-bottom:5px; text-transform:uppercase; letter-spacing:1px;">Competitor Network</div>');
                     }
                     if (txt.includes('Regional Boundaries')) {
-                        lbl.insertAdjacentHTML('beforebegin', '<div style="color:#00E5FF; font-size:11px; font-weight:800; margin-top:15px; margin-bottom:5px; text-transform:uppercase; letter-spacing:1px;">Analytics & Geography</div>');
+                        lbl.insertAdjacentHTML('beforebegin', '<div style="pointer-events:none; color:#00E5FF; font-size:11px; font-weight:800; margin-top:15px; margin-bottom:5px; text-transform:uppercase; letter-spacing:1px;">Analytics & Geography</div>');
                     }
                 });
             }
@@ -694,6 +766,39 @@ def generate_map():
                             }).addTo(simLayer);
                         }
                     });
+                    
+                    // --- GOOGLE MAPS STYLE SEARCH BAR INJECTION ---
+                    if (typeof L.Control.Geocoder !== 'undefined') {
+                        L.Control.geocoder({
+                            defaultMarkGeocode: false,
+                            collapsed: false,
+                            placeholder: "Search any estate, mall, or address...",
+                            geocoder: L.Control.Geocoder.nominatim({
+                                geocodingQueryParams: { countrycodes: 'sg' } // Restrict search to Singapore
+                            })
+                        }).on('markgeocode', function(e) {
+                            var bbox = e.geocode.bbox;
+                            var center = e.geocode.center;
+                            var name = e.geocode.name.split(',')[0]; // Extract the primary building/estate name
+                            
+                            // Smoothly fly to the searched location
+                            map.flyToBounds(bbox, { maxZoom: 16, duration: 1.5 });
+                            
+                            // Add a sleek pulsing ping at the search result
+                            var searchPin = L.marker(center, {
+                                icon: L.divIcon({
+                                    className: 'search-pin',
+                                    html: '<div style="background:#00E5FF; width:16px; height:16px; border-radius:50%; box-shadow:0 0 15px #00E5FF, 0 0 0 6px rgba(0,229,255,0.3); border:2px solid #FFF; transform: translate(-50%, -50%);"></div>' +
+                                          '<div style="position: absolute; top: -35px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.8); color: #00E5FF; padding: 4px 10px; border-radius: 6px; font-family: Montserrat; font-size: 11px; font-weight: 700; white-space: nowrap; border: 1px solid rgba(0,229,255,0.4);">' + name + '</div>',
+                                    iconSize: [0, 0]
+                                })
+                            }).addTo(map);
+                            
+                            // Remove the pin after 8 seconds to prevent clutter
+                            setTimeout(function() { map.removeLayer(searchPin); }, 8000);
+                            
+                        }).addTo(map);
+                    }
                 }
             }
         }, 1000);
