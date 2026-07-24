@@ -250,25 +250,32 @@ def generate_map():
         margin-top: 12px !important;
         box-shadow: 0 10px 25px rgba(0,0,0,0.7) !important;
         max-width: 400px !important;
-        overflow: hidden !important;
+        max-height: 400px !important;
+        overflow-y: auto !important;
+        padding: 0 !important;
+        list-style: none !important;
     }
     .leaflet-control-geocoder-alternatives li {
-        color: white !important;
-        font-family: 'Montserrat', sans-serif !important;
-        font-size: 13px !important;
-        padding: 10px 14px !important;
         border-bottom: 1px solid rgba(255,255,255,0.05) !important;
-        white-space: nowrap !important;
-        overflow: hidden !important;
-        text-overflow: ellipsis !important;
+        transition: background 0.2s !important;
     }
     .leaflet-control-geocoder-alternatives li:last-child { border-bottom: none !important; }
     .leaflet-control-geocoder-alternatives li:hover,
     .leaflet-control-geocoder-selected {
         background: rgba(0, 229, 255, 0.15) !important;
-        color: #00E5FF !important;
     }
-    .leaflet-control-geocoder-alternatives a { color: inherit !important; text-decoration: none !important; }
+    .leaflet-control-geocoder-alternatives a {
+        display: block !important;
+        color: white !important;
+        font-family: 'Montserrat', sans-serif !important;
+        font-size: 13px !important;
+        padding: 12px 14px !important;
+        line-height: 1.5 !important;
+        white-space: normal !important;
+        word-wrap: break-word !important;
+        text-decoration: none !important;
+    }
+    .leaflet-control-geocoder-alternatives a:hover { color: #00E5FF !important; }
     .leaflet-control-geocoder-throbber .leaflet-control-geocoder-icon { background-image: none !important; }
     </style>
     """
@@ -737,18 +744,47 @@ def generate_map():
                             return;
                         }
                         
+                        // CUSTOM ONEMAP SG GEOCODER (Replaces generic OpenStreetMap)
+                        const OneMapGeocoder = L.Class.extend({
+                            options: { geocodeUrl: 'https://www.onemap.gov.sg/api/common/elastic/search' },
+                            geocode: function(query, cb, context) {
+                                fetch(this.options.geocodeUrl + '?searchVal=' + encodeURIComponent(query) + '&returnGeom=Y&getAddrDetails=Y&pageNum=1')
+                                .then(res => res.json())
+                                .then(data => {
+                                    var results = [];
+                                    if (data && data.results) {
+                                        for (var i = 0; i < Math.min(data.results.length, 8); i++) {
+                                            var r = data.results[i];
+                                            var lat = parseFloat(r.LATITUDE);
+                                            var lon = parseFloat(r.LONGITUDE);
+                                            var address = r.ADDRESS || r.SEARCHVAL;
+                                            
+                                            // Title Case the address for premium look
+                                            address = address.toLowerCase().split(' ').map(function(word) { 
+                                                return word.charAt(0).toUpperCase() + word.slice(1); 
+                                            }).join(' ');
+                                            
+                                            var bbox = L.latLngBounds(L.latLng(lat, lon), L.latLng(lat, lon));
+                                            results.push({ name: address, bbox: bbox, center: L.latLng(lat, lon) });
+                                        }
+                                    }
+                                    cb.call(context, results);
+                                })
+                                .catch(err => { console.error('OneMap Error:', err); cb.call(context, []); });
+                            },
+                            suggest: function(query, cb, context) { return this.geocode(query, cb, context); }
+                        });
+
                         L.Control.geocoder({
                             position: 'topleft', // Positions it perfectly for our custom CSS to hook it to top-center
                             defaultMarkGeocode: false,
                             collapsed: false,
                             placeholder: "Search any estate, mall, or address...",
-                            geocoder: new L.Control.Geocoder.Nominatim({
-                                geocodingQueryParams: { countrycodes: 'sg' } // Restrict search to Singapore
-                            })
+                            geocoder: new OneMapGeocoder()
                         }).on('markgeocode', function(e) {
                             var bbox = e.geocode.bbox;
                             var center = e.geocode.center;
-                            var name = e.geocode.name.split(',')[0]; // Extract the primary building/estate name
+                            var name = e.geocode.name;
                             
                             // Smoothly fly to the searched location
                             map.flyToBounds(bbox, { maxZoom: 16, duration: 1.5 });
