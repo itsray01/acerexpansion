@@ -31,8 +31,8 @@
         "brand": "Zenith",
         "branch": "Jurong East",
         "postal": "608546",
-        "lat": 1.33503600662426,
-        "lon": 103.739670168956
+        "lat": 1.33503516665116,
+        "lon": 103.739801720796
     },
     {
         "brand": "Zenith",
@@ -73,15 +73,15 @@
         "brand": "Zenith",
         "branch": "Serangoon",
         "postal": "556129",
-        "lat": 1.35161225499691,
-        "lon": 103.870367873327
+        "lat": 1.35169038154618,
+        "lon": 103.870408875865
     },
     {
         "brand": "Zenith",
         "branch": "Tampines",
         "postal": "529508",
-        "lat": 1.35310035168191,
-        "lon": 103.943743442836
+        "lat": 1.35311433690453,
+        "lon": 103.943702415776
     },
     {
         "brand": "Aspire Hub",
@@ -416,15 +416,15 @@
         "brand": "Mind Stretcher",
         "branch": "Sembawang",
         "postal": "757713",
-        "lat": 1.44819535371132,
-        "lon": 103.819502127155
+        "lat": 1.44819666623789,
+        "lon": 103.819498634275
     },
     {
         "brand": "Mind Stretcher",
         "branch": "Pasir Ris",
         "postal": "519599",
-        "lat": 1.37912717878008,
-        "lon": 103.955444758145
+        "lat": 1.3766980678365,
+        "lon": 103.95514122442
     },
     {
         "brand": "Kumon",
@@ -584,8 +584,8 @@
         "brand": "Kumon",
         "branch": "City Square Mall",
         "postal": "208539",
-        "lat": 1.3113051711141,
-        "lon": 103.856421771626
+        "lat": 1.31142103107683,
+        "lon": 103.856624019991
     },
     {
         "brand": "Kumon",
@@ -598,15 +598,15 @@
         "brand": "Kumon",
         "branch": "Yishun Ring Road",
         "postal": "760239",
-        "lat": 1.43364273451288,
-        "lon": 103.839634571008
+        "lat": 1.43359514649201,
+        "lon": 103.839685373602
     },
     {
         "brand": "Kumon",
         "branch": "Jurong West Frontier CC",
         "postal": "648346",
-        "lat": 1.34056124596453,
-        "lon": 103.704526876366
+        "lat": 1.34051876831483,
+        "lon": 103.704549717701
     },
     {
         "brand": "Kumon",
@@ -626,8 +626,8 @@
         "brand": "Kumon",
         "branch": "Greenwich V",
         "postal": "807011",
-        "lat": 1.38739538356829,
-        "lon": 103.869135979261
+        "lat": 1.38739539397015,
+        "lon": 103.869135978173
     },
     {
         "brand": "Kumon",
@@ -647,15 +647,15 @@
         "brand": "Kumon",
         "branch": "Beauty World",
         "postal": "588177",
-        "lat": 1.34239508820554,
-        "lon": 103.776468301093
+        "lat": 1.34241264188642,
+        "lon": 103.776539385406
     },
     {
         "brand": "Kumon",
         "branch": "Hillion Mall",
         "postal": "678278",
-        "lat": 1.37834972034942,
-        "lon": 103.76274117487
+        "lat": 1.37843100800213,
+        "lon": 103.762842789877
     },
     {
         "brand": "Kumon",
@@ -675,15 +675,15 @@
         "brand": "Kumon",
         "branch": "Oasis Terraces",
         "postal": "820681",
-        "lat": 1.40287845827053,
-        "lon": 103.913195741417
+        "lat": 1.40276110219589,
+        "lon": 103.913572751045
     },
     {
         "brand": "Kumon",
         "branch": "Elias Mall",
         "postal": "510625",
-        "lat": 1.37860717882538,
-        "lon": 103.941916363447
+        "lat": 1.37860239032585,
+        "lon": 103.941978177673
     },
     {
         "brand": "Kumon",
@@ -703,8 +703,8 @@
         "brand": "Kumon",
         "branch": "Eastpoint Mall",
         "postal": "486038",
-        "lat": 1.33403637902708,
-        "lon": 103.962917615531
+        "lat": 1.33408359331373,
+        "lon": 103.962946083391
     },
     {
         "brand": "Kumon",
@@ -717,15 +717,15 @@
         "brand": "Kumon",
         "branch": "MacPherson Mall",
         "postal": "368219",
-        "lat": 1.33233958632003,
-        "lon": 103.884446745793
+        "lat": 1.33233958632002,
+        "lon": 103.884446746065
     },
     {
         "brand": "Kumon",
         "branch": "Novena Square 2",
         "postal": "307506",
-        "lat": 1.32070510956845,
-        "lon": 103.844160709661
+        "lat": 1.32044103104797,
+        "lon": 103.844192628979
     },
     {
         "brand": "Kumon",
@@ -738,15 +738,8 @@
         "brand": "Kumon",
         "branch": "Dawson Place",
         "postal": "142057",
-        "lat": 1.29270339855062,
-        "lon": 103.810958956467
-    },
-    {
-        "brand": "Kumon",
-        "branch": "Taman Jurong CC",
-        "postal": "610399",
-        "lat": 1.334828322199235,
-        "lon": 103.7210513399446
+        "lat": 1.29282503089367,
+        "lon": 103.810703537682
     },
     {
         "brand": "Kumon",
@@ -759,7 +752,252 @@
         "brand": "Kumon",
         "branch": "Boon Lay Shopping Centre",
         "postal": "640221",
-        "lat": 1.34639604683977,
-        "lon": 103.712387709421
+        "lat": 1.34633552457315,
+        "lon": 103.712430373455
+    },
+    {
+        "brand": "Mavis Tutorial Centre",
+        "branch": "Anchorvale Village",
+        "postal": "540339",
+        "lat": 1.39679315311901,
+        "lon": 103.888437344772
+    },
+    {
+        "brand": "Mavis Tutorial Centre",
+        "branch": "Ang Mo Kio Hub",
+        "postal": "569933",
+        "lat": 1.36923561405404,
+        "lon": 103.848693181185
+    },
+    {
+        "brand": "Mavis Tutorial Centre",
+        "branch": "Bedok Mall",
+        "postal": "467360",
+        "lat": 1.32473632812103,
+        "lon": 103.929256259726
+    },
+    {
+        "brand": "Mavis Tutorial Centre",
+        "branch": "Buangkok",
+        "postal": "545061",
+        "lat": 1.38369417199994,
+        "lon": 103.893049981318
+    },
+    {
+        "brand": "Mavis Tutorial Centre",
+        "branch": "Compass One",
+        "postal": "545078",
+        "lat": 1.39205314156706,
+        "lon": 103.89507054384
+    },
+    {
+        "brand": "Mavis Tutorial Centre",
+        "branch": "Jurong East",
+        "postal": "600131",
+        "lat": 1.3345125738328,
+        "lon": 103.740177518926
+    },
+    {
+        "brand": "Mavis Tutorial Centre",
+        "branch": "Jurong Point",
+        "postal": "648886",
+        "lat": 1.3394520043632,
+        "lon": 103.706685012926
+    },
+    {
+        "brand": "Mavis Tutorial Centre",
+        "branch": "KINEX",
+        "postal": "437157",
+        "lat": 1.31474238838871,
+        "lon": 103.8945518516
+    },
+    {
+        "brand": "Mavis Tutorial Centre",
+        "branch": "Kovan",
+        "postal": "530204",
+        "lat": 1.35881911554386,
+        "lon": 103.884988426671
+    },
+    {
+        "brand": "Mavis Tutorial Centre",
+        "branch": "Lot One",
+        "postal": "689812",
+        "lat": 1.38493874036122,
+        "lon": 103.745022476677
+    },
+    {
+        "brand": "Mavis Tutorial Centre",
+        "branch": "Pasir Ris Mall",
+        "postal": "519612",
+        "lat": 1.37382437779468,
+        "lon": 103.948748873616
+    },
+    {
+        "brand": "Mavis Tutorial Centre",
+        "branch": "Punggol",
+        "postal": "820168",
+        "lat": 1.39423719717117,
+        "lon": 103.913047323223
+    },
+    {
+        "brand": "Mavis Tutorial Centre",
+        "branch": "Rivervale Plaza",
+        "postal": "540118",
+        "lat": 1.3849334568541,
+        "lon": 103.901558018707
+    },
+    {
+        "brand": "Mavis Tutorial Centre",
+        "branch": "Seletar Mall",
+        "postal": "797653",
+        "lat": 1.39130622992517,
+        "lon": 103.876085067727
+    },
+    {
+        "brand": "Mavis Tutorial Centre",
+        "branch": "Tampines",
+        "postal": "520510",
+        "lat": 1.35480107982353,
+        "lon": 103.944458085324
+    },
+    {
+        "brand": "Mavis Tutorial Centre",
+        "branch": "Woodlands",
+        "postal": "730888",
+        "lat": 1.43721078301326,
+        "lon": 103.795414073713
+    },
+    {
+        "brand": "Mavis Tutorial Centre",
+        "branch": "Woodleigh Mall",
+        "postal": "367803",
+        "lat": 1.33869419209869,
+        "lon": 103.871750105256
+    },
+    {
+        "brand": "Stalford Learning Centre",
+        "branch": "Admiralty Place",
+        "postal": "731678",
+        "lat": 1.44043832777457,
+        "lon": 103.801585114859
+    },
+    {
+        "brand": "Stalford Learning Centre",
+        "branch": "AMK Hub",
+        "postal": "569933",
+        "lat": 1.36923561405404,
+        "lon": 103.848693181185
+    },
+    {
+        "brand": "Stalford Learning Centre",
+        "branch": "Northpoint City",
+        "postal": "769098",
+        "lat": 1.42969848626288,
+        "lon": 103.835776491468
+    },
+    {
+        "brand": "Stalford Learning Centre",
+        "branch": "Oasis Terraces",
+        "postal": "820681",
+        "lat": 1.40276110219589,
+        "lon": 103.913572751045
+    },
+    {
+        "brand": "Stalford Learning Centre",
+        "branch": "Sengkang Grand Mall",
+        "postal": "544692",
+        "lat": 1.38381228170133,
+        "lon": 103.892318220824
+    },
+    {
+        "brand": "Stalford Learning Centre",
+        "branch": "Waterway Point",
+        "postal": "828761",
+        "lat": 1.40640964880099,
+        "lon": 103.902130352627
+    },
+    {
+        "brand": "Stalford Learning Centre",
+        "branch": "Hillion Mall",
+        "postal": "678278",
+        "lat": 1.37843100800213,
+        "lon": 103.762842789877
+    },
+    {
+        "brand": "Stalford Learning Centre",
+        "branch": "Lot One",
+        "postal": "689812",
+        "lat": 1.38493874036122,
+        "lon": 103.745022476677
+    },
+    {
+        "brand": "Stalford Learning Centre",
+        "branch": "YewTee Point",
+        "postal": "689578",
+        "lat": 1.39696992267974,
+        "lon": 103.746443198224
+    },
+    {
+        "brand": "Stalford Learning Centre",
+        "branch": "Plantation Plaza",
+        "postal": "690127",
+        "lat": 1.35759319436135,
+        "lon": 103.734174851203
+    },
+    {
+        "brand": "Stalford Learning Centre",
+        "branch": "Parc Point",
+        "postal": "690302",
+        "lat": 1.36095794799683,
+        "lon": 103.738605527288
+    },
+    {
+        "brand": "Stalford Learning Centre",
+        "branch": "Bedok",
+        "postal": "460209",
+        "lat": 1.32463573076034,
+        "lon": 103.931068829397
+    },
+    {
+        "brand": "Stalford Learning Centre",
+        "branch": "Eastpoint Mall",
+        "postal": "528833",
+        "lat": 1.34270592355576,
+        "lon": 103.953024618234
+    },
+    {
+        "brand": "Stalford Learning Centre",
+        "branch": "Tampines Mall",
+        "postal": "529510",
+        "lat": 1.35250468330971,
+        "lon": 103.944682574769
+    },
+    {
+        "brand": "Stalford Learning Centre",
+        "branch": "White Sands",
+        "postal": "518457",
+        "lat": 1.3724564071358,
+        "lon": 103.949763493981
+    },
+    {
+        "brand": "Stalford Learning Centre",
+        "branch": "Tiong Bahru Plaza",
+        "postal": "168732",
+        "lat": 1.28646345355064,
+        "lon": 103.826935079694
+    },
+    {
+        "brand": "Stalford Learning Centre",
+        "branch": "Jurong Point",
+        "postal": "648331",
+        "lat": 1.33931504032005,
+        "lon": 103.705350996191
+    },
+    {
+        "brand": "Stalford Learning Centre",
+        "branch": "Jurong West Blk 749",
+        "postal": "640749",
+        "lat": 1.34806612832922,
+        "lon": 103.698072199306
     }
 ]
