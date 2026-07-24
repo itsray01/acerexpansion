@@ -203,94 +203,33 @@ def generate_map():
         content: ""; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 6px; height: 6px; background: #000; border-radius: 50%; pointer-events: none !important;
     }
     
-    /* --- GOOGLE MAPS STYLE SEARCH BAR --- */
-    .leaflet-top.leaflet-left .leaflet-control-geocoder {
-        position: fixed !important;
-        top: 20px !important;
-        left: 50% !important;
-        transform: translateX(-50%) !important;
-        margin: 0 !important;
-        width: 400px !important;
-        background: rgba(20, 20, 20, 0.90) !important;
-        backdrop-filter: blur(16px) !important;
-        border-radius: 12px !important;
-        border: 1px solid rgba(255,255,255,0.15) !important;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.6) !important;
-        z-index: 9999 !important;
-        padding: 4px !important;
+    /* --- CUSTOM NATIVE SEARCH BAR --- */
+    #acer-custom-search {
+        position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+        z-index: 9999; width: 400px; font-family: 'Montserrat', sans-serif;
     }
-    .leaflet-control-geocoder-form {
-        display: flex !important;
-        align-items: center !important;
+    #acer-search-box {
+        display: flex; align-items: center; background: rgba(20, 20, 20, 0.90);
+        backdrop-filter: blur(16px); border: 1px solid rgba(255,255,255,0.15);
+        border-radius: 12px; padding: 10px 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.6);
     }
-    .leaflet-control-geocoder-form input {
-        background: transparent !important;
-        color: #FFF !important;
-        font-family: 'Montserrat', sans-serif !important;
-        font-size: 14px !important;
-        font-weight: 500 !important;
-        width: 100% !important;
-        padding: 8px 12px !important;
-        border: none !important;
-        outline: none !important;
+    #acer-search-input {
+        background: transparent; border: none; outline: none; color: #FFF;
+        width: 100%; margin-left: 12px; font-family: 'Montserrat', sans-serif; font-size: 14px; font-weight: 500;
     }
-    .leaflet-control-geocoder-form input::placeholder { color: #888 !important; }
-    .leaflet-control-geocoder-icon {
-        border-radius: 12px !important;
-        background-color: transparent !important;
-        filter: invert(1) !important; /* Make the magnifying glass white */
-        opacity: 0.6 !important;
-        margin-left: 4px !important;
+    #acer-search-input::placeholder { color: #888; }
+    #acer-search-results {
+        display: none; list-style: none; margin: 8px 0 0 0; padding: 0;
+        background: rgba(20, 20, 20, 0.95); backdrop-filter: blur(16px);
+        border: 1px solid rgba(255,255,255,0.15); border-radius: 12px;
+        box-shadow: 0 10px 25px rgba(0,0,0,0.7); max-height: 350px; overflow-y: auto;
     }
-    
-    /* HIDE THE DEFAULT ERROR MESSAGES */
-    .leaflet-control-geocoder-form-no-error,
-    .leaflet-control-geocoder-error {
-        display: none !important;
+    .acer-search-item {
+        padding: 12px 16px; border-bottom: 1px solid rgba(255,255,255,0.05);
+        cursor: pointer; color: white; font-size: 13px; line-height: 1.4; transition: background 0.2s;
     }
-
-    /* FORCE ABSOLUTE POSITIONING ON DROPDOWN */
-    .leaflet-control-geocoder-alternatives {
-        position: absolute !important;
-        top: 100% !important;
-        left: 0 !important;
-        width: 100% !important;
-        background: rgba(20, 20, 20, 0.95) !important;
-        backdrop-filter: blur(16px) !important;
-        border: 1px solid rgba(255,255,255,0.15) !important;
-        border-radius: 12px !important;
-        margin-top: 8px !important;
-        box-shadow: 0 10px 25px rgba(0,0,0,0.7) !important;
-        max-height: 400px !important;
-        overflow-y: auto !important;
-        padding: 0 !important;
-        list-style: none !important;
-        z-index: 10000 !important;
-    }
-    .leaflet-control-geocoder-alternatives li {
-        border-bottom: 1px solid rgba(255,255,255,0.05) !important;
-        transition: background 0.2s !important;
-        margin: 0 !important;
-        padding: 0 !important;
-    }
-    .leaflet-control-geocoder-alternatives li:last-child { border-bottom: none !important; }
-    .leaflet-control-geocoder-alternatives li:hover,
-    .leaflet-control-geocoder-selected {
-        background: rgba(0, 229, 255, 0.15) !important;
-    }
-    .leaflet-control-geocoder-alternatives a {
-        display: block !important;
-        color: white !important;
-        font-family: 'Montserrat', sans-serif !important;
-        font-size: 13px !important;
-        padding: 12px 14px !important;
-        line-height: 1.5 !important;
-        white-space: normal !important;
-        word-wrap: break-word !important;
-        text-decoration: none !important;
-    }
-    .leaflet-control-geocoder-alternatives a:hover { color: #00E5FF !important; }
-    .leaflet-control-geocoder-throbber .leaflet-control-geocoder-icon { background-image: none !important; }
+    .acer-search-item:last-child { border-bottom: none; }
+    .acer-search-item:hover { background: rgba(0, 229, 255, 0.15); color: #00E5FF; }
     </style>
     """
     m.get_root().header.add_child(Element(custom_css))
@@ -299,11 +238,17 @@ def generate_map():
     favicon_html = '<link rel="icon" type="image/png" href="https://i.imgur.com/YhyOq9V.png">'
     m.get_root().header.add_child(Element(favicon_html))
     
-    # --- INJECT GEOCODER SEARCH BAR (Version Pinned & Body Injected) ---
-    geocoder_css = '<link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder@2.4.0/dist/Control.Geocoder.css" />'
-    geocoder_js = '<script src="https://unpkg.com/leaflet-control-geocoder@2.4.0/dist/Control.Geocoder.js"></script>'
-    m.get_root().header.add_child(Element(geocoder_css))
-    m.get_root().html.add_child(Element(geocoder_js)) # Placed in HTML body to guarantee Leaflet loads first
+    # --- INJECT NATIVE SEARCH HTML ---
+    search_html = """
+    <div id="acer-custom-search">
+        <div id="acer-search-box">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#00E5FF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+            <input type="text" id="acer-search-input" placeholder="Search any postal code, estate, or mall..." autocomplete="off">
+        </div>
+        <ul id="acer-search-results"></ul>
+    </div>
+    """
+    m.get_root().html.add_child(Element(search_html))
 
     print("[*] Plotting URA Regions (Bug Fixed: Strict Keyword Filtering)...")
 
@@ -750,78 +695,91 @@ def generate_map():
                         }
                     });
                     
-                    // --- GOOGLE MAPS STYLE SEARCH BAR INJECTION WITH RETRY ---
-                    function injectSearchBar() {
-                        if (typeof L === 'undefined' || typeof L.Control === 'undefined' || typeof L.Control.Geocoder === 'undefined') {
-                            // Search engine script not fully loaded yet, try again in 200ms
-                            setTimeout(injectSearchBar, 200);
+                    // --- NATIVE ONEMAP SG SEARCH ENGINE ---
+                    var searchInput = document.getElementById('acer-search-input');
+                    var searchResults = document.getElementById('acer-search-results');
+                    var debounceTimer;
+                    var activeSearchPin = null;
+
+                    searchInput.addEventListener('input', function() {
+                        clearTimeout(debounceTimer);
+                        var query = this.value.trim();
+                        
+                        if (query.length < 3) {
+                            searchResults.style.display = 'none';
                             return;
                         }
-                        
-                        // CUSTOM ONEMAP SG GEOCODER (Replaces generic OpenStreetMap)
-                        const OneMapGeocoder = L.Class.extend({
-                            options: { geocodeUrl: 'https://www.onemap.gov.sg/api/common/elastic/search' },
-                            geocode: function(query, cb, context) {
-                                fetch(this.options.geocodeUrl + '?searchVal=' + encodeURIComponent(query) + '&returnGeom=Y&getAddrDetails=Y&pageNum=1')
-                                .then(res => res.json())
-                                .then(data => {
-                                    var results = [];
-                                    if (data && data.results) {
-                                        for (var i = 0; i < Math.min(data.results.length, 8); i++) {
-                                            var r = data.results[i];
-                                            var lat = parseFloat(r.LATITUDE);
-                                            var lon = parseFloat(r.LONGITUDE);
-                                            var address = r.ADDRESS || r.SEARCHVAL;
-                                            
-                                            // Title Case the address for premium look
-                                            address = address.toLowerCase().split(' ').map(function(word) { 
-                                                return word.charAt(0).toUpperCase() + word.slice(1); 
-                                            }).join(' ');
-                                            
-                                            var bbox = L.latLngBounds(L.latLng(lat, lon), L.latLng(lat, lon));
-                                            
-                                            // ADDED 'html' PARAMETER TO BYPASS PLUGIN FORMATTING
-                                            results.push({ name: address, html: address, bbox: bbox, center: L.latLng(lat, lon) });
-                                        }
-                                    }
-                                    cb.call(context, results);
-                                })
-                                .catch(err => { console.error('OneMap Error:', err); cb.call(context, []); });
-                            },
-                            suggest: function(query, cb, context) { return this.geocode(query, cb, context); }
-                        });
 
-                        L.Control.geocoder({
-                            position: 'topleft', // Positions it perfectly for our custom CSS to hook it to top-center
-                            defaultMarkGeocode: false,
-                            collapsed: false,
-                            placeholder: "Search any estate, mall, or address...",
-                            geocoder: new OneMapGeocoder()
-                        }).on('markgeocode', function(e) {
-                            var bbox = e.geocode.bbox;
-                            var center = e.geocode.center;
-                            var name = e.geocode.name;
-                            
-                            // Smoothly fly to the searched location
-                            map.flyToBounds(bbox, { maxZoom: 16, duration: 1.5 });
-                            
-                            // Add a sleek pulsing ping at the search result
-                            var searchPin = L.marker(center, {
-                                icon: L.divIcon({
-                                    className: 'search-pin',
-                                    html: '<div style="background:#00E5FF; width:16px; height:16px; border-radius:50%; box-shadow:0 0 15px #00E5FF, 0 0 0 6px rgba(0,229,255,0.3); border:2px solid #FFF; transform: translate(-50%, -50%);"></div>' +
-                                          '<div style="position: absolute; top: -35px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.8); color: #00E5FF; padding: 4px 10px; border-radius: 6px; font-family: Montserrat; font-size: 11px; font-weight: 700; white-space: nowrap; border: 1px solid rgba(0,229,255,0.4);">' + name + '</div>',
-                                    iconSize: [0, 0]
-                                })
-                            }).addTo(map);
-                            
-                            // Remove the pin after 8 seconds to prevent clutter
-                            setTimeout(function() { map.removeLayer(searchPin); }, 8000);
-                            
-                        }).addTo(map);
-                    }
-                    
-                    injectSearchBar();
+                        debounceTimer = setTimeout(function() {
+                            fetch('https://www.onemap.gov.sg/api/common/elastic/search?searchVal=' + encodeURIComponent(query) + '&returnGeom=Y&getAddrDetails=Y&pageNum=1')
+                            .then(res => res.json())
+                            .then(data => {
+                                searchResults.innerHTML = '';
+                                if (data && data.results && data.results.length > 0) {
+                                    searchResults.style.display = 'block';
+                                    
+                                    var limit = Math.min(data.results.length, 6);
+                                    for (var i = 0; i < limit; i++) {
+                                        var r = data.results[i];
+                                        var lat = parseFloat(r.LATITUDE);
+                                        var lon = parseFloat(r.LONGITUDE);
+                                        var address = r.ADDRESS || r.SEARCHVAL;
+                                        
+                                        // Title Case formatting
+                                        address = address.toLowerCase().split(' ').map(function(word) { 
+                                            return word.charAt(0).toUpperCase() + word.slice(1); 
+                                        }).join(' ');
+
+                                        var li = document.createElement('li');
+                                        li.className = 'acer-search-item';
+                                        li.innerHTML = address;
+                                        
+                                        // Handle Click on Result
+                                        li.onclick = (function(targetLat, targetLon, targetAddress) {
+                                            return function() {
+                                                searchResults.style.display = 'none';
+                                                searchInput.value = targetAddress;
+                                                
+                                                // 1. Fly to location
+                                                map.flyTo([targetLat, targetLon], 16, { duration: 1.5 });
+                                                
+                                                // 2. Remove the previous search pin if it exists
+                                                if (activeSearchPin) {
+                                                    map.removeLayer(activeSearchPin);
+                                                }
+                                                
+                                                // 3. Drop new permanent pin
+                                                activeSearchPin = L.marker([targetLat, targetLon], {
+                                                    icon: L.divIcon({
+                                                        className: 'search-pin',
+                                                        html: '<div style="background:#00E5FF; width:16px; height:16px; border-radius:50%; box-shadow:0 0 15px #00E5FF, 0 0 0 6px rgba(0,229,255,0.3); border:2px solid #FFF; transform: translate(-50%, -50%);"></div>' +
+                                                              '<div style="position: absolute; top: -35px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.8); color: #00E5FF; padding: 4px 10px; border-radius: 6px; font-family: Montserrat; font-size: 11px; font-weight: 700; white-space: nowrap; border: 1px solid rgba(0,229,255,0.4); z-index: 1000;">' + targetAddress + '</div>',
+                                                        iconSize: [0, 0]
+                                                    })
+                                                }).addTo(map);
+                                            };
+                                        })(lat, lon, address);
+                                        
+                                        searchResults.appendChild(li);
+                                    }
+                                } else {
+                                    var li = document.createElement('li');
+                                    li.className = 'acer-search-item';
+                                    li.innerHTML = '<span style="color: #FF3344;">No results found for "' + query + '"</span>';
+                                    searchResults.appendChild(li);
+                                    searchResults.style.display = 'block';
+                                }
+                            })
+                            .catch(err => console.error('OneMap Error:', err));
+                        }, 300); // 300ms delay prevents spamming the API while typing
+                    });
+
+                    // Hide dropdown when clicking elsewhere on the map
+                    document.addEventListener('click', function(e) {
+                        if (e.target !== searchInput && e.target !== searchResults) {
+                            searchResults.style.display = 'none';
+                        }
+                    });
                 }
             }
         }, 1000);
